@@ -32,6 +32,21 @@ typedef struct {
 	const Arg arg;
 } Key;
 
+size_t utf8_strlen(const char *str) {
+    mbstate_t state = {0};
+    const char *s = str;
+    size_t len = 0;
+    while (*s) {
+        size_t ret = mbrlen(s, MB_CUR_MAX, &state);
+        if (ret == (size_t)-1 || ret == (size_t)-2) {
+            break;
+        }
+        s += ret;
+        len++;
+    }
+    return len;
+}
+
 void calc_ch(int *list, int y, int x, int v_y, int v_x) {
     if (v_y >= 0 && v_x >= 0) {
 		list[0] = y;
@@ -224,16 +239,18 @@ void insert_row(const Arg *arg) {
 }
 
 char* get_str(char *str0, char *str1) {
-    int key;
     int i = strlen(str0);
+    int i_utf8 = utf8_strlen(str0);
     int bufsize = 10; // Initial buffer size
     char *buffer = malloc(strlen(str0) + strlen(str1) + bufsize * sizeof(char));
 	//wcscpy(buffer, str0);
 	strcpy(buffer, str0);
 	addstr(str0);
 	addstr(str1);
-	c_x = c_x + i;
+	c_x = c_x + i_utf8;
 	wmove(stdscr, c_y, c_x);
+
+	wchar_t key;
 
     while (1) {
         key = getch();
@@ -251,7 +268,7 @@ char* get_str(char *str0, char *str1) {
             }
         }
 		else {
-            if (i == bufsize - 1) {
+            if (i == bufsize - 3) {
                 bufsize *= 2;
                 buffer = realloc(buffer, bufsize * sizeof(char));
             }
@@ -259,8 +276,8 @@ char* get_str(char *str0, char *str1) {
             buffer[i++] = key;
 			c_x++;
 			addch(key);
-			addstr(str1);
-			wmove(stdscr, c_y, c_x);
+			//addstr(str1);
+			//wmove(stdscr, c_y, c_x);
         }
     }
 
@@ -284,17 +301,11 @@ void str_change() {
 }
 
 void str_append() {
-	char cell_str[MAX_CELL_WIDTH + 1];
-	snprintf(cell_str, MAX_CELL_WIDTH + 1, "%-10s", "");
-	wmove(stdscr, c_y, c_x);
-	//strcpy(matrix[y][x], get_str(matrix[y][x], ""));
-	matrix[y][x] = strdup(get_str(matrix[y][x], ""));
+	strcpy(matrix[y][x], get_str(matrix[y][x], ""));
+	//matrix[y][x] = strdup(get_str(matrix[y][x], ""));
 }
 
 void str_insert() {
-	char cell_str[MAX_CELL_WIDTH + 1];
-	snprintf(cell_str, MAX_CELL_WIDTH + 1, "%-10s", "");
-	wmove(stdscr, c_y, c_x);
 	//strcpy(matrix[y][x], get_str(matrix[y][x], ""));
 	matrix[y][x] = strdup(get_str("", matrix[y][x]));
 }
@@ -372,7 +383,7 @@ void keypress(int key) {
 }
 
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
-	char ***matrix = malloc(100*sizeof(char **));
+	char ***matrix = malloc(100*sizeof(wchar_t **));
 	char *line_buf = NULL;
 	size_t line_buf_size = 0;
 	ssize_t line_size;
@@ -383,7 +394,7 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 		*num_cols = 0;
 		line_buf[strcspn(line_buf, "\n")] = '\0';
 		token = strtok(line_buf, ",");
-		matrix[*num_rows] = malloc(100 * sizeof(char *));
+		matrix[*num_rows] = malloc(100 * sizeof(wchar_t *));
 		if (matrix[*num_rows] == NULL) {
 			perror("Napaka pri dodeljevanju pomnilnika");
 		}
@@ -418,7 +429,7 @@ int main(int argc, char *argv[]) {
     noecho();
 	set_tabsize(MAX_CELL_WIDTH);
     keypad(stdscr, TRUE); // omogoči uporabo funkcij, kot so KEY_LEFT
-	int key;
+	wchar_t key;
 	//wrefresh();
 	int h, w;
 	int step_mv = 3;
