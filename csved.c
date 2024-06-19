@@ -1,3 +1,8 @@
+/***
+ * vse samo char
+ * uredi da bo delalo brez posodabljanja teksta ko vstavljamo
+ * get_str bom pozneje popravil
+ * ***/
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -45,6 +50,26 @@ size_t utf8_strlen(const char *str) {
         len++;
     }
     return len;
+}
+
+void write_csv(const char *filename, char ***matrix, int rows, int cols) {
+    FILE *file = fopen(filename, "w");
+    if (!file) {
+        perror("Error opening file for writing");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            fprintf(file, "%s", matrix[i][j]);
+            if (j < cols - 1) {
+                fprintf(file, ",");
+            }
+        }
+        fprintf(file, "\n");
+    }
+
+    fclose(file);
 }
 
 void calc_ch(int *list, int y, int x, int v_y, int v_x) {
@@ -238,58 +263,74 @@ void insert_row(const Arg *arg) {
 	}
 }
 
-char* get_str(char *str0, char *str1) {
-    int i = strlen(str0);
-    int i_utf8 = utf8_strlen(str0);
+char* get_str(char *str, char loc) {
     int bufsize = 10; // Initial buffer size
-    char *buffer = malloc(strlen(str0) + strlen(str1) + bufsize * sizeof(char));
-	//wcscpy(buffer, str0);
-	strcpy(buffer, str0);
-	addstr(str0);
-	addstr(str1);
-	c_x = c_x + i_utf8;
+    char *buffer = (char *) malloc(strlen(str) + bufsize * sizeof(char));
+	int i = 0;
+	strcpy(buffer, str);
+	addstr(str);
 	wmove(stdscr, c_y, c_x);
+	if (loc == 1) {
+		i = strlen(str);
+		int i_utf8 = utf8_strlen(str);
+		c_x = c_x + i_utf8;
+		wmove(stdscr, c_y, c_x);
+	}
 
-	wchar_t key;
+	int key;
+	char k = 0;
 
     while (1) {
         key = getch();
-		if (key == '\x03')
+		if (key == '\n') {
+			c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
 			break;
-		else if (key == '\n')
-			break;
+		}
+		else if (key == KEY_LEFT) {
+			while ((buffer[--i] & 0xC0) == 0x80) {
+				continue;
+			}
+			c_x--;
+			wmove(stdscr, c_y, c_x);
+		}
+		else if (key == KEY_RIGHT) {
+			while ((buffer[++i] & 0xC0) == 0x80) {
+				continue;
+			}
+			c_x++;
+			wmove(stdscr, c_y, c_x);
+		}
         else if (key == KEY_BACKSPACE) {
 			if (i > 0) {
 				c_x--;
-				buffer[--i] = '\0';
-				mvaddstr(c_y, c_x, str1);
+				while ((buffer[--i] & 0xC0) == 0x80) {
+					strcpy(buffer + i, buffer + i + 1);
+				}
+				strcpy(buffer + i, buffer + i + 1);
+				addch('\b');
+				addstr(buffer + i);
 				addch(' ');
 				wmove(stdscr, c_y, c_x);
             }
         }
 		else {
-            if (i == bufsize - 3) {
-                bufsize *= 2;
-                buffer = realloc(buffer, bufsize * sizeof(char));
-            }
-			if (key == '\t') continue; // ignore tab
-            buffer[i++] = key;
-			c_x++;
-			addch(key);
-			//addstr(str1);
-			//wmove(stdscr, c_y, c_x);
+			strcpy(buffer + i + 1, buffer + i);
+			if (key < 256) {
+				buffer[i] = (char)key;
+				addch(key);
+				if ((buffer[i] & 0xC0) != 0x80) c_x++;
+				if ((buffer[i] & 0xC0) == 0xC0) k = 1;
+				i++;
+				if (k > 0) k--;
+				else {
+					addstr(buffer + i);
+					wmove(stdscr, c_y, c_x);
+				}
+			}
         }
     }
 
-	for (int j=0; j<strlen(str1); j++)
-		buffer[i+j] = *(str1+j);
-    buffer[i + strlen(str1)] = '\0'; // Null-terminate the string
-	c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
-	if (key == '\x03') {
-		free(buffer);
-		buffer = strdup("");
-	}
-    return buffer;
+	return buffer;
 }
 
 void str_change() {
@@ -297,17 +338,17 @@ void str_change() {
 	snprintf(cell_str, MAX_CELL_WIDTH + 1, "%-10s", "");
 	addstr(cell_str);
 	wmove(stdscr, c_y, c_x);
-	strcpy(matrix[y][x], get_str("", ""));
+	strcpy(matrix[y][x], get_str("", 0));
 }
 
 void str_append() {
-	strcpy(matrix[y][x], get_str(matrix[y][x], ""));
-	//matrix[y][x] = strdup(get_str(matrix[y][x], ""));
+	strcpy(matrix[y][x], get_str(matrix[y][x], 1));
+	//matrix[y][x] = strdup(get_str(matrix[y][x], 1));
 }
 
 void str_insert() {
-	//strcpy(matrix[y][x], get_str(matrix[y][x], ""));
-	matrix[y][x] = strdup(get_str("", matrix[y][x]));
+	//strcpy(matrix[y][x], get_str(matrix[y][x], 1));
+	matrix[y][x] = strdup(get_str(matrix[y][x], 0));
 }
 
 void quit() {
