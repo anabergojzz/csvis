@@ -259,21 +259,22 @@ void insert_row(const Arg *arg) {
 }
 
 char* get_str(char *str, char loc) {
-    int bufsize = 20; // Initial buffer size
-    char *buffer = (char *) malloc(strlen(str) + bufsize * sizeof(char));
+	int str_size = strlen(str);
+    int bufsize = str_size + 20; // Initial buffer size
+    char *buffer = (char *) malloc(bufsize * sizeof(char));
 	int i = 0;
 	strcpy(buffer, str);
 	addstr(str);
 	wmove(stdscr, c_y, c_x);
 	if (loc == 1) {
-		i = strlen(str);
+		i = str_size;
 		int i_utf8 = utf8_strlen(str);
 		c_x = c_x + i_utf8;
 		wmove(stdscr, c_y, c_x);
 	}
 
 	int key;
-	char k = 0;
+	char k = 0; // to track multibyte utf8 chars
 
     while (1) {
         key = getch();
@@ -299,8 +300,10 @@ char* get_str(char *str, char loc) {
 			if (i > 0) {
 				c_x--;
 				while ((buffer[--i] & 0xC0) == 0x80) {
+					str_size--;
 					strcpy(buffer + i, buffer + i + 1);
 				}
+				str_size--;
 				strcpy(buffer + i, buffer + i + 1);
 				addch('\b');
 				addstr(buffer + i);
@@ -316,6 +319,7 @@ char* get_str(char *str, char loc) {
 				if ((buffer[i] & 0xC0) != 0x80) c_x++;
 				if ((buffer[i] & 0xC0) == 0xC0) k = 1;
 				i++;
+				str_size++;
 				if (k > 0) k--;
 				else {
 					addstr(buffer + i);
@@ -323,6 +327,10 @@ char* get_str(char *str, char loc) {
 				}
 			}
         }
+		if (str_size >= bufsize - 4) {
+			bufsize += 10;
+			buffer = (char *) realloc(buffer, bufsize*sizeof(char));
+		}
     }
 
 	return buffer;
