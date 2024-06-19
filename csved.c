@@ -5,8 +5,8 @@
 #include <wchar.h>
 #include <locale.h>
 
-#define MAX_ROWS 100
-#define MAX_COLS 100
+#define MAX_ROWS 10000
+#define MAX_COLS 10000
 #define MAX_CELL_WIDTH 5
 
 char ***matrix;
@@ -259,7 +259,7 @@ void insert_row(const Arg *arg) {
 }
 
 char* get_str(char *str, char loc) {
-    int bufsize = 10; // Initial buffer size
+    int bufsize = 20; // Initial buffer size
     char *buffer = (char *) malloc(strlen(str) + bufsize * sizeof(char));
 	int i = 0;
 	strcpy(buffer, str);
@@ -422,7 +422,7 @@ void keypress(int key, Arg targ) {
 }
 
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
-	char ***matrix = malloc(100*sizeof(wchar_t **));
+	char ***matrix = (char ***) malloc(MAX_ROWS*sizeof(char **));
 	char *line_buf = NULL;
 	size_t line_buf_size = 0;
 	ssize_t line_size;
@@ -433,7 +433,7 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 		*num_cols = 0;
 		line_buf[strcspn(line_buf, "\n")] = '\0';
 		token = strtok(line_buf, ",");
-		matrix[*num_rows] = malloc(100 * sizeof(wchar_t *));
+		matrix[*num_rows] = (char **) malloc(MAX_COLS * sizeof(char *));
 		if (matrix[*num_rows] == NULL) {
 			perror("Napaka pri dodeljevanju pomnilnika");
 		}
