@@ -1,8 +1,3 @@
-/***
- * vse samo char
- * uredi da bo delalo brez posodabljanja teksta ko vstavljamo
- * get_str bom pozneje popravil
- * ***/
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -29,6 +24,7 @@ int scr_x, scr_y;
 
 typedef union {
 	int i;
+	char *filename;
 } Arg;
 
 typedef struct {
@@ -52,22 +48,21 @@ size_t utf8_strlen(const char *str) {
     return len;
 }
 
-void write_csv(const char *filename, char ***matrix, int rows, int cols) {
-    FILE *file = fopen(filename, "w");
+void write_csv(const Arg *arg) {
+    FILE *file = fopen(arg->filename, "w");
     if (!file) {
         perror("Error opening file for writing");
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            fprintf(file, "%s", matrix[i][j]);
-            if (j < cols - 1) {
-                fprintf(file, ",");
-            }
-        }
-        fprintf(file, "\n");
-    }
+	for (int i = 0; i < num_rows; i++) {
+		for (int j = 0; j < num_cols-1; j++) {
+			fprintf(file, "%s", matrix[i][j]);
+			fprintf(file, ",");
+		}
+		fprintf(file, "%s", matrix[i][num_cols-1]);
+		fprintf(file, "\n");
+	}
 
     fclose(file);
 }
@@ -413,7 +408,8 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{KEY_RESIZE, when_resize, {0}}
+	{KEY_RESIZE, when_resize, {0}},
+	{ 's', write_csv, { .filename = "./hisa.csv" } }, // filename will be set at runtime
 };
 
 void keypress(int key) {
@@ -454,9 +450,21 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 }
 
 int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
     setlocale(LC_ALL, "");
 	int error;
-    FILE *file = fopen(argv[1], "r");
+	const char *filename = argv[1];
+    //for (int i = 0; i < sizeof(keys) / sizeof(Key); i++) {
+    //    if (keys[i].key == 's') {
+    //        keys[i].arg.filename = filename;
+    //        break;
+    //    }
+    //}
+    FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Napaka pri odpiranju datoteke");
         error = 1;
