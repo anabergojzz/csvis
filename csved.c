@@ -24,7 +24,7 @@ int scr_x, scr_y;
 
 typedef union {
 	int i;
-	char *filename;
+	const char *filename;
 } Arg;
 
 typedef struct {
@@ -409,13 +409,15 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{KEY_RESIZE, when_resize, {0}},
-	{ 's', write_csv, { .filename = "./hisa.csv" } }, // filename will be set at runtime
+	{ 's', write_csv, { .filename = NULL} }, // filename will be set at runtime
 };
 
-void keypress(int key) {
+void keypress(int key, Arg targ) {
 	for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
-		if (key == keys[i].key)
-			(*keys[i].func)(&keys[i].arg);
+		if (key == keys[i].key) {
+			if (keys[i].func == write_csv) (*keys[i].func)(&targ);
+			else (*keys[i].func)(&keys[i].arg);
+		}
 	}
 }
 
@@ -458,12 +460,7 @@ int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
 	int error;
 	const char *filename = argv[1];
-    //for (int i = 0; i < sizeof(keys) / sizeof(Key); i++) {
-    //    if (keys[i].key == 's') {
-    //        keys[i].arg.filename = filename;
-    //        break;
-    //    }
-    //}
+	const Arg targ = {.filename = filename}; //just to pass filename to write_csv func
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Napaka pri odpiranju datoteke");
@@ -488,7 +485,7 @@ int main(int argc, char *argv[]) {
 	while (1) {
 		draw();
 		key = getch();
-		keypress(key);
+		keypress(key, targ);
 	}
 
     endwin();
