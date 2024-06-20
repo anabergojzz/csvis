@@ -1,3 +1,5 @@
+// bug when displaying long input
+// memory realloc fo cols and rows
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -440,11 +442,15 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	while (line_size = getline(&line_buf, &line_buf_size, file) >= 0) {
 		*num_cols = 0;
 		line_buf[strcspn(line_buf, "\n")] = '\0';
-		token = strtok(line_buf, ",");
 		matrix[*num_rows] = (char **) malloc(MAX_COLS * sizeof(char *));
 		if (matrix[*num_rows] == NULL) {
 			perror("Napaka pri dodeljevanju pomnilnika");
 		}
+		if (line_buf[0] == ',') {
+			matrix[*num_rows][*num_cols] = strdup("");
+			(*num_cols)++;
+		}
+		token = strtok(line_buf, ",");
 		matrix[*num_rows][*num_cols] = strdup(token);
 		(*num_cols)++;
 		while ((token = strtok(NULL, ",")) != NULL) {
