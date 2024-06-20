@@ -1,4 +1,4 @@
-// bug when displaying long input
+// bug when displaying long input if inserting
 // memory realloc fo cols and rows
 #include <stdio.h>
 #include <stdlib.h>
@@ -262,7 +262,7 @@ void insert_row(const Arg *arg) {
 
 char* get_str(char *str, char loc) {
 	int str_size = strlen(str);
-    int bufsize = str_size + 20; // Initial buffer size
+    int bufsize = str_size + 10; // Initial buffer size
     char *buffer = (char *) malloc(bufsize * sizeof(char));
 	int i = 0;
 	strcpy(buffer, str);
@@ -343,16 +343,14 @@ void str_change() {
 	snprintf(cell_str, MAX_CELL_WIDTH + 1, "%-10s", "");
 	addstr(cell_str);
 	wmove(stdscr, c_y, c_x);
-	strcpy(matrix[y][x], get_str("", 0));
+	matrix[y][x] = strdup(get_str("", 0));
 }
 
 void str_append() {
-	strcpy(matrix[y][x], get_str(matrix[y][x], 1));
-	//matrix[y][x] = strdup(get_str(matrix[y][x], 1));
+	matrix[y][x] = strdup(get_str(matrix[y][x], 1));
 }
 
 void str_insert() {
-	//strcpy(matrix[y][x], get_str(matrix[y][x], 1));
 	matrix[y][x] = strdup(get_str(matrix[y][x], 0));
 }
 
@@ -369,15 +367,28 @@ void quit() {
 }
 
 void visual_start() {
-	mode = 'v';
-	c_y0 = c_y;
-	c_x0 = c_x;
-	s_y0 = s_y;
-	s_x0 = s_x;
-	ch[0] = y;
-	ch[1] = y + 1;
-	ch[2] = x;
-	ch[3] = x + 1;
+	if (mode != 'v') {
+		mode = 'v';
+		c_y0 = c_y;
+		c_x0 = c_x;
+		s_y0 = s_y;
+		s_x0 = s_x;
+		// could add x0 = x and simplify all movement functions
+		ch[0] = y;
+		ch[1] = y + 1;
+		ch[2] = x;
+		ch[3] = x + 1;
+	}
+	else {
+		mode = 'n';
+		v_y = 0;
+		v_x = 0;
+		ch[0], ch[1], ch[2], ch[3] = 0;
+		c_y = c_y0;
+		c_x = c_x0;
+		s_y = s_y0;
+		s_x = s_x0;
+	}
 }
  
 void visual_end() {
