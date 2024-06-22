@@ -1,6 +1,6 @@
 // bug when displaying input longer then terminal width
 // bug when inserting and moving string in front
-// check if memmory can be freed anywhere
+// check if memory can be freed anywhere
 // memory realloc fo cols and rows
 // chack if visual can be changed to simplify movement functions
 // utf8 chars format to cell width
@@ -285,6 +285,7 @@ char* get_str(char *str, char loc) {
 		i = str_size;
 		i_utf8 += utf8_strlen(str);
 	}
+	int cx_add, cy_add = 0;
 
 	int key;
 	char k = 0; // to track multibyte utf8 chars
@@ -296,7 +297,15 @@ char* get_str(char *str, char loc) {
 			mvprintw(c_y, c_x, "%*s", MAX_CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer);
 			addch(' ');
-			wmove(stdscr, c_y, c_x + i_utf8);
+			if ((cols - c_x) > i_utf8) {
+				cx_add = i_utf8;
+				cy_add = 0;
+			}
+			else {
+				cx_add = (i_utf8 - (cols - c_x))%cols - c_x;
+				cy_add = 1 + (i_utf8 - (cols - c_x))/cols;
+			}
+			wmove(stdscr, c_y + cy_add, c_x + cx_add);
 		}
         key = getch();
 		if (key == '\n') {
