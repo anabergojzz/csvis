@@ -312,16 +312,20 @@ char* get_str(char *str, char loc) {
 			break;
 		}
 		else if (key == KEY_LEFT) {
-			while ((buffer[--i] & 0xC0) == 0x80) {
-				continue;
+			if (i > 0) {
+				while ((buffer[--i] & 0xC0) == 0x80) {
+					continue;
+				}
+				i_utf8--;
 			}
-			i_utf8--;
 		}
 		else if (key == KEY_RIGHT) {
-			while ((buffer[++i] & 0xC0) == 0x80) {
-				continue;
+			if (i < str_size) {
+				while ((buffer[++i] & 0xC0) == 0x80) {
+					continue;
+				}
+				i_utf8++;
 			}
-			i_utf8++;
 		}
         else if (key == KEY_BACKSPACE) {
 			if (i > 0) {
