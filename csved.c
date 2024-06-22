@@ -1,5 +1,10 @@
-// bug when displaying long input if inserting
+// bug when displaying input longer then terminal width
+// bug when inserting and moving string in front
+// check if memmory can be freed anywhere
 // memory realloc fo cols and rows
+// update s_x, s_y to move to current cell after resizing
+// chack if visual can be changed to simplify movement functions
+// utf8 chars format to cell width
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -98,15 +103,13 @@ void calc_ch(int *list, int y, int x, int v_y, int v_x) {
 
 void draw() {
 	clear();
-	char cell_str[MAX_CELL_WIDTH + 1];
 	for (int i = 0; i < scr_y; i++) {
 		for (int j = 0; j < scr_x && matrix[i][j] != NULL; j++) {
-			snprintf(cell_str, MAX_CELL_WIDTH + 1, "%-10s", matrix[i + s_y][j + s_x]);
 			if (ch[0] <= s_y + i && s_y + i < ch[1] && ch[2] <= s_x + j && s_x + j < ch[3]) {
 				attron(A_STANDOUT);
 			}
 			else attroff(A_STANDOUT);
-			mvprintw(i, j * MAX_CELL_WIDTH, "%s", cell_str);
+			mvprintw(i, j * MAX_CELL_WIDTH, "%.*s", MAX_CELL_WIDTH-1, matrix[i + s_y][j + s_x]);
 		}
 	}
 	wmove(stdscr, c_y, c_x);
@@ -266,7 +269,8 @@ char* get_str(char *str, char loc) {
     char *buffer = (char *) malloc(bufsize * sizeof(char));
 	int i = 0;
 	strcpy(buffer, str);
-	addstr(str);
+	printw("%*s", MAX_CELL_WIDTH, "");
+	mvaddstr(c_y, c_x, str);
 	wmove(stdscr, c_y, c_x);
 	if (loc == 1) {
 		i = str_size;
@@ -339,10 +343,6 @@ char* get_str(char *str, char loc) {
 }
 
 void str_change() {
-	char cell_str[MAX_CELL_WIDTH + 1];
-	snprintf(cell_str, MAX_CELL_WIDTH + 1, "%-10s", "");
-	addstr(cell_str);
-	wmove(stdscr, c_y, c_x);
 	matrix[y][x] = strdup(get_str("", 0));
 }
 
