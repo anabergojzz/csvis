@@ -2,7 +2,6 @@
 // bug when inserting and moving string in front
 // check if memmory can be freed anywhere
 // memory realloc fo cols and rows
-// update s_x, s_y to move to current cell after resizing
 // chack if visual can be changed to simplify movement functions
 // utf8 chars format to cell width
 #include <stdio.h>
@@ -209,14 +208,26 @@ void move_left(const Arg *arg) {
 
 void when_resize() {
 	getmaxyx(stdscr, rows, cols);
-	if (num_cols*MAX_CELL_WIDTH < cols) {
-		scr_x = num_cols;
+	if ((num_cols - s_x)*MAX_CELL_WIDTH < cols) {
+		scr_x = num_cols - s_x;
 	}
 	else scr_x = cols/MAX_CELL_WIDTH;
-	if (num_rows < rows)  {
-		scr_y = num_rows;
+	if (num_rows - s_y < rows)  {
+		scr_y = num_rows - s_y;
 	}
 	else scr_y = rows;
+	if (c_y < scr_y)
+		c_y = y + v_y - s_y;
+	else {
+		c_y = scr_y - 1;
+		s_y = y + v_y - (scr_y - 1);
+	}
+	if (c_x < scr_x*MAX_CELL_WIDTH)
+		c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
+	else {
+		c_x = (scr_x - 1)*MAX_CELL_WIDTH;
+		s_x = x + v_x - (scr_x - 1);
+	}
 }
 
 void insert_col(const Arg *arg) {
@@ -429,7 +440,6 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{KEY_RESIZE, when_resize, {0}},
 	{ 's', write_csv, { .filename = NULL} }, // filename will be set at runtime
 };
 
@@ -505,9 +515,8 @@ int main(int argc, char *argv[]) {
 	int h, w;
 	int step_mv = 3;
 
-	when_resize();
-
 	while (1) {
+		when_resize();
 		draw();
 		key = getch();
 		keypress(key, targ);
