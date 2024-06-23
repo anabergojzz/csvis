@@ -344,17 +344,17 @@ char* get_str(char* str, char loc) {
 				i_utf8--;
 				while ((buffer[--i] & 0xC0) == 0x80) {
 					str_size--;
-					strcpy(buffer + i, buffer + i + 1);
+					memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
 				}
 				str_size--;
-				strcpy(buffer + i, buffer + i + 1);
+				memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
             }
         }
 		else if (key == KEY_RESIZE) {
 			when_resize();
 		}
 		else {
-			strcpy(buffer + i + 1, buffer + i);
+			memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
 			if (key < 256) {
 				buffer[i] = (char)key;
 				if ((buffer[i] & 0xC0) != 0x80) i_utf8++;
