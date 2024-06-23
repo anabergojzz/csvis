@@ -1,5 +1,3 @@
-// bug when displaying input longer then terminal width
-// bug when inserting and moving string in front
 // check if memory can be freed anywhere
 // memory realloc fo cols and rows
 // chack if visual can be changed to simplify movement functions
@@ -274,13 +272,17 @@ void insert_row(const Arg *arg) {
 	}
 }
 
-char* get_str(char *str, char loc) {
-	int str_size = strlen(str);
-    int bufsize = str_size + 10; // Initial buffer size
-    char *buffer = (char *) malloc(bufsize * sizeof(char));
+char* get_str(char* str, char loc) {
+	ssize_t str_size = strlen(str);
+    ssize_t bufsize = str_size + 10; // Initial buffer size
+    char* buffer = (char*) malloc(bufsize * sizeof(char));
+    if (buffer == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(1);
+    }
+	strcpy(buffer, str);
 	int i = 0;
 	int i_utf8 = 0;
-	strcpy(buffer, str);
 	if (loc == 1) {
 		i = str_size;
 		i_utf8 += utf8_strlen(str);
@@ -291,6 +293,16 @@ char* get_str(char *str, char loc) {
 	char k = 0; // to track multibyte utf8 chars
 
     while (1) {
+        if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
+            bufsize += 10;
+            char* new_buffer = (char*)realloc(buffer, bufsize * sizeof(char));
+            if (new_buffer == NULL) {
+                free(buffer);
+                fprintf(stderr, "Memory reallocation failed\n");
+                exit(1);
+            }
+            buffer = new_buffer;
+        }
 		if (k > 0) k--;
 		else {
 			draw();
@@ -351,10 +363,6 @@ char* get_str(char *str, char loc) {
 				str_size++;
 			}
         }
-		if (str_size >= bufsize - 4) {
-			bufsize += 10;
-			buffer = (char *) realloc(buffer, bufsize*sizeof(char));
-		}
     }
 
 	return buffer;
