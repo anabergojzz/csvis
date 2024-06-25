@@ -228,7 +228,8 @@ void when_resize() {
 		c_y = scr_y - 1;
 		s_y = y + v_y - (scr_y - 1);
 	}
-	if (c_x < scr_x*MAX_CELL_WIDTH)
+	if (scr_x == 0);
+	else if (c_x < scr_x*MAX_CELL_WIDTH)
 		c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
 	else {
 		c_x = (scr_x - 1)*MAX_CELL_WIDTH;
