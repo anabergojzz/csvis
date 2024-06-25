@@ -1,5 +1,4 @@
 // check if memory can be freed anywhere
-// memory realloc for cols and rows
 // chack if visual can be changed to simplify movement functions
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,9 +7,7 @@
 //#include <wchar.h>
 #include <locale.h>
 
-#define MAX_ROWS 10000
-#define MAX_COLS 10000
-#define MAX_CELL_WIDTH 10
+#define CELL_WIDTH 10
 
 char ***matrix;
 int num_rows, num_cols;
@@ -107,14 +104,14 @@ void draw() {
 			else attroff(A_STANDOUT);
 			char* xy = matrix[i + s_y][j + s_x];
 			int utf8_w = 0;
-			for (int k = 0; k < MAX_CELL_WIDTH*4; k++) {
+			for (int k = 0; k < CELL_WIDTH*4; k++) {
 				if ((xy[k] & 0xC0) != 0xC0) utf8_w++;
-				if (utf8_w == MAX_CELL_WIDTH) {
+				if (utf8_w == CELL_WIDTH) {
 					utf8_w = k;
 					break;
 				}
 			}
-			mvprintw(i, j * MAX_CELL_WIDTH, "%.*s", utf8_w, xy);
+			mvprintw(i, j * CELL_WIDTH, "%.*s", utf8_w, xy);
 		}
 	}
 	wmove(stdscr, c_y, c_x);
@@ -181,10 +178,10 @@ void move_right(const Arg *arg) {
 		}
 		else x = num_cols - 1;
 	}
-	if (c_x < (scr_x - arg->i)*MAX_CELL_WIDTH && arg->i != 0)
-		c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
+	if (c_x < (scr_x - arg->i)*CELL_WIDTH && arg->i != 0)
+		c_x = (x + v_x - s_x)*CELL_WIDTH;
 	else {
-		c_x = (scr_x - 1)*MAX_CELL_WIDTH;
+		c_x = (scr_x - 1)*CELL_WIDTH;
 		s_x = x + v_x - (scr_x - 1);
 	}
 }
@@ -205,7 +202,7 @@ void move_left(const Arg *arg) {
 		else x = 0;
 	}
 	if (c_x >= arg->i && arg->i != 0)
-		c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
+		c_x = (x + v_x - s_x)*CELL_WIDTH;
 	else {
 		c_x = 0;
 		s_x = x + v_x;
@@ -214,10 +211,10 @@ void move_left(const Arg *arg) {
 
 void when_resize() {
 	getmaxyx(stdscr, rows, cols);
-	if ((num_cols - s_x)*MAX_CELL_WIDTH < cols) {
+	if ((num_cols - s_x)*CELL_WIDTH < cols) {
 		scr_x = num_cols - s_x;
 	}
-	else scr_x = cols/MAX_CELL_WIDTH;
+	else scr_x = cols/CELL_WIDTH;
 	if (num_rows - s_y < rows)  {
 		scr_y = num_rows - s_y;
 	}
@@ -229,10 +226,10 @@ void when_resize() {
 		s_y = y + v_y - (scr_y - 1);
 	}
 	if (scr_x == 0);
-	else if (c_x < scr_x*MAX_CELL_WIDTH)
-		c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
+	else if (c_x < scr_x*CELL_WIDTH)
+		c_x = (x + v_x - s_x)*CELL_WIDTH;
 	else {
-		c_x = (scr_x - 1)*MAX_CELL_WIDTH;
+		c_x = (scr_x - 1)*CELL_WIDTH;
 		s_x = x + v_x - (scr_x - 1);
 	}
 }
@@ -246,15 +243,15 @@ void insert_col(const Arg *arg) {
 		matrix[i][x + arg->i] = strdup("");
 	}
 	num_cols++;
-	if (num_cols*MAX_CELL_WIDTH < cols) {
+	if (num_cols*CELL_WIDTH < cols) {
 		scr_x = num_cols;
 	}
-	else scr_x = cols/MAX_CELL_WIDTH;
+	else scr_x = cols/CELL_WIDTH;
 	x = x + arg->i;
-	if (c_x < (scr_x - arg->i)*MAX_CELL_WIDTH)
-		c_x = (x + v_x - s_x)*MAX_CELL_WIDTH;
+	if (c_x < (scr_x - arg->i)*CELL_WIDTH)
+		c_x = (x + v_x - s_x)*CELL_WIDTH;
 	else {
-		c_x = (scr_x - 1)*MAX_CELL_WIDTH;
+		c_x = (scr_x - 1)*CELL_WIDTH;
 		s_x = x + v_x - (scr_x - 1);
 	}
 }
@@ -315,7 +312,7 @@ char* get_str(char* str, char loc) {
 		if (k > 0) k--;
 		else {
 			draw();
-			mvprintw(c_y, c_x, "%*s", MAX_CELL_WIDTH, ""); // clear cell
+			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer);
 			addch(' ');
 			if ((cols - c_x) > i_utf8) {
@@ -477,36 +474,75 @@ void keypress(int key, Arg targ) {
 }
 
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
-	char ***matrix = (char ***) malloc(MAX_ROWS*sizeof(char **));
+	int buff_rows, buff_cols = 20;
+	char ***matrix = (char ***) malloc(buff_rows*sizeof(char **));
+    if (!matrix) {
+        perror("Napaka pri dodeljevanju pomnilnika za vrstice");
+        return NULL;
+    }
 	char *line_buf = NULL;
 	size_t line_buf_size = 0;
 	ssize_t line_size;
-	char *token;
 	*num_rows = 0;
 
 	while (line_size = getline(&line_buf, &line_buf_size, file) >= 0) {
-		*num_cols = 0;
+        if (*num_rows >= buff_rows - 2) { // If buffer is nearly full, increase its size
+            buff_rows += 50;
+            char*** new_matrix = (char***)realloc(matrix, buff_rows * sizeof(char**));
+            if (new_matrix == NULL) {
+                free(matrix);
+                fprintf(stderr, "Memory reallocation failed\n");
+                exit(1);
+            }
+            matrix = new_matrix;
+        }
 		line_buf[strcspn(line_buf, "\n")] = '\0';
-		matrix[*num_rows] = (char **) malloc(MAX_COLS * sizeof(char *));
-		if (matrix[*num_rows] == NULL) {
-			perror("Napaka pri dodeljevanju pomnilnika");
-		}
+		matrix[*num_rows] = (char **) malloc(buff_cols * sizeof(char *));
+        if (!matrix[*num_rows]) {
+            perror("Napaka pri dodeljevanju pomnilnika za stolpce");
+            for (int i = 0; i < *num_rows; i++) {
+                free(matrix[i]);
+            }
+            free(matrix);
+            return NULL;
+        }
+
+		*num_cols = 0;
 		if (line_buf[0] == ',') {
 			matrix[*num_rows][*num_cols] = strdup("");
 			(*num_cols)++;
 		}
-		token = strtok(line_buf, ",");
-		matrix[*num_rows][*num_cols] = strdup(token);
-		(*num_cols)++;
-		while ((token = strtok(NULL, ",")) != NULL) {
+		char* token = strtok(line_buf, ",");
+		while (token != NULL) {
+			if (*num_cols >= buff_cols - 2) { // If buffer is nearly full, increase its size
+				buff_cols += 50;
+				char** new_buffer = (char**)realloc(matrix[*num_rows], buff_cols * sizeof(char*));
+                if (!new_buffer) {
+                    perror("Napaka pri dodeljevanju pomnilnika za stolpce");
+                    for (int i = 0; i < *num_rows; i++) {
+                        free(matrix[i]);
+                    }
+                    free(matrix);
+                    return NULL;
+                }
+				matrix[*num_rows] = new_buffer;
+			}
 			matrix[*num_rows][*num_cols] = strdup(token);
+            if (!matrix[*num_rows][*num_cols]) {
+                perror("Napaka pri podvajanju niza");
+                for (int i = 0; i < *num_rows; i++) {
+                    free(matrix[i]);
+                }
+                free(matrix);
+                return NULL;
+            }
 			(*num_cols)++;
+			token = strtok(NULL, ",");
 		}
 		(*num_rows)++;
-		free(line_buf);
-		line_buf = NULL;
 	}
 
+	free(line_buf);
 	return matrix;
 }
 
@@ -532,7 +568,7 @@ int main(int argc, char *argv[]) {
     cbreak();
 	raw();
     noecho();
-	set_tabsize(MAX_CELL_WIDTH);
+	set_tabsize(CELL_WIDTH);
     keypad(stdscr, TRUE); // omogoči uporabo funkcij, kot so KEY_LEFT
 	int key;
 	//wrefresh();
