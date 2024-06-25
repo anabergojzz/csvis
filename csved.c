@@ -1,17 +1,16 @@
 // check if memory can be freed anywhere
-// memory realloc fo cols and rows
+// memory realloc for cols and rows
 // chack if visual can be changed to simplify movement functions
-// utf8 chars format to cell width
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
 #include <string.h>
-#include <wchar.h>
+//#include <wchar.h>
 #include <locale.h>
 
 #define MAX_ROWS 10000
 #define MAX_COLS 10000
-#define MAX_CELL_WIDTH 5
+#define MAX_CELL_WIDTH 10
 
 char ***matrix;
 int num_rows, num_cols;
@@ -101,12 +100,21 @@ void calc_ch(int *list, int y, int x, int v_y, int v_x) {
 void draw() {
 	clear();
 	for (int i = 0; i < scr_y; i++) {
-		for (int j = 0; j < scr_x && matrix[i][j] != NULL; j++) {
+		for (int j = 0; j < scr_x; j++) {
 			if (ch[0] <= s_y + i && s_y + i < ch[1] && ch[2] <= s_x + j && s_x + j < ch[3]) {
 				attron(A_STANDOUT);
 			}
 			else attroff(A_STANDOUT);
-			mvprintw(i, j * MAX_CELL_WIDTH, "%.*s", MAX_CELL_WIDTH-1, matrix[i + s_y][j + s_x]);
+			char* xy = matrix[i + s_y][j + s_x];
+			int utf8_w = 0;
+			for (int k = 0; k < MAX_CELL_WIDTH*4; k++) {
+				if ((xy[k] & 0xC0) != 0xC0) utf8_w++;
+				if (utf8_w == MAX_CELL_WIDTH) {
+					utf8_w = k;
+					break;
+				}
+			}
+			mvprintw(i, j * MAX_CELL_WIDTH, "%.*s", utf8_w, xy);
 		}
 	}
 	wmove(stdscr, c_y, c_x);
@@ -525,7 +533,7 @@ int main(int argc, char *argv[]) {
     noecho();
 	set_tabsize(MAX_CELL_WIDTH);
     keypad(stdscr, TRUE); // omogoči uporabo funkcij, kot so KEY_LEFT
-	wchar_t key;
+	int key;
 	//wrefresh();
 	int h, w;
 	int step_mv = 3;
