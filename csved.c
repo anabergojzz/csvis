@@ -1,4 +1,3 @@
-// chack if visual can be changed to simplify movement functions
 // delete row, column
 #include <stdio.h>
 #include <stdlib.h>
@@ -278,6 +277,22 @@ void insert_row(const Arg *arg) {
 	}
 }
 
+void delete_row(const Arg *arg) {
+	if (num_rows != 1) {
+		for (int i = 0; i < num_cols; i++) {
+			free(matrix[y][i]);
+		}
+		free(matrix[y]);
+
+		for (int i = y; i < num_rows - 1; i++) {
+			matrix[i] = matrix[i + 1];
+		}
+		matrix[num_rows - 1] = NULL;
+		num_rows--;
+		if (y == num_rows) y--;
+	}
+}
+
 char* get_str(char* str, char loc) {
 	ssize_t str_size = strlen(str);
     ssize_t bufsize = str_size + 10; // Initial buffer size
@@ -414,7 +429,6 @@ void visual_start() {
 		c_x0 = c_x;
 		s_y0 = s_y;
 		s_x0 = s_x;
-		// could add x0 = x and simplify all movement functions
 		ch[0] = y;
 		ch[1] = y + 1;
 		ch[2] = x;
@@ -471,6 +485,7 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{'s', write_csv, { .filename = NULL} }, // filename will be set at runtime
+	{'d', delete_row, {0}}
 };
 
 void keypress(int key, Arg targ) {
