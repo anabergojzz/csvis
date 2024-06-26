@@ -1,4 +1,3 @@
-// check if memory can be freed anywhere
 // chack if visual can be changed to simplify movement functions
 // delete row, column
 #include <stdio.h>
@@ -376,15 +375,24 @@ char* get_str(char* str, char loc) {
 }
 
 void str_change() {
-	matrix[y][x] = strdup(get_str("", 0));
+    char* temp = get_str("", 0);
+	free(matrix[y][x]);
+    matrix[y][x] = strdup(temp);
+    free(temp);
 }
 
 void str_append() {
-	matrix[y][x] = strdup(get_str(matrix[y][x], 1));
+	char* temp = get_str(matrix[y][x], 1);
+	free(matrix[y][x]);
+    matrix[y][x] = strdup(temp);
+    free(temp);
 }
 
 void str_insert() {
-	matrix[y][x] = strdup(get_str(matrix[y][x], 0));
+	char* temp = get_str(matrix[y][x], 0);
+	free(matrix[y][x]);
+    matrix[y][x] = strdup(temp);
+    free(temp);
 }
 
 void quit() {
@@ -462,7 +470,7 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{ 's', write_csv, { .filename = NULL} }, // filename will be set at runtime
+	{'s', write_csv, { .filename = NULL} }, // filename will be set at runtime
 };
 
 void keypress(int key, Arg targ) {
