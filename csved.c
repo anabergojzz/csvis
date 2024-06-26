@@ -400,39 +400,6 @@ char* get_str(char* str, char loc) {
 	return buffer;
 }
 
-void str_change() {
-    char* temp = get_str("", 0);
-	free(matrix[y][x]);
-    matrix[y][x] = strdup(temp);
-    free(temp);
-}
-
-void str_append() {
-	char* temp = get_str(matrix[y][x], 1);
-	free(matrix[y][x]);
-    matrix[y][x] = strdup(temp);
-    free(temp);
-}
-
-void str_insert() {
-	char* temp = get_str(matrix[y][x], 0);
-	free(matrix[y][x]);
-    matrix[y][x] = strdup(temp);
-    free(temp);
-}
-
-void quit() {
-	endwin();
-	for (int i = 0; i < num_rows; i++) {
-		for (int j = 0; j < num_cols && matrix[i][j] != NULL; j++) {
-			free(matrix[i][j]);
-		}
-		free(matrix[i]);
-	}
-	free(matrix);
-	exit(0);
-}
-
 void visual_start() {
 	if (mode != 'v') {
 		mode = 'v';
@@ -466,6 +433,42 @@ void visual_end() {
 	c_x = c_x0;
 	s_y = s_y0;
 	s_x = s_x0;
+}
+
+void str_change() {
+	if (mode == 'v') visual_end();
+    char* temp = get_str("", 0);
+	free(matrix[y][x]);
+    matrix[y][x] = strdup(temp);
+    free(temp);
+}
+
+void str_append() {
+	if (mode == 'v') visual_end();
+	char* temp = get_str(matrix[y][x], 1);
+	free(matrix[y][x]);
+    matrix[y][x] = strdup(temp);
+    free(temp);
+}
+
+void str_insert() {
+	if (mode == 'v') visual_end();
+	char* temp = get_str(matrix[y][x], 0);
+	free(matrix[y][x]);
+    matrix[y][x] = strdup(temp);
+    free(temp);
+}
+
+void quit() {
+	endwin();
+	for (int i = 0; i < num_rows; i++) {
+		for (int j = 0; j < num_cols && matrix[i][j] != NULL; j++) {
+			free(matrix[i][j]);
+		}
+		free(matrix[i]);
+	}
+	free(matrix);
+	exit(0);
 }
 
 static Key keys[] = {
