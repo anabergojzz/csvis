@@ -1,7 +1,7 @@
 // check if memory can be freed anywhere
 // chack if visual can be changed to simplify movement functions
 // delete row, column
-// empty file
+// 'b' movement check
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -549,8 +549,20 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	size_t line_buf_size = 0;
 	ssize_t line_size;
 	*num_rows = 0;
+	*num_cols = 0;
 
-	while (line_size = getline(&line_buf, &line_buf_size, file) >= 0) {
+	if ((line_size = getline(&line_buf, &line_buf_size, file)) == -1) {
+		matrix[*num_rows] = (char **) malloc(buff_cols * sizeof(char *));
+		 if (!matrix[0]) {
+            perror("Napaka pri dodeljevanju pomnilnika za stolpce");
+            free(matrix);
+            return NULL;
+        }
+		matrix[*num_rows][*num_cols] = strdup("");
+		(*num_cols)++;
+		(*num_rows)++;
+	}
+	while (line_size >= 0) {
         if (*num_rows >= buff_rows - 2) { // If buffer is nearly full, increase its size
             buff_rows += 50;
             char*** new_matrix = (char***)realloc(matrix, buff_rows * sizeof(char**));
@@ -562,20 +574,11 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
             matrix = new_matrix;
         }
 		line_buf[strcspn(line_buf, "\n")] = '\0';
-		matrix[*num_rows] = (char **) malloc(buff_cols * sizeof(char *));
-        if (!matrix[*num_rows]) {
-            perror("Napaka pri dodeljevanju pomnilnika za stolpce");
-            for (int i = 0; i < *num_rows; i++) {
-                free(matrix[i]);
-            }
-            free(matrix);
-            return NULL;
-        }
-
-		*num_cols = 0;
 
 		matrix[*num_rows] = split_string(line_buf, ',', num_cols);
+
 		(*num_rows)++;
+		line_size = getline(&line_buf, &line_buf_size, file);
 	}
 
 	free(line_buf);
