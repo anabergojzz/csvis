@@ -1,5 +1,7 @@
 // check if memory can be freed anywhere
 // chack if visual can be changed to simplify movement functions
+// delete row, column
+// empty file
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -473,6 +475,69 @@ void keypress(int key, Arg targ) {
 	}
 }
 
+char **split_string(const char* str, const char delimiter, int* num_tokens) {
+    int count = 1;
+    const char *tmp = str;
+    char **result = NULL;
+    char *token;
+    char delim[2];
+    delim[0] = delimiter;
+    delim[1] = '\0';
+
+    // Preštej število elementov
+    while (*tmp) {
+        if (*tmp == delimiter) {
+            count++;
+        }
+        tmp++;
+    }
+
+    // Dodeli pomnilnik za shranjevanje podnizov
+    result = (char **) malloc((count + 2) * sizeof(char *));
+    if (!result) {
+        perror("Napaka pri dodeljevanju pomnilnika");
+        return NULL;
+    }
+
+    int i = 0;
+    tmp = str;
+    while (*tmp) {
+        const char *start = tmp;
+        while (*tmp && *tmp != delimiter) {
+            tmp++;
+        }
+
+        // Dodeli in kopiraj podniz
+        if (start == tmp) {
+            result[i] = strdup("");
+        } else {
+            result[i] = (char *) malloc((tmp - start + 1) * sizeof(char));
+            if (!result[i]) {
+                perror("Napaka pri dodeljevanju pomnilnika");
+                for (int j = 0; j < i; j++) {
+                    free(result[j]);
+                }
+                free(result);
+                return NULL;
+            }
+            strncpy(result[i], start, tmp - start);
+            result[i][tmp - start] = '\0';
+        }
+        i++;
+        if (*tmp) {
+            tmp++;
+        }
+    }
+	if (*(tmp - 1) == delimiter) {
+        result[i] = strdup("");
+        i++;
+    }
+    result[i] = NULL;
+    *num_tokens = i;
+
+    return result;
+}
+
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	int buff_rows, buff_cols = 20;
 	char ***matrix = (char ***) malloc(buff_rows*sizeof(char **));
@@ -508,37 +573,8 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
         }
 
 		*num_cols = 0;
-		if (line_buf[0] == ',') {
-			matrix[*num_rows][*num_cols] = strdup("");
-			(*num_cols)++;
-		}
-		char* token = strtok(line_buf, ",");
-		while (token != NULL) {
-			if (*num_cols >= buff_cols - 2) { // If buffer is nearly full, increase its size
-				buff_cols += 50;
-				char** new_buffer = (char**)realloc(matrix[*num_rows], buff_cols * sizeof(char*));
-                if (!new_buffer) {
-                    perror("Napaka pri dodeljevanju pomnilnika za stolpce");
-                    for (int i = 0; i < *num_rows; i++) {
-                        free(matrix[i]);
-                    }
-                    free(matrix);
-                    return NULL;
-                }
-				matrix[*num_rows] = new_buffer;
-			}
-			matrix[*num_rows][*num_cols] = strdup(token);
-            if (!matrix[*num_rows][*num_cols]) {
-                perror("Napaka pri podvajanju niza");
-                for (int i = 0; i < *num_rows; i++) {
-                    free(matrix[i]);
-                }
-                free(matrix);
-                return NULL;
-            }
-			(*num_cols)++;
-			token = strtok(NULL, ",");
-		}
+
+		matrix[*num_rows] = split_string(line_buf, ',', num_cols);
 		(*num_rows)++;
 	}
 
