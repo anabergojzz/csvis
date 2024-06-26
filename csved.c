@@ -1,7 +1,6 @@
 // check if memory can be freed anywhere
 // chack if visual can be changed to simplify movement functions
 // delete row, column
-// 'b' movement check
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -203,7 +202,7 @@ void move_left(const Arg *arg) {
 		}
 		else x = 0;
 	}
-	if (c_x >= arg->i && arg->i != 0)
+	if (c_x >= (arg->i)*CELL_WIDTH && arg->i != 0)
 		c_x = (x + v_x - s_x)*CELL_WIDTH;
 	else {
 		c_x = 0;
