@@ -1,4 +1,3 @@
-// delete row, column
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -279,17 +278,29 @@ void insert_row(const Arg *arg) {
 
 void delete_row(const Arg *arg) {
 	if (num_rows != 1) {
-		for (int i = 0; i < num_cols; i++) {
+		for (int i = 0; i < num_cols; i++)
 			free(matrix[y][i]);
-		}
 		free(matrix[y]);
 
-		for (int i = y; i < num_rows - 1; i++) {
+		for (int i = y; i < num_rows - 1; i++)
 			matrix[i] = matrix[i + 1];
-		}
+
 		matrix[num_rows - 1] = NULL;
 		num_rows--;
 		if (y == num_rows) y--;
+	}
+}
+
+void delete_col(const Arg *arg) {
+	if (num_cols != 1) {
+		for (int j = 0; j < num_rows; j++) {
+			free(matrix[j][x]);
+			for (int i = x; i < num_cols - 1; i++)
+				matrix[j][i] = matrix[j][i + 1];
+			matrix[j][num_cols - 1] = NULL;
+		}
+		num_cols--;
+		if (x == num_cols) x--;
 	}
 }
 
@@ -485,7 +496,8 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{'s', write_csv, { .filename = NULL} }, // filename will be set at runtime
-	{'d', delete_row, {0}}
+	{'d', delete_row, {0}},
+	{'D', delete_col, {0}}
 };
 
 void keypress(int key, Arg targ) {
