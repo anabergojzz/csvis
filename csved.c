@@ -445,6 +445,16 @@ void visual_end() {
 	s_x = s_x0;
 }
 
+void wipe_cells() {
+	for (int i=ch[0]; i<ch[1]; i++) {
+		for (int j=ch[2]; j<ch[3]; j++) {
+			free(matrix[i][j]);
+			matrix[i][j] = strdup("");
+		}
+	}
+	visual_end();
+}
+
 void str_change() {
 	if (mode == 'v') visual_end();
     char* temp = get_str("", 0);
@@ -509,6 +519,7 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{'s', write_csv, { .filename = NULL} }, // filename will be set at runtime
+	{'n', wipe_cells, {0}},
 	{'d', delete_row, {0}},
 	{'D', delete_col, {0}}
 };
