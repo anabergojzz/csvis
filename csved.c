@@ -130,12 +130,8 @@ void move_down(const Arg *arg) {
 		}
 		else y = num_rows - 1;
 	}
-	if (c_y < scr_y - arg->i && arg->i != 0)
-		c_y = y + v_y - s_y;
-	else {
-		c_y = scr_y - 1;
+	if (c_y >= scr_y - arg->i || arg->i == 0)
 		s_y = y + v_y - (scr_y - 1);
-	}
 }
 
 void move_up(const Arg *arg) {
@@ -153,12 +149,8 @@ void move_up(const Arg *arg) {
 		}
 		else y = 0;
 	}
-	if (c_y >= arg->i && arg->i != 0)
-		c_y = y + v_y - s_y;
-	else {
-		c_y = 0;
+	if (c_y < arg->i || arg->i == 0)
 		s_y = y + v_y;
-	}
 }
 
 void move_right(const Arg *arg) {
@@ -176,12 +168,8 @@ void move_right(const Arg *arg) {
 		}
 		else x = num_cols - 1;
 	}
-	if (c_x < (scr_x - arg->i)*CELL_WIDTH && arg->i != 0)
-		c_x = (x + v_x - s_x)*CELL_WIDTH;
-	else {
-		c_x = (scr_x - 1)*CELL_WIDTH;
+	if (c_x >= (scr_x - arg->i)*CELL_WIDTH || arg->i == 0)
 		s_x = x + v_x - (scr_x - 1);
-	}
 }
 
 void move_left(const Arg *arg) {
@@ -199,12 +187,8 @@ void move_left(const Arg *arg) {
 		}
 		else x = 0;
 	}
-	if (c_x >= (arg->i)*CELL_WIDTH && arg->i != 0)
-		c_x = (x + v_x - s_x)*CELL_WIDTH;
-	else {
-		c_x = 0;
+	if (c_x < (arg->i)*CELL_WIDTH || arg->i == 0)
 		s_x = x + v_x;
-	}
 }
 
 void when_resize() {
