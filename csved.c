@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <curses.h>
 #include <string.h>
-//#include <wchar.h>
 #include <locale.h>
 
 #define CELL_WIDTH 10
@@ -431,12 +430,12 @@ void visual() {
 		ch[0] = y;
 		ch[1] = y + 1;
 		ch[2] = 0;
-		ch[3] = num_cols + 1;
+		ch[3] = num_cols;
 	}
 	else if (key == 'j' || key == 'k') {
 		visual_start();
 		ch[0] = 0;
-		ch[1] = num_rows + 1;
+		ch[1] = num_rows;
 		ch[2] = x;
 		ch[3] = x + 1;
 	}
@@ -548,7 +547,6 @@ char **split_string(const char* str, const char delimiter, int* num_tokens) {
     delim[0] = delimiter;
     delim[1] = '\0';
 
-    // Preštej število elementov
     while (*tmp) {
         if (*tmp == delimiter) {
             count++;
@@ -556,7 +554,6 @@ char **split_string(const char* str, const char delimiter, int* num_tokens) {
         tmp++;
     }
 
-    // Dodeli pomnilnik za shranjevanje podnizov
     result = (char **) malloc((count + 2) * sizeof(char *));
     if (!result) {
         perror("Napaka pri dodeljevanju pomnilnika");
@@ -571,7 +568,6 @@ char **split_string(const char* str, const char delimiter, int* num_tokens) {
             tmp++;
         }
 
-        // Dodeli in kopiraj podniz
         if (start == tmp) {
             result[i] = strdup("");
         } else {
@@ -672,9 +668,8 @@ int main(int argc, char *argv[]) {
 	raw();
     noecho();
 	set_tabsize(CELL_WIDTH);
-    keypad(stdscr, TRUE); // omogoči uporabo funkcij, kot so KEY_LEFT
+    keypad(stdscr, TRUE); // enable use of special keys as KEY_LEFT
 	int key;
-	//wrefresh();
 	int h, w;
 	int step_mv = 3;
 
