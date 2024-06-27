@@ -65,33 +65,6 @@ void write_csv(const Arg *arg) {
     fclose(file);
 }
 
-void calc_ch(int *list, int y, int x, int v_y, int v_x) {
-    if (v_y >= 0 && v_x >= 0) {
-		list[0] = y;
-		list[1] = y+1+v_y;
-		list[2] = x;
-		list[3] = x+1+v_x;
-	}
-	else if (v_y >= 0 && v_x < 0) {
-        list[0] = y;
-		list[1] = y+1+v_y;
-		list[2] = x+v_x;
-		list[3] = x+1;
-	}
-	else if (v_y < 0 && v_x >= 0) {
-        list[0] = y+v_y;
-		list[1] = y+1;
-		list[2] = x;
-		list[3] = x+1+v_x;
-	}
-	else if (v_y < 0 && v_x < 0) {
-        list[0] = y+v_y;
-		list[1] = y+1;
-		list[2] = x+v_x;
-		list[3] = x+1;
-	}
-}
-
 void draw() {
 	clear();
 	for (int i = 0; i < scr_y; i++) {
@@ -116,79 +89,103 @@ void draw() {
 }
 
 void move_down(const Arg *arg) {
-	if (y + v_y < num_rows - arg->i && arg->i != 0) {
+	if (y < num_rows - arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			v_y = v_y + arg->i;
-			calc_ch(ch, y, x, v_y, v_x);
+			if (ch[0] != y)
+				ch[1] = y + arg->i + 1;
+			else if ((ch[0] + arg->i) <= v_y)
+				ch[0] += arg->i;
+			else {
+				ch[0] = v_y;
+				ch[1] += arg->i - (v_y - ch[0]);
+			}
 		}
-		else y = y + arg->i;
+		y = y + arg->i;
 	}
 	else {
 		if (mode == 'v') {
-			v_y = num_rows - 1 - y;
-			calc_ch(ch, y, x, v_y, v_x);
+			ch[1] = num_rows;
+			ch[0] = v_y;
 		}
-		else y = num_rows - 1;
+		y = num_rows - 1;
 	}
 	if (c_y >= scr_y - arg->i || arg->i == 0)
-		s_y = y + v_y - (scr_y - 1);
+		s_y = y - (scr_y - 1);
 }
 
 void move_up(const Arg *arg) {
-	if (y + v_y >= arg->i && arg->i != 0) {
+	if (y >= arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			v_y = v_y - arg->i;
-			calc_ch(ch, y, x, v_y, v_x);
+			if (ch[0] != y)
+				ch[1] = y - arg->i + 1;
+			else if (ch[1] == v_y + 1)
+				ch[0] -= arg->i;
+			else {
+				ch[1] = v_y + 1;
+				ch[0] -= arg->i - (ch[1] - v_y - 1);
+			}
 		}
-		else y = y - arg->i;
+		y = y - arg->i;
 	}
 	else {
 		if (mode == 'v') {
-			v_y = 0 - y;
-			calc_ch(ch, y, x, v_y, v_x);
+			ch[0] = 0;
+			ch[1] = v_y + 1;
 		}
-		else y = 0;
+		y = 0;
 	}
 	if (c_y < arg->i || arg->i == 0)
-		s_y = y + v_y;
+		s_y = y;
 }
 
 void move_right(const Arg *arg) {
-	if (x + v_x < num_cols - arg->i && arg->i != 0) {
+	if (x < num_cols - arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			v_x = v_x + arg->i;
-			calc_ch(ch, y, x, v_y, v_x);
+			if (ch[2] != x)
+				ch[3] = x + arg->i + 1;
+			else if ((ch[2] + arg->i) <= v_x)
+				ch[2] += arg->i;
+			else {
+				ch[2] = v_x;
+				ch[3] += arg->i - (v_x - ch[2]);
+			}
 		}
-		else x = x + arg->i;
+		x += arg->i;
 	}
 	else {
 		if (mode == 'v') {
-			v_x = num_cols - 1 - x;
-			calc_ch(ch, y, x, v_y, v_x);
+			ch[3] = num_cols;
+			ch[2] = v_x;
 		}
-		else x = num_cols - 1;
+		x = num_cols - 1;
 	}
 	if (c_x >= (scr_x - arg->i)*CELL_WIDTH || arg->i == 0)
-		s_x = x + v_x - (scr_x - 1);
+		s_x = x - (scr_x - 1);
 }
 
 void move_left(const Arg *arg) {
-	if (x + v_x >= arg->i && arg->i != 0) {
+	if (x >= arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			v_x = v_x - arg->i;
-			calc_ch(ch, y, x, v_y, v_x);
+			if (ch[2] != x)
+				ch[3] = x - arg->i + 1;
+			else if (ch[3] == v_x + 1)
+				ch[2] -= arg->i;
+			else {
+				ch[3] = v_x + 1;
+				ch[2] -= arg->i - (ch[3] - v_x - 1);
+			}
 		}
-		else x = x - arg->i;
+		x -= arg->i;
 	}
 	else {
 		if (mode == 'v') {
-			v_x = 0 - x;
-			calc_ch(ch, y, x, v_y, v_x);
+			ch[2] = 0;
+			ch[3] = v_x + 1;
 		}
-		else x = 0;
+		x = 0;
 	}
 	if (c_x < (arg->i)*CELL_WIDTH || arg->i == 0)
-		s_x = x + v_x;
+		s_x = x;
 }
 
 void when_resize() {
@@ -202,17 +199,17 @@ void when_resize() {
 	}
 	else scr_y = rows;
 	if (c_y < scr_y)
-		c_y = y + v_y - s_y;
+		c_y = y - s_y;
 	else {
 		c_y = scr_y - 1;
-		s_y = y + v_y - (scr_y - 1);
+		s_y = y - (scr_y - 1);
 	}
 	if (scr_x == 0);
 	else if (c_x < scr_x*CELL_WIDTH)
-		c_x = (x + v_x - s_x)*CELL_WIDTH;
+		c_x = (x - s_x)*CELL_WIDTH;
 	else {
 		c_x = (scr_x - 1)*CELL_WIDTH;
-		s_x = x + v_x - (scr_x - 1);
+		s_x = x - (scr_x - 1);
 	}
 }
 
@@ -231,10 +228,10 @@ void insert_col(const Arg *arg) {
 	else scr_x = cols/CELL_WIDTH;
 	x = x + arg->i;
 	if (c_x < (scr_x - arg->i)*CELL_WIDTH)
-		c_x = (x + v_x - s_x)*CELL_WIDTH;
+		c_x = (x + s_x)*CELL_WIDTH;
 	else {
 		c_x = (scr_x - 1)*CELL_WIDTH;
-		s_x = x + v_x - (scr_x - 1);
+		s_x = x + (scr_x - 1);
 	}
 }
 
@@ -253,10 +250,10 @@ void insert_row(const Arg *arg) {
 	else scr_y = rows;
 	y = y + arg->i;
 	if (c_y < scr_y - arg->i)
-		c_y = y + v_y - s_y;
+		c_y = y + s_y;
 	else {
 		c_y = scr_y - 1;
-		s_y = y + v_y - (scr_y - 1);
+		s_y = y + (scr_y - 1);
 	}
 }
 
@@ -401,6 +398,8 @@ void visual_start() {
 		c_x0 = c_x;
 		s_y0 = s_y;
 		s_x0 = s_x;
+		v_y = y;
+		v_x = x;
 		ch[0] = y;
 		ch[1] = y + 1;
 		ch[2] = x;
@@ -408,25 +407,39 @@ void visual_start() {
 	}
 	else {
 		mode = 'n';
-		v_y = 0;
-		v_x = 0;
 		ch[0], ch[1], ch[2], ch[3] = 0;
-		c_y = c_y0;
-		c_x = c_x0;
-		s_y = s_y0;
-		s_x = s_x0;
 	}
 }
  
 void visual_end() {
 	mode = 'n';
-	v_y = 0;
-	v_x = 0;
 	ch[0], ch[1], ch[2], ch[3] = 0;
+	y = v_y;
+	x = v_x;
 	c_y = c_y0;
 	c_x = c_x0;
 	s_y = s_y0;
 	s_x = s_x0;
+}
+
+void visual() {
+	int key;
+	mode = 'n';
+	key = getch();
+	if (key == 'l' || key == 'h') {
+		visual_start();
+		ch[0] = y;
+		ch[1] = y + 1;
+		ch[2] = 0;
+		ch[3] = num_cols + 1;
+	}
+	else if (key == 'j' || key == 'k') {
+		visual_start();
+		ch[0] = 0;
+		ch[1] = num_rows + 1;
+		ch[2] = x;
+		ch[3] = x + 1;
+	}
 }
 
 void wipe_cells() {
@@ -487,6 +500,7 @@ void quit() {
 static Key keys[] = {
 	{'q', quit, {0}},
 	{'v', visual_start, {0}},
+	{'V', visual, {0}},
 	{'\x1b', visual_end, {0}},
 	{'j', move_down, {.i = 1}},
 	{KEY_DOWN, move_down, {.i = 1}},
