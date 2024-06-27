@@ -276,7 +276,7 @@ void insert_row(const Arg *arg) {
 	}
 }
 
-void delete_row(const Arg *arg) {
+void delete_row() {
 	if (num_rows != 1) {
 		for (int i = 0; i < num_cols; i++)
 			free(matrix[y][i]);
@@ -291,7 +291,7 @@ void delete_row(const Arg *arg) {
 	}
 }
 
-void delete_col(const Arg *arg) {
+void delete_col() {
 	if (num_cols != 1) {
 		for (int j = 0; j < num_rows; j++) {
 			free(matrix[j][x]);
@@ -455,6 +455,15 @@ void wipe_cells() {
 	visual_end();
 }
 
+void deleting() {
+	int key;
+	key = getch();
+	if (key == 'l')
+		delete_row();
+	else if (key == 'j')
+		delete_col();
+}
+
 void str_change() {
 	if (mode == 'v') visual_end();
     char* temp = get_str("", 0);
@@ -519,9 +528,8 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{'s', write_csv, { .filename = NULL} }, // filename will be set at runtime
-	{'n', wipe_cells, {0}},
-	{'d', delete_row, {0}},
-	{'D', delete_col, {0}}
+	{'d', wipe_cells, {0}},
+	{'D', deleting, {0}}
 };
 
 void keypress(int key, Arg targ) {
