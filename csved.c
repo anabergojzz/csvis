@@ -21,7 +21,6 @@ int scr_x, scr_y;
 
 typedef union {
 	int i;
-	const char *filename;
 } Arg;
 
 typedef struct {
@@ -43,25 +42,6 @@ size_t utf8_strlen(const char *str) {
         len++;
     }
     return len;
-}
-
-void write_csv(const Arg *arg) {
-    FILE *file = fopen(arg->filename, "w");
-    if (!file) {
-        perror("Error opening file for writing");
-        exit(EXIT_FAILURE);
-    }
-
-	for (int i = 0; i < num_rows; i++) {
-		for (int j = 0; j < num_cols-1; j++) {
-			fprintf(file, "%s", matrix[i][j]);
-			fprintf(file, ",");
-		}
-		fprintf(file, "%s", matrix[i][num_cols-1]);
-		fprintf(file, "\n");
-	}
-
-    fclose(file);
 }
 
 void draw() {
@@ -390,6 +370,35 @@ char* get_str(char* str, char loc) {
 	return buffer;
 }
 
+void write_csv(const Arg *arg) {
+	char* filename = get_str("", 0);
+    FILE *file = fopen(filename, "w");
+    if (!file) {
+        perror("Error opening file for writing");
+        exit(EXIT_FAILURE);
+    }
+	free(filename);
+
+	if (mode == 'n') {
+		ch[0] = 0;
+		ch[1] = num_rows;
+		ch[2] = 0;
+		ch[3] = num_cols;
+	}
+	for (int i = ch[0]; i < ch[1]; i++) {
+		for (int j = ch[2]; j < ch[3]-1; j++) {
+			fprintf(file, "%s", matrix[i][j]);
+			fprintf(file, ",");
+		}
+		fprintf(file, "%s", matrix[i][ch[3]-1]);
+		fprintf(file, "\n");
+	}
+
+    fclose(file);
+	ch[0], ch[1], ch[2], ch[3] = 0;
+	mode = 'n';
+}
+
 void visual_start() {
 	if (mode != 'v') {
 		mode = 'v';
@@ -524,16 +533,15 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{'s', write_csv, { .filename = NULL} }, // filename will be set at runtime
+	{'s', write_csv, {0} }, // filename will be set at runtime
 	{'d', wipe_cells, {0}},
 	{'D', deleting, {0}}
 };
 
-void keypress(int key, Arg targ) {
+void keypress(int key) {
 	for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
 		if (key == keys[i].key) {
-			if (keys[i].func == write_csv) (*keys[i].func)(&targ);
-			else (*keys[i].func)(&keys[i].arg);
+			(*keys[i].func)(&keys[i].arg);
 		}
 	}
 }
@@ -654,7 +662,6 @@ int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
 	int error;
 	const char *filename = argv[1];
-	const Arg targ = {.filename = filename}; //just to pass filename to write_csv func
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Napaka pri odpiranju datoteke");
@@ -677,7 +684,7 @@ int main(int argc, char *argv[]) {
 		when_resize();
 		draw();
 		key = getch();
-		keypress(key, targ);
+		keypress(key);
 	}
 
     endwin();
