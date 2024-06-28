@@ -180,7 +180,7 @@ void when_resize() {
 		scr_y = num_rows - s_y;
 	}
 	else scr_y = rows;
-	if (c_y < scr_y || c_y > num_rows+1)
+	if (c_y < scr_y)
 		c_y = y - s_y;
 	else {
 		c_y = scr_y - 1;
@@ -286,8 +286,11 @@ char* get_str(char* str, char loc, const char cmd) {
 
 	int key;
 	char k = 0; // to track multibyte utf8 chars
+	int c_y0, c_x0;	
 
 	if (cmd == 1) {
+		c_y0 = c_y;
+		c_x0 = c_x;
 		c_x = 1;
 		c_y = rows - 1;
 	}
@@ -361,8 +364,10 @@ char* get_str(char* str, char loc, const char cmd) {
             }
         }
 		else if (key == KEY_RESIZE) {
-			c_x = 0;
-			c_y = 0;
+			if (cmd == 1) {
+				c_x = c_x0;
+				c_y = c_y0;
+			}
 			when_resize();
 			if (cmd == 1) {
 				c_x = 1;
