@@ -529,6 +529,7 @@ void write_csv(const Arg *arg) {
 }
 
 void write_to_pipe(const Arg *arg) {
+	char* cmd = get_str("", 0, 1);
     int pipefd[2];
     int pipefd2[2];
 	pid_t pid;
@@ -566,7 +567,7 @@ void write_to_pipe(const Arg *arg) {
         dup2(pipefd2[1], STDOUT_FILENO);
         close(pipefd2[1]);
 
-        execlp("sort", "sort", NULL);
+        execlp(cmd, cmd, NULL);
         // if execlp witout success
         perror("execlp");
         exit(EXIT_FAILURE);
@@ -620,14 +621,17 @@ void write_to_pipe(const Arg *arg) {
 
         buffer[total_bytes] = '\0';
 
-		int num_cells;
-		char** temp = split_string(buffer, '\n', &num_cells);
-		int j = 0;
-        for (int i = ch[0]; i < ch[1]; i++) {
-			matrix[i][ch[2]] = temp[j];
-			j++;
-        }
-		free(temp);
+		//int num_cells;
+		//char** temp = split_string(buffer, '\n', &num_cells);
+		//int j = 0;
+        //for (int i = ch[0]; i < ch[1]; i++) {
+		//	matrix[i][ch[2]] = temp[j];
+		//	j++;
+        //}
+		//free(temp);
+		clear();
+		mvprintw(0, 0, buffer);
+		getch();
 		free(buffer);
 
         close(pipefd2[0]);  // close output
