@@ -1,5 +1,3 @@
-// clean end of main
-// error if empty filename
 // resize buffer in write_to_pipe
 // check if memory leak in split_string inside read_matrix
 
@@ -501,28 +499,34 @@ char** split_string(const char* str, const char delimiter, int* num_tokens) {
 
 void write_csv(const Arg *arg) {
 	char* filename = get_str("", 0, 1);
-	FILE *file = fopen(filename, "w");
-	if (!file) {
-		perror("Error opening file for writing");
+	if (strlen(filename) == 0) {
+		addstr(" Empty filename. ");
+		getch();
 	}
-	free(filename);
-
-	if (mode == 'n') {
-		ch[0] = 0;
-		ch[1] = num_rows;
-		ch[2] = 0;
-		ch[3] = num_cols;
-	}
-	for (int i = ch[0]; i < ch[1]; i++) {
-		for (int j = ch[2]; j < ch[3]-1; j++) {
-			fprintf(file, "%s", matrix[i][j]);
-			fprintf(file, ",");
+	else {
+		FILE *file = fopen(filename, "w");
+		if (!file) {
+			perror("Error opening file for writing");
 		}
-		fprintf(file, "%s", matrix[i][ch[3]-1]);
-		fprintf(file, "\n");
-	}
+		free(filename);
 
-	fclose(file);
+		if (mode == 'n') {
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = 0;
+			ch[3] = num_cols;
+		}
+		for (int i = ch[0]; i < ch[1]; i++) {
+			for (int j = ch[2]; j < ch[3]-1; j++) {
+				fprintf(file, "%s", matrix[i][j]);
+				fprintf(file, ",");
+			}
+			fprintf(file, "%s", matrix[i][ch[3]-1]);
+			fprintf(file, "\n");
+		}
+
+		fclose(file);
+	}
 
 	visual_end();
 }
