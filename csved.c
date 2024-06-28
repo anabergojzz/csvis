@@ -1,8 +1,15 @@
+// clean end of main
+// error if empty filename
+// resize buffer in write_to_pipe
+// check if memory leak in split_string inside read_matrix
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
 #include <string.h>
 #include <locale.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #define CELL_WIDTH 10
 
@@ -432,6 +439,66 @@ void visual() {
 	}
 }
 
+char** split_string(const char* str, const char delimiter, int* num_tokens) {
+    int count = 1;
+    const char *tmp = str;
+    char **result = NULL;
+    char *token;
+    char delim[2];
+    delim[0] = delimiter;
+    delim[1] = '\0';
+
+    while (*tmp) {
+        if (*tmp == delimiter) {
+            count++;
+        }
+        tmp++;
+    }
+
+    result = (char **) malloc((count + 2) * sizeof(char *));
+    if (!result) {
+        perror("Napaka pri dodeljevanju pomnilnika");
+        return NULL;
+    }
+
+    int i = 0;
+    tmp = str;
+    while (*tmp) {
+        const char *start = tmp;
+        while (*tmp && *tmp != delimiter) {
+            tmp++;
+        }
+
+        if (start == tmp) {
+            result[i] = strdup("");
+        } else {
+            result[i] = (char *) malloc((tmp - start + 1) * sizeof(char));
+            if (!result[i]) {
+                perror("Napaka pri dodeljevanju pomnilnika");
+                for (int j = 0; j < i; j++) {
+                    free(result[j]);
+                }
+                free(result);
+                return NULL;
+            }
+            strncpy(result[i], start, tmp - start);
+            result[i][tmp - start] = '\0';
+        }
+        i++;
+        if (*tmp) {
+            tmp++;
+        }
+    }
+	if (*(tmp - 1) == delimiter) {
+        result[i] = strdup("");
+        i++;
+    }
+    result[i] = NULL;
+    *num_tokens = i;
+
+    return result;
+}
+
 void write_csv(const Arg *arg) {
 	char* filename = get_str("", 0, 1);
 	FILE *file = fopen(filename, "w");
@@ -458,6 +525,95 @@ void write_csv(const Arg *arg) {
 	fclose(file);
 
 	visual_end();
+}
+
+void write_to_pipe(const Arg *arg) {
+    int pipefd[2];
+    int pipefd2[2];
+	pid_t pid;
+    ssize_t bytes_read;
+	
+	//create pipe
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(1);
+    }
+
+    if (pipe(pipefd2) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+	// fork process
+    pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        exit(2);
+    }
+
+    if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
+		// redirect stdin to input
+        close(pipefd[1]);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+
+		// redirect stdout to output
+        close(pipefd2[0]);
+        dup2(pipefd2[1], STDOUT_FILENO);
+        close(pipefd2[1]);
+
+        execlp("sort", "sort", NULL);
+        // if execlp witout success
+        perror("execlp");
+        exit(EXIT_FAILURE);
+	}
+	else {  // Parent process
+        close(pipefd[0]);
+        close(pipefd2[1]);
+
+        if (mode == 'n') {
+            ch[0] = 0;
+            ch[1] = num_rows;
+            ch[2] = 0;
+            ch[3] = num_cols;
+        }
+
+		char* str;
+        for (int i = ch[0]; i < ch[1]; i++) {
+            for (int j = ch[2]; j < ch[3] - 1; j++) {
+                str = matrix[i][j];
+				write(pipefd[1], str, strlen(str));
+            }
+			str = matrix[i][ch[3] - 1];
+			write(pipefd[1], str, strlen(str));
+			write(pipefd[1], "\n", 1);
+        }
+        close(pipefd[1]);  // Končamo pisanje
+
+		char buffer[128];
+        bytes_read = read(pipefd2[0], buffer, sizeof(buffer) - 1);
+        if (bytes_read == -1) {
+            perror("read");
+            exit(EXIT_FAILURE);
+        }
+
+        buffer[bytes_read] = '\0';
+
+		int num_cells;
+		char** temp = split_string(buffer, '\n', &num_cells);
+		int j = 0;
+        for (int i = ch[0]; i < ch[1]; i++) {
+			matrix[i][ch[2]] = temp[j];
+			j++;
+        }
+		free(temp);
+
+        close(pipefd2[0]);  // close output
+
+        wait(NULL); // wait for child to finish
+    }
+
+    visual_end();
 }
 
 void wipe_cells() {
@@ -543,7 +699,8 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{'s', write_csv, {0}}, // filename will be set at runtime
+	{'s', write_csv, {0}},
+	{'e', write_to_pipe, {0}},
 	{'d', wipe_cells, {0}},
 	{'D', deleting, {0}}
 };
@@ -554,66 +711,6 @@ void keypress(int key) {
 			(*keys[i].func)(&keys[i].arg);
 		}
 	}
-}
-
-char **split_string(const char* str, const char delimiter, int* num_tokens) {
-    int count = 1;
-    const char *tmp = str;
-    char **result = NULL;
-    char *token;
-    char delim[2];
-    delim[0] = delimiter;
-    delim[1] = '\0';
-
-    while (*tmp) {
-        if (*tmp == delimiter) {
-            count++;
-        }
-        tmp++;
-    }
-
-    result = (char **) malloc((count + 2) * sizeof(char *));
-    if (!result) {
-        perror("Napaka pri dodeljevanju pomnilnika");
-        return NULL;
-    }
-
-    int i = 0;
-    tmp = str;
-    while (*tmp) {
-        const char *start = tmp;
-        while (*tmp && *tmp != delimiter) {
-            tmp++;
-        }
-
-        if (start == tmp) {
-            result[i] = strdup("");
-        } else {
-            result[i] = (char *) malloc((tmp - start + 1) * sizeof(char));
-            if (!result[i]) {
-                perror("Napaka pri dodeljevanju pomnilnika");
-                for (int j = 0; j < i; j++) {
-                    free(result[j]);
-                }
-                free(result);
-                return NULL;
-            }
-            strncpy(result[i], start, tmp - start);
-            result[i][tmp - start] = '\0';
-        }
-        i++;
-        if (*tmp) {
-            tmp++;
-        }
-    }
-	if (*(tmp - 1) == delimiter) {
-        result[i] = strdup("");
-        i++;
-    }
-    result[i] = NULL;
-    *num_tokens = i;
-
-    return result;
 }
 
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
