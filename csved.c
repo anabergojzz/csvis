@@ -177,7 +177,7 @@ void when_resize() {
 		scr_y = num_rows - s_y;
 	}
 	else scr_y = rows;
-	if (c_y < scr_y)
+	if (c_y < scr_y || c_y > num_rows+1)
 		c_y = y - s_y;
 	else {
 		c_y = scr_y - 1;
@@ -264,7 +264,7 @@ void delete_col() {
 	}
 }
 
-char* get_str(char* str, char loc) {
+char* get_str(char* str, char loc, const char cmd) {
 	ssize_t str_size = strlen(str);
     ssize_t bufsize = str_size + 10; // Initial buffer size
     char* buffer = (char*) malloc(bufsize * sizeof(char));
@@ -284,6 +284,10 @@ char* get_str(char* str, char loc) {
 	int key;
 	char k = 0; // to track multibyte utf8 chars
 
+	if (cmd == 1) {
+		c_x = 1;
+		c_y = rows - 1;
+	}
     while (1) {
         if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
             bufsize += 10;
@@ -298,6 +302,7 @@ char* get_str(char* str, char loc) {
 		if (k > 0) k--;
 		else {
 			draw();
+			if (cmd == 1) mvaddstr(c_y, c_x-1, ":");
 			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer);
 			addch(' ');
@@ -353,7 +358,13 @@ char* get_str(char* str, char loc) {
             }
         }
 		else if (key == KEY_RESIZE) {
+			c_x = 0;
+			c_y = 0;
 			when_resize();
+			if (cmd == 1) {
+				c_x = 1;
+				c_y = rows - 1;
+			}
 		}
 		else {
 			memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
@@ -368,35 +379,6 @@ char* get_str(char* str, char loc) {
     }
 
 	return buffer;
-}
-
-void write_csv(const Arg *arg) {
-	char* filename = get_str("", 0);
-    FILE *file = fopen(filename, "w");
-    if (!file) {
-        perror("Error opening file for writing");
-        exit(EXIT_FAILURE);
-    }
-	free(filename);
-
-	if (mode == 'n') {
-		ch[0] = 0;
-		ch[1] = num_rows;
-		ch[2] = 0;
-		ch[3] = num_cols;
-	}
-	for (int i = ch[0]; i < ch[1]; i++) {
-		for (int j = ch[2]; j < ch[3]-1; j++) {
-			fprintf(file, "%s", matrix[i][j]);
-			fprintf(file, ",");
-		}
-		fprintf(file, "%s", matrix[i][ch[3]-1]);
-		fprintf(file, "\n");
-	}
-
-    fclose(file);
-	ch[0], ch[1], ch[2], ch[3] = 0;
-	mode = 'n';
 }
 
 void visual_start() {
@@ -450,6 +432,34 @@ void visual() {
 	}
 }
 
+void write_csv(const Arg *arg) {
+	char* filename = get_str("", 0, 1);
+	FILE *file = fopen(filename, "w");
+	if (!file) {
+		perror("Error opening file for writing");
+	}
+	free(filename);
+
+	if (mode == 'n') {
+		ch[0] = 0;
+		ch[1] = num_rows;
+		ch[2] = 0;
+		ch[3] = num_cols;
+	}
+	for (int i = ch[0]; i < ch[1]; i++) {
+		for (int j = ch[2]; j < ch[3]-1; j++) {
+			fprintf(file, "%s", matrix[i][j]);
+			fprintf(file, ",");
+		}
+		fprintf(file, "%s", matrix[i][ch[3]-1]);
+		fprintf(file, "\n");
+	}
+
+	fclose(file);
+
+	visual_end();
+}
+
 void wipe_cells() {
 	for (int i=ch[0]; i<ch[1]; i++) {
 		for (int j=ch[2]; j<ch[3]; j++) {
@@ -471,7 +481,7 @@ void deleting() {
 
 void str_change() {
 	if (mode == 'v') visual_end();
-    char* temp = get_str("", 0);
+    char* temp = get_str("", 0, 0);
 	free(matrix[y][x]);
     matrix[y][x] = strdup(temp);
     free(temp);
@@ -479,7 +489,7 @@ void str_change() {
 
 void str_append() {
 	if (mode == 'v') visual_end();
-	char* temp = get_str(matrix[y][x], 1);
+	char* temp = get_str(matrix[y][x], 1, 0);
 	free(matrix[y][x]);
     matrix[y][x] = strdup(temp);
     free(temp);
@@ -487,7 +497,7 @@ void str_append() {
 
 void str_insert() {
 	if (mode == 'v') visual_end();
-	char* temp = get_str(matrix[y][x], 0);
+	char* temp = get_str(matrix[y][x], 0, 0);
 	free(matrix[y][x]);
     matrix[y][x] = strdup(temp);
     free(temp);
@@ -533,7 +543,7 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{'s', write_csv, {0} }, // filename will be set at runtime
+	{'s', write_csv, {0}}, // filename will be set at runtime
 	{'d', wipe_cells, {0}},
 	{'D', deleting, {0}}
 };
@@ -665,7 +675,7 @@ int main(int argc, char *argv[]) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Napaka pri odpiranju datoteke");
-        error = 1;
+		exit(EXIT_FAILURE);
     }
 	matrix = read_to_matrix(file, &num_rows, &num_cols);
 	fclose(file);
