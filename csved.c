@@ -1,6 +1,3 @@
-// resize buffer in write_to_pipe
-// check if memory leak in split_string inside read_matrix
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -536,6 +533,9 @@ void write_to_pipe(const Arg *arg) {
     int pipefd2[2];
 	pid_t pid;
     ssize_t bytes_read;
+	char* buffer;
+	size_t buffer_size = 20;
+	size_t total_bytes = 0;
 	
 	//create pipe
     if (pipe(pipefd) == -1) {
@@ -592,16 +592,33 @@ void write_to_pipe(const Arg *arg) {
 			write(pipefd[1], str, strlen(str));
 			write(pipefd[1], "\n", 1);
         }
-        close(pipefd[1]);  // Končamo pisanje
+        close(pipefd[1]);
 
-		char buffer[128];
-        bytes_read = read(pipefd2[0], buffer, sizeof(buffer) - 1);
-        if (bytes_read == -1) {
-            perror("read");
+        buffer = (char *)malloc(buffer_size);
+        if (buffer == NULL) {
+            perror("malloc");
             exit(EXIT_FAILURE);
         }
 
-        buffer[bytes_read] = '\0';
+		while ((bytes_read = read(pipefd2[0], buffer + total_bytes, buffer_size - total_bytes - 1)) > 0) {
+            total_bytes += bytes_read;
+            if (total_bytes >= buffer_size - 1) {
+                buffer_size *= 2;
+                buffer = (char *)realloc(buffer, buffer_size);
+                if (buffer == NULL) {
+                    perror("realloc");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+        if (bytes_read == -1) {
+            perror("read");
+			free(buffer);
+            exit(EXIT_FAILURE);
+        }
+
+        buffer[total_bytes] = '\0';
 
 		int num_cells;
 		char** temp = split_string(buffer, '\n', &num_cells);
@@ -611,6 +628,7 @@ void write_to_pipe(const Arg *arg) {
 			j++;
         }
 		free(temp);
+		free(buffer);
 
         close(pipefd2[0]);  // close output
 
