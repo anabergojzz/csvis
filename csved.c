@@ -54,16 +54,17 @@ void draw() {
 				attron(A_STANDOUT);
 			}
 			else attroff(A_STANDOUT);
-			char* xy = matrix[i + s_y][j + s_x];
+			char* cell_value = matrix[i + s_y][j + s_x];
 			int utf8_w = 0;
-			for (int k = 0; k < CELL_WIDTH*4; k++) {
-				if ((xy[k] & 0xC0) != 0xC0) utf8_w++;
-				if (utf8_w == CELL_WIDTH) {
-					utf8_w = k;
+			int k = 0;
+			for (; k < CELL_WIDTH*4; k++) {
+				if (utf8_w == CELL_WIDTH - 1 || cell_value[k] == '\0') {
 					break;
 				}
+				if ((cell_value[k] & 0xC0) != 0xC0) utf8_w++;
 			}
-			mvprintw(i, j * CELL_WIDTH, "%.*s", utf8_w, xy);
+			k = CELL_WIDTH - 1 + k - utf8_w;
+			mvprintw(i, j * CELL_WIDTH, "%-*.*s", k, k, cell_value);
 		}
 	}
 	wmove(stdscr, c_y, c_x);
@@ -710,8 +711,8 @@ static Key keys[] = {
 	{KEY_RIGHT, move_right, {.i = 1}},
 	{'h', move_left, {.i = 1}},
 	{KEY_LEFT, move_left, {.i = 1}},
-	{'\x04', move_down, {.i = 3}},
-	{'\x15', move_up, {.i = 3}},
+	{'\x04', move_down, {.i = 5}},
+	{'\x15', move_up, {.i = 5}},
 	{'w', move_right, {.i = 3}},
 	{'b', move_left, {.i = 3}},
 	{'G', move_down, {.i = 0}},
