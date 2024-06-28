@@ -794,15 +794,4 @@ int main(int argc, char *argv[]) {
 		keypress(key);
 	}
 
-    endwin();
-    for (int i = 0; i < num_rows; i++) {
-        for (int j = 0; j < num_cols && matrix[i][j] != NULL; j++) {
-            free(matrix[i][j]);
-        }
-        free(matrix[i]);
-    }
-    free(matrix);
-
-    return 0;
 }
-
