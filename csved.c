@@ -504,7 +504,11 @@ char** split_string(const char* str, const char delimiter, int* num_tokens) {
 }
 
 void write_csv(const Arg *arg) {
-	char* filename = get_str("", 0, 1);
+	char* filename;
+	if (arg->i != 2)
+		filename = get_str("", 0, 1);
+	else
+		filename = "/home/andrej/bin/command_pipe";
 	if (strlen(filename) == 0) {
 		addstr(" Empty filename. ");
 		getch();
@@ -514,7 +518,9 @@ void write_csv(const Arg *arg) {
 		if (!file) {
 			perror("Error opening file for writing");
 		}
-		free(filename);
+
+		if (arg->i != 2)
+			free(filename);
 
 		if (mode == 'n') {
 			ch[0] = 0;
@@ -522,13 +528,38 @@ void write_csv(const Arg *arg) {
 			ch[2] = 0;
 			ch[3] = num_cols;
 		}
-		for (int i = ch[0]; i < ch[1]; i++) {
-			for (int j = ch[2]; j < ch[3]-1; j++) {
-				fprintf(file, "%s", matrix[i][j]);
-				fprintf(file, ",");
+		if (arg->i == 0) {
+			for (int i = ch[0]; i < ch[1]; i++) {
+				for (int j = ch[2]; j < ch[3]-1; j++) {
+					fprintf(file, "%s", matrix[i][j]);
+					fprintf(file, ",");
+				}
+				fprintf(file, "%s", matrix[i][ch[3]-1]);
+				fprintf(file, "\n");
 			}
-			fprintf(file, "%s", matrix[i][ch[3]-1]);
-			fprintf(file, "\n");
+		}
+		else if (arg->i == 1) {
+			for (int i = ch[2]; i < ch[3]; i++) {
+				for (int j = ch[0]; j < ch[1]-1; j++) {
+					fprintf(file, "%s", matrix[j][i]);
+					fprintf(file, ",");
+				}
+				fprintf(file, "%s", matrix[ch[3]-1][i]);
+				fprintf(file, "\n");
+			}
+		}
+		else if (arg->i == 2) {
+			for (int i = ch[2]; i < ch[3]; i++) {
+				fprintf(file, "%s", matrix[ch[0]][i]);
+				fprintf(file, "=[");
+				for (int j = ch[0]+1; j < ch[1]-1; j++) {
+					fprintf(file, "%s", matrix[j][i]);
+					fprintf(file, ",");
+				}
+				fprintf(file, "%s", matrix[ch[1]-1][i]);
+				fprintf(file, "]");
+				fprintf(file, "\n");
+			}
 		}
 
 		fclose(file);
@@ -768,6 +799,8 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{'s', write_csv, {0}},
+	{'S', write_csv, {1}},
+	{'e', write_csv, {2}},
 	{'>', write_to_pipe, {0}},
 	{'|', write_to_pipe, {1}},
 	{'d', wipe_cells, {0}},
