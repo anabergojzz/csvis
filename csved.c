@@ -573,9 +573,30 @@ void write_to_pipe(const Arg *arg) {
         dup2(pipefd2[1], STDOUT_FILENO);
         close(pipefd2[1]);
 
-        execlp(cmd, cmd, NULL);
+		char* temp = strdup(cmd);
+		int num_args = 0;
+		char* token = strtok(temp, " ");
+		while (token != NULL) {
+			num_args++;
+			token = strtok(NULL, " ");
+		}
+		free(temp);
+		char** cmd_arg = malloc((num_args+1)*sizeof(char*));
+		if (cmd_arg == NULL) {
+			perror("malloc failed");
+			exit(1);
+		}
+		int i = 0;
+		token = strtok(cmd, " ");
+		while (token != NULL) {
+			cmd_arg[i++] = token;
+			token = strtok(NULL, " ");
+		}
+		cmd_arg[i] = NULL;
+
+        execvp(cmd_arg[0], cmd_arg);
         // if execlp witout success
-        perror("execlp");
+        perror("execvp");
         exit(EXIT_FAILURE);
 	}
 	else {  // Parent process
@@ -627,17 +648,21 @@ void write_to_pipe(const Arg *arg) {
 
         buffer[total_bytes] = '\0';
 
-		//int num_cells;
-		//char** temp = split_string(buffer, '\n', &num_cells);
-		//int j = 0;
-        //for (int i = ch[0]; i < ch[1]; i++) {
-		//	matrix[i][ch[2]] = temp[j];
-		//	j++;
-        //}
-		//free(temp);
-		clear();
-		mvprintw(0, 0, buffer);
-		getch();
+		if (arg->i == 0) {
+			clear();
+			mvprintw(0, 0, buffer);
+			getch();
+		}
+		else if (arg->i == 1) {
+			int num_cells;
+			char** temp = split_string(buffer, '\n', &num_cells);
+			int j = 0;
+			for (int i = ch[0]; i < ch[1]; i++) {
+				matrix[i][ch[2]] = temp[j];
+				j++;
+			}
+			free(temp);
+		}
 		free(buffer);
 
         close(pipefd2[0]);  // close output
@@ -645,6 +670,7 @@ void write_to_pipe(const Arg *arg) {
         wait(NULL); // wait for child to finish
     }
 
+	free(cmd);
     visual_end();
 }
 
@@ -733,6 +759,7 @@ static Key keys[] = {
 	{'A', insert_col, {1}},
 	{'s', write_csv, {0}},
 	{'e', write_to_pipe, {0}},
+	{'E', write_to_pipe, {1}},
 	{'d', wipe_cells, {0}},
 	{'D', deleting, {0}}
 };
