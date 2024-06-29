@@ -68,6 +68,7 @@ void draw() {
 		}
 	}
 	wmove(stdscr, c_y, c_x);
+	attroff(A_STANDOUT);
 }
 
 void move_down(const Arg *arg) {
@@ -539,6 +540,7 @@ void write_to_pipe(const Arg *arg) {
     int pipefd[2];
     int pipefd2[2];
 	pid_t pid;
+	int status;
     ssize_t bytes_read;
 	char* buffer;
 	size_t buffer_size = 20;
@@ -596,8 +598,10 @@ void write_to_pipe(const Arg *arg) {
 
         execvp(cmd_arg[0], cmd_arg);
         // if execlp witout success
-        perror("execvp");
+        perror(" execvp");
         exit(EXIT_FAILURE);
+		free(cmd);
+		free(cmd_arg);
 	}
 	else {  // Parent process
         close(pipefd[0]);
@@ -640,37 +644,35 @@ void write_to_pipe(const Arg *arg) {
             }
         }
 
-        if (bytes_read == -1) {
-            perror("read");
-			free(buffer);
-            exit(EXIT_FAILURE);
-        }
+		if (total_bytes > 0) {
+			buffer[total_bytes] = '\0';
 
-        buffer[total_bytes] = '\0';
-
-		if (arg->i == 0) {
-			clear();
-			mvprintw(0, 0, buffer);
-			getch();
-		}
-		else if (arg->i == 1) {
-			int num_cells;
-			char** temp = split_string(buffer, '\n', &num_cells);
-			int j = 0;
-			for (int i = ch[0]; i < ch[1]; i++) {
-				matrix[i][ch[2]] = temp[j];
-				j++;
+			if (arg->i == 0) {
+				clear();
+				mvprintw(0, 0, buffer);
+				getch();
 			}
-			free(temp);
+			else if (arg->i == 1) {
+				int num_cells;
+				char** temp = split_string(buffer, '\n', &num_cells);
+				int j = 0;
+				for (int i = ch[0]; i < ch[1]; i++) {
+					matrix[i][ch[2]] = temp[j];
+					j++;
+				}
+				free(temp);
+			}
+			free(buffer);
 		}
-		free(buffer);
 
         close(pipefd2[0]);  // close output
 
-        wait(NULL); // wait for child to finish
+		waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			getch();
+        }
     }
 
-	free(cmd);
     visual_end();
 }
 
