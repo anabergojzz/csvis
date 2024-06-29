@@ -289,7 +289,7 @@ char* get_str(char* str, char loc, const char cmd) {
 	char k = 0; // to track multibyte utf8 chars
 	int c_y0, c_x0;	
 
-	if (cmd == 1) {
+	if (cmd == 1 || cmd == 2 || cmd == 3) {
 		c_y0 = c_y;
 		c_x0 = c_x;
 		c_x = 1;
@@ -310,6 +310,8 @@ char* get_str(char* str, char loc, const char cmd) {
 		else {
 			draw();
 			if (cmd == 1) mvaddstr(c_y, c_x-1, ":");
+			else if (cmd == 2) mvaddstr(c_y, c_x-1, ">");
+			else if (cmd == 3) mvaddstr(c_y, c_x-1, "|");
 			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer);
 			addch(' ');
@@ -536,7 +538,13 @@ void write_csv(const Arg *arg) {
 }
 
 void write_to_pipe(const Arg *arg) {
-	char* cmd = get_str("", 0, 1);
+	char* cmd;
+	if (arg->i == 0)
+		cmd = get_str("", 0, 2);
+	else if (arg->i == 1)
+		cmd = get_str("", 0, 3);
+	else
+		cmd = get_str("", 0, 1);
     int pipefd[2];
     int pipefd2[2];
 	pid_t pid;
@@ -760,8 +768,8 @@ static Key keys[] = {
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
 	{'s', write_csv, {0}},
-	{'e', write_to_pipe, {0}},
-	{'E', write_to_pipe, {1}},
+	{'>', write_to_pipe, {0}},
+	{'|', write_to_pipe, {1}},
 	{'d', wipe_cells, {0}},
 	{'D', deleting, {0}}
 };
