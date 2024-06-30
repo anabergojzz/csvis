@@ -725,6 +725,27 @@ void write_to_pipe(const Arg *arg) {
     visual_end();
 }
 
+void yank_cells() {
+	for (int i = 0; i < reg_rows; i++) {
+		for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
+			free(mat_reg[i][j]);
+		}
+		free(mat_reg[i]);
+	}
+	free(mat_reg);
+	reg_rows = (ch[1]-ch[0]);
+	reg_cols = (ch[3]-ch[2]);
+	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
+	for (int i=0; i<reg_rows; i++)
+		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
+	for (int i=ch[0]; i<ch[1]; i++) {
+		for (int j=ch[2]; j<ch[3]; j++) {
+			mat_reg[i-ch[0]][j-ch[2]] = strdup(matrix[i][j]);
+		}
+	}
+	visual_end();
+}
+
 void wipe_cells() {
 	for (int i = 0; i < reg_rows; i++) {
 		for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
@@ -835,6 +856,7 @@ static Key keys[] = {
 	{'>', write_to_pipe, {0}},
 	{'|', write_to_pipe, {1}},
 	{'d', wipe_cells, {0}},
+	{'y', yank_cells, {0}},
 	{'p', paste_cells, {0}},
 	{'D', deleting, {0}}
 };
