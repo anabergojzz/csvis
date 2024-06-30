@@ -22,6 +22,8 @@ int s_y0, s_x0 = 0;
 int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
+char* fifo;
+char ask_fifo = 1;
 
 typedef union {
 	int i;
@@ -509,8 +511,12 @@ void write_csv(const Arg *arg) {
 	char* filename;
 	if (arg->i != 2)
 		filename = get_str("", 0, 1);
-	else
-		filename = "/home/andrej/bin/command_pipe";
+	else {
+		if (ask_fifo == 1)
+			fifo = get_str("", 0, 1);
+		ask_fifo = 0;
+		filename = fifo;
+	}
 	if (strlen(filename) == 0) {
 		addstr(" Empty filename. ");
 		getch();
