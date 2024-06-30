@@ -580,7 +580,7 @@ void write_to_pipe(const Arg *arg) {
 	char* cmd;
 	if (arg->i == 0)
 		cmd = get_str("", 0, 2);
-	else if (arg->i == 1)
+	else if (arg->i == 1 || arg->i == 2)
 		cmd = get_str("", 0, 3);
 	else
 		cmd = get_str("", 0, 1);
@@ -635,13 +635,21 @@ void write_to_pipe(const Arg *arg) {
 			perror("malloc failed");
 			exit(1);
 		}
-		int i = 0;
-		token = strtok(cmd, " ");
-		while (token != NULL) {
-			cmd_arg[i++] = token;
-			token = strtok(NULL, " ");
+		if (arg->i == 2) {
+			cmd_arg[0] = "awk";
+			cmd_arg[1] = "-F,";
+			cmd_arg[2] = cmd;
+			cmd_arg[3] = NULL;
 		}
-		cmd_arg[i] = NULL;
+		else {
+			int i = 0;
+			token = strtok(cmd, " ");
+			while (token != NULL) {
+				cmd_arg[i++] = token;
+				token = strtok(NULL, " ");
+			}
+			cmd_arg[i] = NULL;
+		}
 
         execvp(cmd_arg[0], cmd_arg);
         // if execlp witout success
@@ -700,7 +708,7 @@ void write_to_pipe(const Arg *arg) {
 				mvprintw(0, 0, buffer);
 				getch();
 			}
-			else if (arg->i == 1) {
+			else if (arg->i == 1 || arg->i == 2) {
 				int num_cols_2, num_rows_2;
 				char** temp = split_string(buffer, '\n', &num_cols_2);
 				int i_t = 0;
@@ -863,6 +871,7 @@ static Key keys[] = {
 	{'e', write_csv, {2}},
 	{'>', write_to_pipe, {0}},
 	{'|', write_to_pipe, {1}},
+	{'E', write_to_pipe, {2}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
 	{'p', paste_cells, {0}},
