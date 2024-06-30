@@ -769,10 +769,12 @@ void wipe_cells() {
 }
 
 void paste_cells() {
-	for (int i = 0; i < reg_rows; i++) {
-		for (int j = 0; j < reg_cols; j++) {
-			free(matrix[y + i][x + j]);
-			matrix[y + i][x + j] = strdup(mat_reg[i][j]);
+	if (reg_rows <= (num_rows - y) && reg_cols <= (num_cols - x)) {
+		for (int i = 0; i < reg_rows; i++) {
+			for (int j = 0; j < reg_cols; j++) {
+				free(matrix[y + i][x + j]);
+				matrix[y + i][x + j] = strdup(mat_reg[i][j]);
+			}
 		}
 	}
 }
@@ -780,9 +782,9 @@ void paste_cells() {
 void deleting() {
 	int key;
 	key = getch();
-	if (key == 'l')
+	if (key == 'l' || key == 'h')
 		delete_row();
-	else if (key == 'j')
+	else if (key == 'j' || key == 'k')
 		delete_col();
 }
 
