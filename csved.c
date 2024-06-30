@@ -658,6 +658,7 @@ void write_to_pipe(const Arg *arg) {
             for (int j = ch[2]; j < ch[3] - 1; j++) {
                 str = matrix[i][j];
 				write(pipefd[1], str, strlen(str));
+				write(pipefd[1], ",", 1);
             }
 			str = matrix[i][ch[3] - 1];
 			write(pipefd[1], str, strlen(str));
@@ -692,12 +693,19 @@ void write_to_pipe(const Arg *arg) {
 				getch();
 			}
 			else if (arg->i == 1) {
-				int num_cells;
-				char** temp = split_string(buffer, '\n', &num_cells);
-				int j = 0;
+				int num_cols_2, num_rows_2;
+				char** temp = split_string(buffer, '\n', &num_cols_2);
+				int i_t = 0;
 				for (int i = ch[0]; i < ch[1]; i++) {
-					matrix[i][ch[2]] = temp[j];
-					j++;
+					char** temp2 = split_string(temp[i_t], ',', &num_rows_2);
+					i_t++;
+					int j_t = 0;
+					for (int j = ch[2]; j < ch[3]; j++) {
+						free(matrix[i][j]);
+						matrix[i][j] = strdup(temp2[j_t]);
+						j_t++;
+					}
+					free(temp2);
 				}
 				free(temp);
 			}
