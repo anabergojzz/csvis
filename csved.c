@@ -9,6 +9,8 @@
 #define CELL_WIDTH 10
 
 char ***matrix;
+char ***mat_reg;;
+int reg_rows, reg_cols = 0;
 int num_rows, num_cols;
 int rows, cols;
 int y, x = 0;
@@ -724,13 +726,34 @@ void write_to_pipe(const Arg *arg) {
 }
 
 void wipe_cells() {
+	for (int i = 0; i < reg_rows; i++) {
+		for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
+			free(mat_reg[i][j]);
+		}
+		free(mat_reg[i]);
+	}
+	free(mat_reg);
+	reg_rows = (ch[1]-ch[0]);
+	reg_cols = (ch[3]-ch[2]);
+	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
+	for (int i=0; i<reg_rows; i++)
+		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
 	for (int i=ch[0]; i<ch[1]; i++) {
 		for (int j=ch[2]; j<ch[3]; j++) {
-			free(matrix[i][j]);
+			mat_reg[i-ch[0]][j-ch[2]] = matrix[i][j];
 			matrix[i][j] = strdup("");
 		}
 	}
 	visual_end();
+}
+
+void paste_cells() {
+	for (int i = 0; i < reg_rows; i++) {
+		for (int j = 0; j < reg_cols; j++) {
+			free(matrix[y + i][x + j]);
+			matrix[y + i][x + j] = strdup(mat_reg[i][j]);
+		}
+	}
 }
 
 void deleting() {
@@ -812,6 +835,7 @@ static Key keys[] = {
 	{'>', write_to_pipe, {0}},
 	{'|', write_to_pipe, {1}},
 	{'d', wipe_cells, {0}},
+	{'p', paste_cells, {0}},
 	{'D', deleting, {0}}
 };
 
