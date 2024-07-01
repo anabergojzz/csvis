@@ -35,6 +35,75 @@ typedef struct {
 	const Arg arg;
 } Key;
 
+size_t utf8_strlen(const char *str);
+void draw();
+void move_down(const Arg *arg);
+void move_up(const Arg *arg);
+void move_right(const Arg *arg);
+void move_left(const Arg *arg);
+void when_resize();
+void insert_col(const Arg *arg);
+void insert_row(const Arg *arg);
+void delete_row();
+void delete_col();
+char* get_str(char* str, char loc, const char cmd);
+void visual_start();
+void visual_end();
+void visual();
+char** split_string(const char* str, const char delimiter, int* num_tokens);
+void write_csv(const Arg *arg);
+void write_to_pipe(const Arg *arg);
+void yank_cells();
+void wipe_cells();
+void paste_cells();
+void deleting();
+void str_change();
+void str_append();
+void str_insert();
+void quit();
+void keypress(int key);
+char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
+
+static Key keys[] = {
+	{'q', quit, {0}},
+	{'v', visual_start, {0}},
+	{'V', visual, {0}},
+	{'\x1b', visual_end, {0}},
+	{'j', move_down, {.i = 1}},
+	{KEY_DOWN, move_down, {.i = 1}},
+	{'k', move_up, {.i = 1}},
+	{KEY_UP, move_up, {.i = 1}},
+	{'l', move_right, {.i = 1}},
+	{KEY_RIGHT, move_right, {.i = 1}},
+	{'h', move_left, {.i = 1}},
+	{KEY_LEFT, move_left, {.i = 1}},
+	{'\x04', move_down, {.i = 5}},
+	{'\x15', move_up, {.i = 5}},
+	{'w', move_right, {.i = 3}},
+	{'b', move_left, {.i = 3}},
+	{'G', move_down, {.i = 0}},
+	{'g', move_up, {.i = 0}},
+	{'$', move_right, {.i = 0}},
+	{'0', move_left, {.i = 0}},
+	{'c', str_change, {0}},
+	{'a', str_append, {0}},
+	{'i', str_insert, {0}},
+	{'O', insert_row, {0}},
+	{'o', insert_row, {1}},
+	{'I', insert_col, {0}},
+	{'A', insert_col, {1}},
+	{'s', write_csv, {0}},
+	{'S', write_csv, {1}},
+	{'e', write_csv, {2}},
+	{'>', write_to_pipe, {0}},
+	{'|', write_to_pipe, {1}},
+	{'E', write_to_pipe, {2}},
+	{'d', wipe_cells, {0}},
+	{'y', yank_cells, {0}},
+	{'p', paste_cells, {0}},
+	{'D', deleting, {0}}
+};
+
 size_t utf8_strlen(const char *str) {
     mbstate_t state = {0};
     const char *s = str;
@@ -638,8 +707,9 @@ void write_to_pipe(const Arg *arg) {
 		if (arg->i == 2) {
 			cmd_arg[0] = "awk";
 			cmd_arg[1] = "-F,";
-			cmd_arg[2] = cmd;
-			cmd_arg[3] = NULL;
+			cmd_arg[2] = "-vOFS=,";
+			cmd_arg[3] = cmd;
+			cmd_arg[4] = NULL;
 		}
 		else {
 			int i = 0;
@@ -840,46 +910,6 @@ void quit() {
 	free(matrix);
 	exit(0);
 }
-
-static Key keys[] = {
-	{'q', quit, {0}},
-	{'v', visual_start, {0}},
-	{'V', visual, {0}},
-	{'\x1b', visual_end, {0}},
-	{'j', move_down, {.i = 1}},
-	{KEY_DOWN, move_down, {.i = 1}},
-	{'k', move_up, {.i = 1}},
-	{KEY_UP, move_up, {.i = 1}},
-	{'l', move_right, {.i = 1}},
-	{KEY_RIGHT, move_right, {.i = 1}},
-	{'h', move_left, {.i = 1}},
-	{KEY_LEFT, move_left, {.i = 1}},
-	{'\x04', move_down, {.i = 5}},
-	{'\x15', move_up, {.i = 5}},
-	{'w', move_right, {.i = 3}},
-	{'b', move_left, {.i = 3}},
-	{'G', move_down, {.i = 0}},
-	{'g', move_up, {.i = 0}},
-	{'$', move_right, {.i = 0}},
-	{'0', move_left, {.i = 0}},
-	{'c', str_change, {0}},
-	{'a', str_append, {0}},
-	{'i', str_insert, {0}},
-	{'O', insert_row, {0}},
-	{'o', insert_row, {1}},
-	{'I', insert_col, {0}},
-	{'A', insert_col, {1}},
-	{'s', write_csv, {0}},
-	{'S', write_csv, {1}},
-	{'e', write_csv, {2}},
-	{'>', write_to_pipe, {0}},
-	{'|', write_to_pipe, {1}},
-	{'E', write_to_pipe, {2}},
-	{'d', wipe_cells, {0}},
-	{'y', yank_cells, {0}},
-	{'p', paste_cells, {0}},
-	{'D', deleting, {0}}
-};
 
 void keypress(int key) {
 	for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++) {
