@@ -709,17 +709,20 @@ void write_to_pipe(const Arg *arg) {
 				getch();
 			}
 			else if (arg->i == 1 || arg->i == 2) {
+				visual_end();
 				int num_cols_2, num_rows_2;
-				char** temp = split_string(buffer, '\n', &num_cols_2);
+				char** temp = split_string(buffer, '\n', &num_rows_2);
 				int i_t = 0;
-				for (int i = ch[0]; i < ch[1]; i++) {
-					char** temp2 = split_string(temp[i_t], ',', &num_rows_2);
+				for (int i = 0; i < num_rows_2; i++) {
+					char** temp2 = split_string(temp[i_t], ',', &num_cols_2);
 					i_t++;
-					int j_t = 0;
-					for (int j = ch[2]; j < ch[3]; j++) {
-						free(matrix[i][j]);
-						matrix[i][j] = strdup(temp2[j_t]);
-						j_t++;
+					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
+						int j_t = 0;
+						for (int j = 0; j < num_cols_2; j++) {
+							free(matrix[y + i][x + j]);
+							matrix[y + i][x + j] = strdup(temp2[j_t]);
+							j_t++;
+						}
 					}
 					free(temp2);
 				}
