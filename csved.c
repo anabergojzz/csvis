@@ -53,6 +53,7 @@ void visual();
 char** split_string(const char* str, const char delimiter, int* num_tokens);
 void write_csv(const Arg *arg);
 void write_to_pipe(const Arg *arg);
+void read_from_pipe(const Arg *arg);
 void yank_cells();
 void wipe_cells();
 void paste_cells();
@@ -98,6 +99,7 @@ static Key keys[] = {
 	{'>', write_to_pipe, {0}},
 	{'|', write_to_pipe, {1}},
 	{'E', write_to_pipe, {2}},
+	{'<', read_from_pipe, {0}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
 	{'p', paste_cells, {0}},
@@ -362,7 +364,7 @@ char* get_str(char* str, char loc, const char cmd) {
 	char k = 0; // to track multibyte utf8 chars
 	int c_y0, c_x0;	
 
-	if (cmd == 1 || cmd == 2 || cmd == 3) {
+	if (cmd == 1 || cmd == 2 || cmd == 3 || cmd == 4) {
 		c_y0 = c_y;
 		c_x0 = c_x;
 		c_x = 1;
@@ -385,6 +387,7 @@ char* get_str(char* str, char loc, const char cmd) {
 			if (cmd == 1) mvaddstr(c_y, c_x-1, ":");
 			else if (cmd == 2) mvaddstr(c_y, c_x-1, ">");
 			else if (cmd == 3) mvaddstr(c_y, c_x-1, "|");
+			else if (cmd == 4) mvaddstr(c_y, c_x-1, "<");
 			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer);
 			addch(' ');
@@ -810,6 +813,119 @@ void write_to_pipe(const Arg *arg) {
     }
 
     visual_end();
+}
+
+void read_from_pipe(const Arg *arg) {
+	char* cmd;
+	cmd = get_str("", 0, 4);
+    int pipefd2[2];
+	pid_t pid;
+	int status;
+    ssize_t bytes_read;
+	char* buffer;
+	size_t buffer_size = 20;
+	size_t total_bytes = 0;
+	
+	//create pipe
+    if (pipe(pipefd2) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+	// fork process
+    pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        exit(2);
+    }
+
+    if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
+		// redirect stdout to output
+        close(pipefd2[0]);
+        dup2(pipefd2[1], STDOUT_FILENO);
+        close(pipefd2[1]);
+
+		char* temp = strdup(cmd);
+		int num_args = 0;
+		char* token = strtok(temp, " ");
+		while (token != NULL) {
+			num_args++;
+			token = strtok(NULL, " ");
+		}
+		free(temp);
+		char** cmd_arg = malloc((num_args+1)*sizeof(char*));
+		if (cmd_arg == NULL) {
+			perror("malloc failed");
+			exit(1);
+		}
+		else {
+			int i = 0;
+			token = strtok(cmd, " ");
+			while (token != NULL) {
+				cmd_arg[i++] = token;
+				token = strtok(NULL, " ");
+			}
+			cmd_arg[i] = NULL;
+		}
+
+        execvp(cmd_arg[0], cmd_arg);
+        // if execlp witout success
+        perror(" execvp");
+        exit(EXIT_FAILURE);
+		free(cmd);
+		free(cmd_arg);
+	}
+	else {  // Parent process
+        close(pipefd2[1]);
+
+        buffer = (char *)malloc(buffer_size);
+        if (buffer == NULL) {
+            perror("malloc");
+            exit(EXIT_FAILURE);
+        }
+
+		while ((bytes_read = read(pipefd2[0], buffer + total_bytes, buffer_size - total_bytes - 1)) > 0) {
+            total_bytes += bytes_read;
+            if (total_bytes >= buffer_size - 1) {
+                buffer_size *= 2;
+                buffer = (char *)realloc(buffer, buffer_size);
+                if (buffer == NULL) {
+                    perror("realloc");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+		if (total_bytes > 0) {
+			buffer[total_bytes] = '\0';
+
+			int num_cols_2, num_rows_2;
+			char** temp = split_string(buffer, '\n', &num_rows_2);
+			int i_t = 0;
+			for (int i = 0; i < num_rows_2; i++) {
+				char** temp2 = split_string(temp[i_t], ',', &num_cols_2);
+				i_t++;
+				if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
+					int j_t = 0;
+					for (int j = 0; j < num_cols_2; j++) {
+						free(matrix[y + i][x + j]);
+						matrix[y + i][x + j] = strdup(temp2[j_t]);
+						j_t++;
+					}
+				}
+				free(temp2);
+			}
+			free(temp);
+			free(buffer);
+		}
+
+        close(pipefd2[0]);  // close output
+
+		waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			getch();
+        }
+    }
 }
 
 void yank_cells() {
