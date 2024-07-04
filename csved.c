@@ -1035,10 +1035,20 @@ void push(node_t ** head, char operation,  char *** mat, int rows, int cols, int
 void undo() {
 	if (head != NULL) {
 		if (head->next != NULL) {
-			for (int i = 0; i < head->rows; i++) {
-				for (int j = 0; j < head->cols; j++) {
-					free(matrix[head->y + i][head->x + j]);
-					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+			if (head->operation == 'd') {
+				for (int i = 0; i < head->rows; i++) {
+					for (int j = 0; j < head->cols; j++) {
+						free(matrix[head->y + i][head->x + j]);
+						matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+					}
+				}
+			}
+			else if (head->operation == 'i') {
+				for (int i=head->y; i<(head->y + head->rows); i++) {
+					for (int j=head->x; j<(head->x + head->cols); j++) {
+						free(matrix[i][j]);
+						matrix[i][j] = strdup("");
+					}
 				}
 			}
 			y = head->y;
@@ -1051,10 +1061,20 @@ void undo() {
 void redo() {
 	if (head->prev != NULL)
 		head = head->prev;
-	for (int i=head->y; i<(head->y + head->rows); i++) {
-		for (int j=head->x; j<(head->x + head->cols); j++) {
-			free(matrix[i][j]);
-			matrix[i][j] = strdup("");
+	if (head->operation == 'd') {
+		for (int i=head->y; i<(head->y + head->rows); i++) {
+			for (int j=head->x; j<(head->x + head->cols); j++) {
+				free(matrix[i][j]);
+				matrix[i][j] = strdup("");
+			}
+		}
+	}
+	else if (head->operation == 'i') {
+		for (int i = 0; i < head->rows; i++) {
+			for (int j = 0; j < head->cols; j++) {
+				free(matrix[head->y + i][head->x + j]);
+				matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+			}
 		}
 	}
 	y = head->y;
@@ -1062,14 +1082,23 @@ void redo() {
 }
 
 void paste_cells() {
+	char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
+	char *** paste_mat = (char***)malloc(reg_rows * sizeof(char**));
+	for (int i=0; i<reg_rows; i++) {
+		undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
+		paste_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
+	}
 	if (reg_rows <= (num_rows - y) && reg_cols <= (num_cols - x)) {
 		for (int i = 0; i < reg_rows; i++) {
 			for (int j = 0; j < reg_cols; j++) {
-				free(matrix[y + i][x + j]);
+				undo_mat[i][j] = matrix[y + i][x + j];
+				paste_mat[i][j] = strdup(mat_reg[i][j]);
 				matrix[y + i][x + j] = strdup(mat_reg[i][j]);
 			}
 		}
 	}
+	push(&head, 'd', undo_mat, reg_rows, reg_cols, x, y);
+	push(&head, 'i', paste_mat, reg_rows, reg_cols, x, y);
 }
 
 void deleting() {
