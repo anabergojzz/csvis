@@ -967,6 +967,9 @@ void yank_cells() {
 }
 
 void wipe_cells() {
+	int range_rows = (ch[1]-ch[0]);
+	int range_cols = (ch[3]-ch[2]);
+
 	for (int i = 0; i < reg_rows; i++) {
 		for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
 			free(mat_reg[i][j]);
@@ -974,14 +977,15 @@ void wipe_cells() {
 		free(mat_reg[i]);
 	}
 	free(mat_reg);
-
-	reg_rows = (ch[1]-ch[0]);
-	reg_cols = (ch[3]-ch[2]);
+	reg_rows = range_rows;
+	reg_cols = range_cols;
 	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
-	char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
 	for (int i=0; i<reg_rows; i++) {
 		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
-		undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
+	}
+	char *** undo_mat = (char***)malloc(range_rows * sizeof(char**));
+	for (int i=0; i<range_rows; i++) {
+		undo_mat[i] = (char**)malloc(range_cols * sizeof(char*));
 	}
 	for (int i=ch[0]; i<ch[1]; i++) {
 		for (int j=ch[2]; j<ch[3]; j++) {
@@ -1033,7 +1037,8 @@ void undo() {
 		if (head->next != NULL) {
 			for (int i = 0; i < head->rows; i++) {
 				for (int j = 0; j < head->cols; j++) {
-					matrix[head->y + i][head->x + j] = head->mat[i][j];
+					free(matrix[head->y + i][head->x + j]);
+					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
 				}
 			}
 			y = head->y;
@@ -1048,6 +1053,7 @@ void redo() {
 		head = head->prev;
 	for (int i=head->y; i<(head->y + head->rows); i++) {
 		for (int j=head->x; j<(head->x + head->cols); j++) {
+			free(matrix[i][j]);
 			matrix[i][j] = strdup("");
 		}
 	}
