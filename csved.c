@@ -35,6 +35,18 @@ typedef struct {
 	const Arg arg;
 } Key;
 
+typedef struct node {
+	char operation;
+    char *** mat;
+	int y;
+	int x;
+	int rows;
+	int cols;
+	struct node * next;
+	struct node * prev;
+} node_t;
+node_t * head = NULL;
+
 size_t utf8_strlen(const char *str);
 void draw();
 void move_down(const Arg *arg);
@@ -56,6 +68,8 @@ void write_to_pipe(const Arg *arg);
 void read_from_pipe(const Arg *arg);
 void yank_cells();
 void wipe_cells();
+void undo();
+void redo();
 void paste_cells();
 void deleting();
 void str_change();
@@ -64,6 +78,7 @@ void str_insert();
 void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
+void push(node_t ** head, char operation, char *** mat, int rows, int cols, int x, int y);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -103,6 +118,8 @@ static Key keys[] = {
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
 	{'p', paste_cells, {0}},
+	{'u', undo, {0}},
+	{'\x12', redo, {0}},
 	{'D', deleting, {0}}
 };
 
@@ -957,18 +974,85 @@ void wipe_cells() {
 		free(mat_reg[i]);
 	}
 	free(mat_reg);
+
 	reg_rows = (ch[1]-ch[0]);
 	reg_cols = (ch[3]-ch[2]);
 	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
-	for (int i=0; i<reg_rows; i++)
+	char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
+	for (int i=0; i<reg_rows; i++) {
 		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
+		undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
+	}
 	for (int i=ch[0]; i<ch[1]; i++) {
 		for (int j=ch[2]; j<ch[3]; j++) {
-			mat_reg[i-ch[0]][j-ch[2]] = matrix[i][j];
+			undo_mat[i-ch[0]][j-ch[2]] = matrix[i][j];
+			mat_reg[i-ch[0]][j-ch[2]] = strdup(matrix[i][j]);
 			matrix[i][j] = strdup("");
 		}
 	}
+	push(&head, 'd', undo_mat, reg_rows, reg_cols, ch[2], ch[0]);
+
 	visual_end();
+}
+
+void push(node_t ** head, char operation,  char *** mat, int rows, int cols, int x, int y) {
+	if (*head == NULL) {
+		*head = (node_t *) malloc(sizeof(node_t));
+		(*head)->next = NULL;
+		(*head)->prev = NULL;
+	}
+    node_t * new_node;
+    new_node = (node_t *) malloc(sizeof(node_t));
+	if (new_node == NULL) {
+		exit(1);
+	}
+
+	new_node->operation = operation;
+	new_node->mat = mat;
+	new_node->rows = rows;
+	new_node->cols = cols;
+	new_node->y = y;
+	new_node->x = x;
+	new_node->next = *head;
+	new_node->prev = NULL;
+
+	// free previous nodes if in the middle of history
+	while ((*head)->prev != NULL) {
+	node_t * temp = (*head)->prev;
+	(*head)->prev = (*head)->prev->prev;
+	free(temp->mat);
+	free(temp);
+	}
+
+	(*head)->prev = new_node;
+	*head = new_node;
+}
+
+void undo() {
+	if (head != NULL) {
+		if (head->next != NULL) {
+			for (int i = 0; i < head->rows; i++) {
+				for (int j = 0; j < head->cols; j++) {
+					matrix[head->y + i][head->x + j] = head->mat[i][j];
+				}
+			}
+			y = head->y;
+			x = head->x;
+			head = head->next;
+		}
+	}
+}
+
+void redo() {
+	if (head->prev != NULL)
+		head = head->prev;
+	for (int i=head->y; i<(head->y + head->rows); i++) {
+		for (int j=head->x; j<(head->x + head->cols); j++) {
+			matrix[i][j] = strdup("");
+		}
+	}
+	y = head->y;
+	x = head->x;
 }
 
 void paste_cells() {
