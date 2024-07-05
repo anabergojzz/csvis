@@ -62,7 +62,7 @@ char* get_str(char* str, char loc, const char cmd);
 void visual_start();
 void visual_end();
 void visual();
-char** split_string(const char* str, const char delimiter, int* num_tokens);
+char** split_string(const char* str, const char delimiter, int* num_tokens, char keep_last);
 void write_csv(const Arg *arg);
 void write_to_pipe(const Arg *arg);
 void read_from_pipe(const Arg *arg);
@@ -536,7 +536,7 @@ void visual() {
 	}
 }
 
-char** split_string(const char* str, const char delimiter, int* num_tokens) {
+char** split_string(const char* str, const char delimiter, int* num_tokens, char keep_last) {
     int count = 1;
     const char *tmp = str;
     char **result = NULL;
@@ -545,7 +545,7 @@ char** split_string(const char* str, const char delimiter, int* num_tokens) {
     delim[0] = delimiter;
     delim[1] = '\0';
 
-    while (*tmp) {
+    while (*tmp) { // count for malloc
         if (*tmp == delimiter) {
             count++;
         }
@@ -566,7 +566,7 @@ char** split_string(const char* str, const char delimiter, int* num_tokens) {
             tmp++;
         }
 
-        if (start == tmp) {
+        if (start == tmp) { // if delimiter at the beginning
             result[i] = strdup("");
         } else {
             result[i] = (char *) malloc((tmp - start + 1) * sizeof(char));
@@ -586,10 +586,12 @@ char** split_string(const char* str, const char delimiter, int* num_tokens) {
             tmp++;
         }
     }
-	if (*(tmp - 1) == delimiter) {
-        result[i] = strdup("");
-        i++;
-    }
+	if (keep_last == 1) {
+		if (*(tmp - 1) == delimiter) { // if delimiter at the end
+			result[i] = strdup("");
+			i++;
+		}
+	}
     result[i] = NULL;
     *num_tokens = i;
 
@@ -790,6 +792,13 @@ void write_to_pipe(const Arg *arg) {
             }
         }
 
+        close(pipefd2[0]);  // close output
+
+		waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			getch();
+        }
+
 		if (total_bytes > 0) {
 			buffer[total_bytes] = '\0';
 
@@ -801,32 +810,28 @@ void write_to_pipe(const Arg *arg) {
 			else if (arg->i == 1 || arg->i == 2) {
 				visual_end();
 				int num_cols_2, num_rows_2;
-				char** temp = split_string(buffer, '\n', &num_rows_2);
-				int i_t = 0;
+				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
+				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				for (int i = 0; i < num_rows_2; i++) {
-					char** temp2 = split_string(temp[i_t], ',', &num_cols_2);
-					i_t++;
+					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
+					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-						int j_t = 0;
 						for (int j = 0; j < num_cols_2; j++) {
-							free(matrix[y + i][x + j]);
-							matrix[y + i][x + j] = strdup(temp2[j_t]);
-							j_t++;
+							undo_mat[i][j] = matrix[y + i][x + j];
+							paste_mat[i][j] = strdup(temp2[j]);
+							matrix[y + i][x + j] = strdup(temp2[j]);
 						}
 					}
 					free(temp2);
 				}
+				push(&head, 'p', undo_mat, num_rows_2, num_cols_2, x, y);
+				push(&head, 'p', paste_mat, num_rows_2, num_cols_2, x, y);
 				free(temp);
 			}
 			free(buffer);
 		}
-
-        close(pipefd2[0]);  // close output
-
-		waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-			getch();
-        }
     }
 
     visual_end();
@@ -912,6 +917,13 @@ void read_from_pipe(const Arg *arg) {
             }
         }
 
+        close(pipefd2[0]);  // close output
+
+		waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			getch();
+        }
+
 		if (total_bytes > 0) {
 			buffer[total_bytes] = '\0';
 
@@ -922,32 +934,29 @@ void read_from_pipe(const Arg *arg) {
 			}
 			else if (arg->i == 0) {
 				int num_cols_2, num_rows_2;
-				char** temp = split_string(buffer, '\n', &num_rows_2);
-				int i_t = 0;
+				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
+				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				for (int i = 0; i < num_rows_2; i++) {
-					char** temp2 = split_string(temp[i_t], ',', &num_cols_2);
-					i_t++;
+					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
+					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-						int j_t = 0;
 						for (int j = 0; j < num_cols_2; j++) {
-							free(matrix[y + i][x + j]);
-							matrix[y + i][x + j] = strdup(temp2[j_t]);
-							j_t++;
+							undo_mat[i][j] = matrix[y + i][x + j];
+							paste_mat[i][j] = strdup(temp2[j]);
+							matrix[y + i][x + j] = strdup(temp2[j]);
 						}
 					}
 					free(temp2);
 				}
+				push(&head, 'p', undo_mat, num_rows_2, num_cols_2, x, y);
+				push(&head, 'p', paste_mat, num_rows_2, num_cols_2, x, y);
 				free(temp);
 			}
 			free(buffer);
 		}
 
-        close(pipefd2[0]);  // close output
-
-		waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-			getch();
-        }
     }
 
 	c_y = c_y0;
@@ -1231,7 +1240,7 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
         }
 		line_buf[strcspn(line_buf, "\n")] = '\0';
 
-		matrix[*num_rows] = split_string(line_buf, ',', num_cols);
+		matrix[*num_rows] = split_string(line_buf, ',', num_cols, 1);
 
 		(*num_rows)++;
 		line_size = getline(&line_buf, &line_buf_size, file);
