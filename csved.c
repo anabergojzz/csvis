@@ -102,8 +102,8 @@ static Key keys[] = {
 	{'$', move_right, {.i = 0}},
 	{'0', move_left, {.i = 0}},
 	{'c', str_change, {0}},
-	{'a', str_append, {0}},
-	{'i', str_insert, {0}},
+	{'a', str_change, {2}},
+	{'i', str_change, {1}},
 	{'O', insert_row, {0}},
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
@@ -1159,25 +1159,15 @@ void deleting() {
 		delete_col();
 }
 
-void str_change() {
+void str_change(const Arg *arg) {
 	if (mode == 'v') visual_end();
-    char* temp = get_str("", 0, 0);
-	free(matrix[y][x]);
-    matrix[y][x] = strdup(temp);
-    free(temp);
-}
-
-void str_append() {
-	if (mode == 'v') visual_end();
-	char* temp = get_str(matrix[y][x], 1, 0);
-	free(matrix[y][x]);
-    matrix[y][x] = strdup(temp);
-    free(temp);
-}
-
-void str_insert() {
-	if (mode == 'v') visual_end();
-	char* temp = get_str(matrix[y][x], 0, 0);
+	char* temp;
+	if (arg->i == 0)
+		temp = get_str("", 0, 0);
+	else if (arg->i == 1)
+		temp = get_str(matrix[y][x], 0, 0);
+	else if (arg->i == 2)
+		temp = get_str(matrix[y][x], 1, 0);
 	free(matrix[y][x]);
     matrix[y][x] = strdup(temp);
     free(temp);
