@@ -38,6 +38,7 @@ typedef struct {
 typedef struct node {
 	char operation;
     char *** mat;
+    char * cell;
 	int y;
 	int x;
 	int rows;
@@ -78,7 +79,7 @@ void str_insert();
 void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
-void push(node_t ** head, char operation, char *** mat, int rows, int cols, int x, int y);
+void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int x, int y);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -826,8 +827,8 @@ void write_to_pipe(const Arg *arg) {
 					}
 					free(temp2);
 				}
-				push(&head, 'p', undo_mat, num_rows_2, num_cols_2, x, y);
-				push(&head, 'p', paste_mat, num_rows_2, num_cols_2, x, y);
+				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
+				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
 				free(temp);
 			}
 			free(buffer);
@@ -950,8 +951,8 @@ void read_from_pipe(const Arg *arg) {
 					}
 					free(temp2);
 				}
-				push(&head, 'p', undo_mat, num_rows_2, num_cols_2, x, y);
-				push(&head, 'p', paste_mat, num_rows_2, num_cols_2, x, y);
+				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
+				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
 				free(temp);
 			}
 			free(buffer);
@@ -1012,12 +1013,12 @@ void wipe_cells() {
 			matrix[i][j] = strdup("");
 		}
 	}
-	push(&head, 'd', undo_mat, reg_rows, reg_cols, ch[2], ch[0]);
+	push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[2], ch[0]);
 
 	visual_end();
 }
 
-void push(node_t ** head, char operation,  char *** mat, int rows, int cols, int x, int y) {
+void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int x, int y) {
 	if (*head == NULL) {
 		*head = (node_t *) malloc(sizeof(node_t));
 		(*head)->next = NULL;
@@ -1031,6 +1032,7 @@ void push(node_t ** head, char operation,  char *** mat, int rows, int cols, int
 
 	new_node->operation = operation;
 	new_node->mat = mat;
+	new_node->cell = cell;
 	new_node->rows = rows;
 	new_node->cols = cols;
 	new_node->y = y;
@@ -1084,6 +1086,13 @@ void undo() {
 					}
 				}
 			}
+			else if (head->operation == 'r') {
+				free(matrix[head->y][head->x]);
+				matrix[head->y][head->x] = strdup("");
+				head = head->next;
+				free(matrix[head->y][head->x]);
+				matrix[head->y][head->x] = strdup(head->cell);
+			}
 			y = head->y;
 			x = head->x;
 			head = head->next;
@@ -1126,6 +1135,14 @@ void redo() {
 			}
 		}
 	}
+	else if (head->operation == 'r') {
+		free(matrix[head->y][head->x]);
+		matrix[head->y][head->x] = strdup("");
+		if (head->prev != NULL)
+			head = head->prev;
+		free(matrix[head->y][head->x]);
+		matrix[head->y][head->x] = strdup(head->cell);
+	}
 	y = head->y;
 	x = head->x;
 }
@@ -1146,8 +1163,8 @@ void paste_cells() {
 			}
 		}
 	}
-	push(&head, 'p', undo_mat, reg_rows, reg_cols, x, y);
-	push(&head, 'p', paste_mat, reg_rows, reg_cols, x, y);
+	push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, x, y);
+	push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, x, y);
 }
 
 void deleting() {
@@ -1168,9 +1185,13 @@ void str_change(const Arg *arg) {
 		temp = get_str(matrix[y][x], 0, 0);
 	else if (arg->i == 2)
 		temp = get_str(matrix[y][x], 1, 0);
-	free(matrix[y][x]);
+	char * undo_cell = matrix[y][x];
+    char * paste_cell = strdup(temp);
     matrix[y][x] = strdup(temp);
     free(temp);
+
+	push(&head, 'r', NULL, undo_cell, 0, 0, x, y);
+	push(&head, 'r', NULL, paste_cell, 0, 0, x, y);
 }
 
 void quit() {
