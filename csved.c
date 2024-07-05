@@ -811,24 +811,32 @@ void write_to_pipe(const Arg *arg) {
 			else if (arg->i == 1 || arg->i == 2) {
 				visual_end();
 				int num_cols_2, num_rows_2;
+				int count;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
+				char * tmp = temp[0];
+				while (*tmp) { // count for malloc
+					if (*tmp == ',') {
+						count++;
+					}
+					tmp++;
+				}
 				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-				for (int i = 0; i < num_rows_2; i++) {
-					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
-					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-						for (int j = 0; j < num_cols_2; j++) {
-							undo_mat[i][j] = matrix[y + i][x + j];
-							paste_mat[i][j] = strdup(temp2[j]);
-							matrix[y + i][x + j] = strdup(temp2[j]);
-						}
+				if (num_rows_2 <= (num_rows - y) && count + 1 <= (num_cols - x)) {
+					for (int i = 0; i < num_rows_2; i++) {
+						char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
+						undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+						paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+							for (int j = 0; j < num_cols_2; j++) {
+								undo_mat[i][j] = matrix[y + i][x + j];
+								paste_mat[i][j] = strdup(temp2[j]);
+								matrix[y + i][x + j] = strdup(temp2[j]);
+							}
+						free(temp2);
 					}
-					free(temp2);
+					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
+					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
 				}
-				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
-				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
 				free(temp);
 			}
 			free(buffer);
@@ -935,24 +943,32 @@ void read_from_pipe(const Arg *arg) {
 			}
 			else if (arg->i == 0) {
 				int num_cols_2, num_rows_2;
+				int count;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
+				char * tmp = temp[0];
+				while (*tmp) { // count for malloc
+					if (*tmp == ',') {
+						count++;
+					}
+					tmp++;
+				}
 				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-				for (int i = 0; i < num_rows_2; i++) {
-					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
-					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-						for (int j = 0; j < num_cols_2; j++) {
-							undo_mat[i][j] = matrix[y + i][x + j];
-							paste_mat[i][j] = strdup(temp2[j]);
-							matrix[y + i][x + j] = strdup(temp2[j]);
-						}
+				if (num_rows_2 <= (num_rows - y) && count + 1 <= (num_cols - x)) {
+					for (int i = 0; i < num_rows_2; i++) {
+						char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
+						undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+						paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+							for (int j = 0; j < num_cols_2; j++) {
+								undo_mat[i][j] = matrix[y + i][x + j];
+								paste_mat[i][j] = strdup(temp2[j]);
+								matrix[y + i][x + j] = strdup(temp2[j]);
+							}
+						free(temp2);
 					}
-					free(temp2);
+					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
+					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
 				}
-				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
-				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
 				free(temp);
 			}
 			free(buffer);
@@ -1162,9 +1178,9 @@ void paste_cells() {
 				matrix[y + i][x + j] = strdup(mat_reg[i][j]);
 			}
 		}
+		push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, x, y);
+		push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, x, y);
 	}
-	push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, x, y);
-	push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, x, y);
 }
 
 void deleting() {
