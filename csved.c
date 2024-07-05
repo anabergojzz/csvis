@@ -1051,6 +1051,21 @@ void undo() {
 					}
 				}
 			}
+			else if (head->operation == 'p') {
+				for (int i=head->y; i<(head->y + head->rows); i++) {
+					for (int j=head->x; j<(head->x + head->cols); j++) {
+						free(matrix[i][j]);
+						matrix[i][j] = strdup("");
+					}
+				}
+				head = head->next;
+				for (int i = 0; i < head->rows; i++) {
+					for (int j = 0; j < head->cols; j++) {
+						free(matrix[head->y + i][head->x + j]);
+						matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+					}
+				}
+			}
 			y = head->y;
 			x = head->x;
 			head = head->next;
@@ -1070,6 +1085,22 @@ void redo() {
 		}
 	}
 	else if (head->operation == 'i') {
+		for (int i = 0; i < head->rows; i++) {
+			for (int j = 0; j < head->cols; j++) {
+				free(matrix[head->y + i][head->x + j]);
+				matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+			}
+		}
+	}
+	else if (head->operation == 'p') {
+		for (int i=head->y; i<(head->y + head->rows); i++) {
+			for (int j=head->x; j<(head->x + head->cols); j++) {
+				free(matrix[i][j]);
+				matrix[i][j] = strdup("");
+			}
+		}
+		if (head->prev != NULL)
+			head = head->prev;
 		for (int i = 0; i < head->rows; i++) {
 			for (int j = 0; j < head->cols; j++) {
 				free(matrix[head->y + i][head->x + j]);
@@ -1097,8 +1128,8 @@ void paste_cells() {
 			}
 		}
 	}
-	push(&head, 'd', undo_mat, reg_rows, reg_cols, x, y);
-	push(&head, 'i', paste_mat, reg_rows, reg_cols, x, y);
+	push(&head, 'p', undo_mat, reg_rows, reg_cols, x, y);
+	push(&head, 'p', paste_mat, reg_rows, reg_cols, x, y);
 }
 
 void deleting() {
