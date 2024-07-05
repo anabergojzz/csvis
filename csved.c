@@ -875,15 +875,14 @@ void read_from_pipe(const Arg *arg) {
 			perror("malloc failed");
 			exit(1);
 		}
-		else {
-			int i = 0;
-			token = strtok(cmd, " ");
-			while (token != NULL) {
-				cmd_arg[i++] = token;
-				token = strtok(NULL, " ");
-			}
-			cmd_arg[i] = NULL;
+
+		int i = 0;
+		token = strtok(cmd, " ");
+		while (token != NULL) {
+			cmd_arg[i++] = token;
+			token = strtok(NULL, " ");
 		}
+		cmd_arg[i] = NULL;
 
         execvp(cmd_arg[0], cmd_arg);
         // if execlp witout success
@@ -916,23 +915,30 @@ void read_from_pipe(const Arg *arg) {
 		if (total_bytes > 0) {
 			buffer[total_bytes] = '\0';
 
-			int num_cols_2, num_rows_2;
-			char** temp = split_string(buffer, '\n', &num_rows_2);
-			int i_t = 0;
-			for (int i = 0; i < num_rows_2; i++) {
-				char** temp2 = split_string(temp[i_t], ',', &num_cols_2);
-				i_t++;
-				if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-					int j_t = 0;
-					for (int j = 0; j < num_cols_2; j++) {
-						free(matrix[y + i][x + j]);
-						matrix[y + i][x + j] = strdup(temp2[j_t]);
-						j_t++;
-					}
-				}
-				free(temp2);
+			if (arg->i == 1) {
+				clear();
+				mvprintw(0, 0, buffer);
+				getch();
 			}
-			free(temp);
+			else if (arg->i == 0) {
+				int num_cols_2, num_rows_2;
+				char** temp = split_string(buffer, '\n', &num_rows_2);
+				int i_t = 0;
+				for (int i = 0; i < num_rows_2; i++) {
+					char** temp2 = split_string(temp[i_t], ',', &num_cols_2);
+					i_t++;
+					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
+						int j_t = 0;
+						for (int j = 0; j < num_cols_2; j++) {
+							free(matrix[y + i][x + j]);
+							matrix[y + i][x + j] = strdup(temp2[j_t]);
+							j_t++;
+						}
+					}
+					free(temp2);
+				}
+				free(temp);
+			}
 			free(buffer);
 		}
 
@@ -943,6 +949,9 @@ void read_from_pipe(const Arg *arg) {
 			getch();
         }
     }
+
+	c_y = c_y0;
+	c_x = c_x0;
 }
 
 void yank_cells() {
