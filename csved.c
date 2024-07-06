@@ -985,36 +985,38 @@ void yank_cells() {
 }
 
 void wipe_cells() {
-	int range_rows = (ch[1]-ch[0]);
-	int range_cols = (ch[3]-ch[2]);
+	if (mode == 'v') {
+		int range_rows = (ch[1]-ch[0]);
+		int range_cols = (ch[3]-ch[2]);
 
-	for (int i = 0; i < reg_rows; i++) {
-		for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
-			free(mat_reg[i][j]);
+		for (int i = 0; i < reg_rows; i++) {
+			for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
+				free(mat_reg[i][j]);
+			}
+			free(mat_reg[i]);
 		}
-		free(mat_reg[i]);
-	}
-	free(mat_reg);
-	reg_rows = range_rows;
-	reg_cols = range_cols;
-	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
-	for (int i=0; i<reg_rows; i++) {
-		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
-	}
-	char *** undo_mat = (char***)malloc(range_rows * sizeof(char**));
-	for (int i=0; i<range_rows; i++) {
-		undo_mat[i] = (char**)malloc(range_cols * sizeof(char*));
-	}
-	for (int i=ch[0]; i<ch[1]; i++) {
-		for (int j=ch[2]; j<ch[3]; j++) {
-			undo_mat[i-ch[0]][j-ch[2]] = matrix[i][j];
-			mat_reg[i-ch[0]][j-ch[2]] = strdup(matrix[i][j]);
-			matrix[i][j] = strdup("");
+		free(mat_reg);
+		reg_rows = range_rows;
+		reg_cols = range_cols;
+		mat_reg = (char***)malloc(reg_rows * sizeof(char**));
+		for (int i=0; i<reg_rows; i++) {
+			mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
 		}
-	}
-	push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2]);
+		char *** undo_mat = (char***)malloc(range_rows * sizeof(char**));
+		for (int i=0; i<range_rows; i++) {
+			undo_mat[i] = (char**)malloc(range_cols * sizeof(char*));
+		}
+		for (int i=ch[0]; i<ch[1]; i++) {
+			for (int j=ch[2]; j<ch[3]; j++) {
+				undo_mat[i-ch[0]][j-ch[2]] = matrix[i][j];
+				mat_reg[i-ch[0]][j-ch[2]] = strdup(matrix[i][j]);
+				matrix[i][j] = strdup("");
+			}
+		}
+		push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2]);
 
-	visual_end();
+		visual_end();
+	}
 }
 
 void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x) {
