@@ -79,7 +79,7 @@ void str_insert();
 void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
-void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int x, int y);
+void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -312,10 +312,9 @@ void insert_row(const Arg *arg) {
 }
 
 void delete_row() {
+	char *** undo_mat = (char***)malloc(1 * sizeof(char**));
 	if (num_rows != 1) {
-		for (int i = 0; i < num_cols; i++)
-			free(matrix[y][i]);
-		free(matrix[y]);
+		undo_mat[0] = matrix[y];
 
 		for (int i = y; i < num_rows - 1; i++)
 			matrix[i] = matrix[i + 1];
@@ -323,6 +322,7 @@ void delete_row() {
 		matrix[num_rows - 1] = NULL;
 		num_rows--;
 		if (y == num_rows) y--;
+		push(&head, 'e', undo_mat, NULL, 1, reg_cols, y, x);
 	}
 }
 
@@ -812,8 +812,8 @@ void write_to_pipe(const Arg *arg) {
 							}
 						free(temp2);
 					}
-					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
-					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
+					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x);
+					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x);
 				}
 				free(temp);
 			}
@@ -944,8 +944,8 @@ void read_from_pipe(const Arg *arg) {
 							}
 						free(temp2);
 					}
-					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
-					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
+					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x);
+					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x);
 				}
 				free(temp);
 			}
@@ -1007,12 +1007,12 @@ void wipe_cells() {
 			matrix[i][j] = strdup("");
 		}
 	}
-	push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[2], ch[0]);
+	push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2]);
 
 	visual_end();
 }
 
-void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int x, int y) {
+void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x) {
 	if (*head == NULL) {
 		*head = (node_t *) malloc(sizeof(node_t));
 		(*head)->next = NULL;
@@ -1087,6 +1087,16 @@ void undo() {
 				free(matrix[head->y][head->x]);
 				matrix[head->y][head->x] = strdup(head->cell);
 			}
+			else if (head->operation == 'e') {
+				for (int i = num_rows; i > head->y; i--) {
+					matrix[i] = matrix[i - 1];
+				}
+				num_rows++;
+				matrix[head->y] = (char **)malloc(num_cols * sizeof(char *));
+				for (int j = 0; j < num_cols; j++) {
+					matrix[head->y][j] = strdup(head->mat[0][j]);
+				}
+			}
 			y = head->y;
 			x = head->x;
 			head = head->next;
@@ -1137,6 +1147,17 @@ void redo() {
 			free(matrix[head->y][head->x]);
 			matrix[head->y][head->x] = strdup(head->cell);
 		}
+		else if (head->operation == 'e') {
+			for (int i = 0; i < num_cols; i++)
+				free(matrix[head->y][i]);
+			free(matrix[head->y]);
+
+			for (int i = head->y; i < num_rows - 1; i++)
+				matrix[i] = matrix[i + 1];
+
+			matrix[num_rows - 1] = NULL;
+			num_rows--;
+		}
 		y = head->y;
 		x = head->x;
 	}
@@ -1157,8 +1178,8 @@ void paste_cells() {
 				matrix[y + i][x + j] = strdup(mat_reg[i][j]);
 			}
 		}
-		push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, x, y);
-		push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, x, y);
+		push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x);
+		push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x);
 	}
 }
 
@@ -1185,8 +1206,8 @@ void str_change(const Arg *arg) {
     matrix[y][x] = strdup(temp);
     free(temp);
 
-	push(&head, 'r', NULL, undo_cell, 0, 0, x, y);
-	push(&head, 'r', NULL, paste_cell, 0, 0, x, y);
+	push(&head, 'r', NULL, undo_cell, 0, 0, y, x);
+	push(&head, 'r', NULL, paste_cell, 0, 0, y, x);
 }
 
 void quit() {
