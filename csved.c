@@ -298,6 +298,7 @@ void insert_col(const Arg *arg) {
 		matrix[i][x + arg->i] = strdup("");
 	}
 	num_cols++;
+	push(&head, 'h', NULL, NULL, arg->i, 1, y, x);
 }
 
 void insert_row(const Arg *arg) {
@@ -309,6 +310,7 @@ void insert_row(const Arg *arg) {
 	for (int j = 0; j < num_cols; j++) {
 		matrix[y + arg->i][j] = strdup("");
 	}
+	push(&head, 'g', NULL, NULL, 1, arg->i, y, x);
 }
 
 void delete_row() {
@@ -1110,6 +1112,26 @@ void undo() {
 				}
 				num_cols++;
 			}
+			else if (head->operation == 'g') {
+				for (int i = 0; i < num_cols; i++)
+					free(matrix[head->y + head->cols][i]);
+				free(matrix[head->y + head->cols]);
+
+				for (int i = head->y + head->cols; i < num_rows - 1; i++)
+					matrix[i] = matrix[i + 1];
+
+				matrix[num_rows - 1] = NULL;
+				num_rows--;
+			}
+			else if (head->operation == 'h') {
+				for (int j = 0; j < num_rows; j++) {
+					free(matrix[j][head->x + head->rows]);
+					for (int i = head->x + head->rows; i < num_cols - 1; i++)
+						matrix[j][i] = matrix[j][i + 1];
+					matrix[j][num_cols - 1] = NULL;
+				}
+				num_cols--;
+			}
 			y = head->y;
 			x = head->x;
 			head = head->next;
@@ -1179,6 +1201,26 @@ void redo() {
 				matrix[j][num_cols - 1] = NULL;
 			}
 			num_cols--;
+		}
+		else if (head->operation == 'g') {
+			for (int i = num_rows; i > head->y + head->cols; i--) {
+				matrix[i] = matrix[i - 1];
+			}
+			num_rows++;
+			matrix[head->y + head->cols] = (char **)malloc(num_cols * sizeof(char *));
+			for (int j = 0; j < num_cols; j++) {
+				matrix[head->y + head->cols][j] = strdup("");
+			}
+		}
+		else if (head->operation == 'h') {
+			for (int i = 0; i < num_rows; i++) {
+				matrix[i] = (char **)realloc(matrix[i], (num_cols+1) * sizeof(char *));
+				for (int j = num_cols; j > head->x + head->rows; j--) {
+					matrix[i][j] = matrix[i][j - 1];
+				}
+				matrix[i][head->x + head->rows] = strdup("");
+			}
+			num_cols++;
 		}
 		y = head->y;
 		x = head->x;
