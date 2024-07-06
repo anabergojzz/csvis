@@ -298,17 +298,6 @@ void insert_col(const Arg *arg) {
 		matrix[i][x + arg->i] = strdup("");
 	}
 	num_cols++;
-	if (num_cols*CELL_WIDTH < cols) {
-		scr_x = num_cols;
-	}
-	else scr_x = cols/CELL_WIDTH;
-	x = x + arg->i;
-	if (c_x < (scr_x - arg->i)*CELL_WIDTH)
-		c_x = (x + s_x)*CELL_WIDTH;
-	else {
-		c_x = (scr_x - 1)*CELL_WIDTH;
-		s_x = x + (scr_x - 1);
-	}
 }
 
 void insert_row(const Arg *arg) {
@@ -319,17 +308,6 @@ void insert_row(const Arg *arg) {
 	matrix[y + arg->i] = (char **)malloc(num_cols * sizeof(char *));
 	for (int j = 0; j < num_cols; j++) {
 		matrix[y + arg->i][j] = strdup("");
-	}
-	if (num_rows < rows)  {
-		scr_y = num_rows;
-	}
-	else scr_y = rows;
-	y = y + arg->i;
-	if (c_y < scr_y - arg->i)
-		c_y = y + s_y;
-	else {
-		c_y = scr_y - 1;
-		s_y = y + (scr_y - 1);
 	}
 }
 
