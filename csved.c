@@ -322,20 +322,23 @@ void delete_row() {
 		matrix[num_rows - 1] = NULL;
 		num_rows--;
 		if (y == num_rows) y--;
-		push(&head, 'e', undo_mat, NULL, 1, reg_cols, y, x);
+		push(&head, 'e', undo_mat, NULL, 1, num_cols, y, x);
 	}
 }
 
 void delete_col() {
+	char *** undo_mat = (char***)malloc(num_rows * sizeof(char**));
 	if (num_cols != 1) {
 		for (int j = 0; j < num_rows; j++) {
-			free(matrix[j][x]);
+			undo_mat[j] = (char **)malloc(1 * sizeof(char *));
+			undo_mat[j][0] = matrix[j][x];
 			for (int i = x; i < num_cols - 1; i++)
 				matrix[j][i] = matrix[j][i + 1];
 			matrix[j][num_cols - 1] = NULL;
 		}
 		num_cols--;
 		if (x == num_cols) x--;
+		push(&head, 'f', undo_mat, NULL, num_rows, 1, y, x);
 	}
 }
 
@@ -1097,6 +1100,16 @@ void undo() {
 					matrix[head->y][j] = strdup(head->mat[0][j]);
 				}
 			}
+			else if (head->operation == 'f') {
+				for (int i = 0; i < num_rows; i++) {
+					matrix[i] = (char **)realloc(matrix[i], (num_cols+1) * sizeof(char *));
+					for (int j = num_cols; j > head->x; j--) {
+						matrix[i][j] = matrix[i][j - 1];
+					}
+					matrix[i][head->x] = strdup(head->mat[i][0]);
+				}
+				num_cols++;
+			}
 			y = head->y;
 			x = head->x;
 			head = head->next;
@@ -1157,6 +1170,15 @@ void redo() {
 
 			matrix[num_rows - 1] = NULL;
 			num_rows--;
+		}
+		else if (head->operation == 'f') {
+			for (int j = 0; j < num_rows; j++) {
+				free(matrix[j][head->x]);
+				for (int i = head->x; i < num_cols - 1; i++)
+					matrix[j][i] = matrix[j][i + 1];
+				matrix[j][num_cols - 1] = NULL;
+			}
+			num_cols--;
 		}
 		y = head->y;
 		x = head->x;
