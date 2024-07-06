@@ -1117,50 +1117,51 @@ void undo() {
 }
 
 void redo() {
-	if (head->prev != NULL)
+	if (head->prev != NULL) {
 		head = head->prev;
-	if (head->operation == 'd') {
-		for (int i=head->y; i<(head->y + head->rows); i++) {
-			for (int j=head->x; j<(head->x + head->cols); j++) {
-				free(matrix[i][j]);
-				matrix[i][j] = strdup("");
+		if (head->operation == 'd') {
+			for (int i=head->y; i<(head->y + head->rows); i++) {
+				for (int j=head->x; j<(head->x + head->cols); j++) {
+					free(matrix[i][j]);
+					matrix[i][j] = strdup("");
+				}
 			}
 		}
-	}
-	else if (head->operation == 'i') {
-		for (int i = 0; i < head->rows; i++) {
-			for (int j = 0; j < head->cols; j++) {
-				free(matrix[head->y + i][head->x + j]);
-				matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+		else if (head->operation == 'i') {
+			for (int i = 0; i < head->rows; i++) {
+				for (int j = 0; j < head->cols; j++) {
+					free(matrix[head->y + i][head->x + j]);
+					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+				}
 			}
 		}
-	}
-	else if (head->operation == 'p') {
-		for (int i=head->y; i<(head->y + head->rows); i++) {
-			for (int j=head->x; j<(head->x + head->cols); j++) {
-				free(matrix[i][j]);
-				matrix[i][j] = strdup("");
+		else if (head->operation == 'p') {
+			for (int i=head->y; i<(head->y + head->rows); i++) {
+				for (int j=head->x; j<(head->x + head->cols); j++) {
+					free(matrix[i][j]);
+					matrix[i][j] = strdup("");
+				}
+			}
+			if (head->prev != NULL)
+				head = head->prev;
+			for (int i = 0; i < head->rows; i++) {
+				for (int j = 0; j < head->cols; j++) {
+					free(matrix[head->y + i][head->x + j]);
+					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+				}
 			}
 		}
-		if (head->prev != NULL)
-			head = head->prev;
-		for (int i = 0; i < head->rows; i++) {
-			for (int j = 0; j < head->cols; j++) {
-				free(matrix[head->y + i][head->x + j]);
-				matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
-			}
+		else if (head->operation == 'r') {
+			free(matrix[head->y][head->x]);
+			matrix[head->y][head->x] = strdup("");
+			if (head->prev != NULL)
+				head = head->prev;
+			free(matrix[head->y][head->x]);
+			matrix[head->y][head->x] = strdup(head->cell);
 		}
+		y = head->y;
+		x = head->x;
 	}
-	else if (head->operation == 'r') {
-		free(matrix[head->y][head->x]);
-		matrix[head->y][head->x] = strdup("");
-		if (head->prev != NULL)
-			head = head->prev;
-		free(matrix[head->y][head->x]);
-		matrix[head->y][head->x] = strdup(head->cell);
-	}
-	y = head->y;
-	x = head->x;
 }
 
 void paste_cells() {
