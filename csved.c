@@ -586,15 +586,14 @@ char** split_string(const char* str, const char delimiter, int* num_tokens, char
 
 void write_csv(const Arg *arg) {
 	char* filename;
-	char *file;
 
 	if (arg->i != 2)
 		filename = get_str("", 0, ':');
 	else {
-		file = FIFO;
-		filename = malloc(strlen(getenv("HOME") + strlen(file) + 1));
+		char *fname_rel = FIFO;
+		filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
 		strcpy(filename, getenv("HOME"));
-		strcat(filename, file);
+		strcat(filename, fname_rel);
 	}
 	if (strlen(filename) == 0) {
 		addstr(" Empty filename. ");
@@ -605,9 +604,6 @@ void write_csv(const Arg *arg) {
 		if (!file) {
 			perror("Error opening file for writing");
 		}
-
-		if (arg->i != 2)
-			free(filename);
 
 		if (mode == 'n') {
 			ch[0] = 0;
@@ -650,9 +646,9 @@ void write_csv(const Arg *arg) {
 		}
 
 		fclose(file);
-		free(filename);
 	}
 
+	free(filename);
 	visual_end();
 }
 
