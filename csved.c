@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 
 #define CELL_WIDTH 10
+#define FIFO "/bin/command_pipe"
 
 char ***matrix;
 char ***mat_reg;;
@@ -22,8 +23,6 @@ int s_y0, s_x0 = 0;
 int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
-char* fifo;
-char ask_fifo = 1;
 
 typedef union {
 	int i;
@@ -584,13 +583,15 @@ char** split_string(const char* str, const char delimiter, int* num_tokens, char
 
 void write_csv(const Arg *arg) {
 	char* filename;
+	char *file;
+
 	if (arg->i != 2)
 		filename = get_str("", 0, 1);
 	else {
-		if (ask_fifo == 1)
-			fifo = get_str("", 0, 1);
-		ask_fifo = 0;
-		filename = fifo;
+		file = FIFO;
+		filename = malloc(strlen(getenv("HOME") + strlen(file) + 1));
+		strcpy(filename, getenv("HOME"));
+		strcat(filename, file);
 	}
 	if (strlen(filename) == 0) {
 		addstr(" Empty filename. ");
@@ -646,6 +647,7 @@ void write_csv(const Arg *arg) {
 		}
 
 		fclose(file);
+		free(filename);
 	}
 
 	visual_end();
