@@ -115,7 +115,7 @@ static Key keys[] = {
 	{'>', write_to_pipe, {0}},
 	{'|', write_to_pipe, {1}},
 	{'E', write_to_pipe, {2}},
-	{'<', read_from_pipe, {0}},
+	{'<', write_to_pipe, {3}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
 	{'p', paste_cells, {0}},
@@ -657,8 +657,8 @@ void write_to_pipe(const Arg *arg) {
 		cmd = get_str("", 0, 2);
 	else if (arg->i == 1 || arg->i == 2)
 		cmd = get_str("", 0, 3);
-	else
-		cmd = get_str("", 0, 1);
+	else if (arg->i == 3)
+		cmd = get_str("", 0, 4);
     int pipefd[2];
     int pipefd2[2];
 	pid_t pid;
@@ -668,11 +668,13 @@ void write_to_pipe(const Arg *arg) {
 	size_t buffer_size = 20;
 	size_t total_bytes = 0;
 	
-	//create pipe
-    if (pipe(pipefd) == -1) {
-        perror("pipe");
-        exit(1);
-    }
+	if (arg->i != 3) {
+		//create pipe
+		if (pipe(pipefd) == -1) {
+			perror("pipe");
+			exit(1);
+		}
+	}
 
     if (pipe(pipefd2) == -1) {
         perror("pipe");
@@ -687,10 +689,12 @@ void write_to_pipe(const Arg *arg) {
     }
 
     if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
-		// redirect stdin to input
-        close(pipefd[1]);
-        dup2(pipefd[0], STDIN_FILENO);
-        close(pipefd[0]);
+		if (arg->i != 3) {
+			// redirect stdin to input
+			close(pipefd[1]);
+			dup2(pipefd[0], STDIN_FILENO);
+			close(pipefd[0]);
+		}
 
 		// redirect stdout to output
         close(pipefd2[0]);
@@ -735,28 +739,30 @@ void write_to_pipe(const Arg *arg) {
 		free(cmd_arg);
 	}
 	else {  // Parent process
-        close(pipefd[0]);
         close(pipefd2[1]);
 
-        if (mode == 'n') {
-            ch[0] = 0;
-            ch[1] = num_rows;
-            ch[2] = 0;
-            ch[3] = num_cols;
-        }
+		if (arg->i != 3) {
+			close(pipefd[0]);
+			if (mode == 'n') {
+				ch[0] = 0;
+				ch[1] = num_rows;
+				ch[2] = 0;
+				ch[3] = num_cols;
+			}
 
-		char* str;
-        for (int i = ch[0]; i < ch[1]; i++) {
-            for (int j = ch[2]; j < ch[3] - 1; j++) {
-                str = matrix[i][j];
+			char* str;
+			for (int i = ch[0]; i < ch[1]; i++) {
+				for (int j = ch[2]; j < ch[3] - 1; j++) {
+					str = matrix[i][j];
+					write(pipefd[1], str, strlen(str));
+					write(pipefd[1], ",", 1);
+				}
+				str = matrix[i][ch[3] - 1];
 				write(pipefd[1], str, strlen(str));
-				write(pipefd[1], ",", 1);
-            }
-			str = matrix[i][ch[3] - 1];
-			write(pipefd[1], str, strlen(str));
-			write(pipefd[1], "\n", 1);
-        }
-        close(pipefd[1]);
+				write(pipefd[1], "\n", 1);
+			}
+			close(pipefd[1]);
+		}
 
         buffer = (char *)malloc(buffer_size);
         if (buffer == NULL) {
@@ -791,140 +797,9 @@ void write_to_pipe(const Arg *arg) {
 				mvprintw(0, 0, buffer);
 				getch();
 			}
-			else if (arg->i == 1 || arg->i == 2) {
-				visual_end();
-				int num_cols_2, num_rows_2;
-				int count;
-				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
-				char * tmp = temp[0];
-				while (*tmp) { // count for malloc
-					if (*tmp == ',') {
-						count++;
-					}
-					tmp++;
-				}
-				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-				if (num_rows_2 <= (num_rows - y) && count + 1 <= (num_cols - x)) {
-					for (int i = 0; i < num_rows_2; i++) {
-						char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
-						undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-						paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-							for (int j = 0; j < num_cols_2; j++) {
-								undo_mat[i][j] = matrix[y + i][x + j];
-								paste_mat[i][j] = strdup(temp2[j]);
-								matrix[y + i][x + j] = strdup(temp2[j]);
-							}
-						free(temp2);
-					}
-					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x);
-					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x);
-				}
-				free(temp);
-			}
-			free(buffer);
-		}
-    }
-
-    visual_end();
-}
-
-void read_from_pipe(const Arg *arg) {
-	char* cmd;
-	cmd = get_str("", 0, 4);
-    int pipefd2[2];
-	pid_t pid;
-	int status;
-    ssize_t bytes_read;
-	char* buffer;
-	size_t buffer_size = 20;
-	size_t total_bytes = 0;
-	
-	//create pipe
-    if (pipe(pipefd2) == -1) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-
-	// fork process
-    pid = fork();
-    if (pid == -1) {
-        perror("fork");
-        exit(2);
-    }
-
-    if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
-		// redirect stdout to output
-        close(pipefd2[0]);
-        dup2(pipefd2[1], STDOUT_FILENO);
-        close(pipefd2[1]);
-
-		char* temp = strdup(cmd);
-		int num_args = 0;
-		char* token = strtok(temp, " ");
-		while (token != NULL) {
-			num_args++;
-			token = strtok(NULL, " ");
-		}
-		free(temp);
-		char** cmd_arg = malloc((num_args+1)*sizeof(char*));
-		if (cmd_arg == NULL) {
-			perror("malloc failed");
-			exit(1);
-		}
-
-		int i = 0;
-		token = strtok(cmd, " ");
-		while (token != NULL) {
-			cmd_arg[i++] = token;
-			token = strtok(NULL, " ");
-		}
-		cmd_arg[i] = NULL;
-
-        execvp(cmd_arg[0], cmd_arg);
-        // if execlp witout success
-        perror(" execvp");
-        exit(EXIT_FAILURE);
-		free(cmd);
-		free(cmd_arg);
-	}
-	else {  // Parent process
-        close(pipefd2[1]);
-
-        buffer = (char *)malloc(buffer_size);
-        if (buffer == NULL) {
-            perror("malloc");
-            exit(EXIT_FAILURE);
-        }
-
-		while ((bytes_read = read(pipefd2[0], buffer + total_bytes, buffer_size - total_bytes - 1)) > 0) {
-            total_bytes += bytes_read;
-            if (total_bytes >= buffer_size - 1) {
-                buffer_size *= 2;
-                buffer = (char *)realloc(buffer, buffer_size);
-                if (buffer == NULL) {
-                    perror("realloc");
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
-
-        close(pipefd2[0]);  // close output
-
-		waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-			getch();
-        }
-
-		if (total_bytes > 0) {
-			buffer[total_bytes] = '\0';
-
-			if (arg->i == 1) {
-				clear();
-				mvprintw(0, 0, buffer);
-				getch();
-			}
-			else if (arg->i == 0) {
+			else if (arg->i == 1 || arg->i == 2 || arg->i == 3) {
+				if (arg->i != 3)
+					visual_end();
 				int num_cols_2, num_rows_2;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
 				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
