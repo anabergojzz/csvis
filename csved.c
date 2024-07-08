@@ -117,7 +117,9 @@ static Key keys[] = {
 	{'<', write_to_pipe, {3}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
+	{'Y', write_to_pipe, {4}},
 	{'p', paste_cells, {0}},
+	{'P', write_to_pipe, {5}},
 	{'u', undo, {0}},
 	{'\x12', redo, {0}},
 	{'D', deleting, {0}}
@@ -661,6 +663,14 @@ void write_to_pipe(const Arg *arg) {
 		cmd = get_str("", 0, 3);
 	else if (arg->i == 3)
 		cmd = get_str("", 0, 4);
+	else if (arg->i == 4) {
+		cmd = malloc(30);
+		strcpy(cmd, "vis-clipboard --copy");
+	}
+	else if (arg->i == 5) {
+		cmd = malloc(30);
+		strcpy(cmd, "vis-clipboard --paste");
+	}
     int pipefd[2];
     int pipefd2[2];
 	pid_t pid;
@@ -670,7 +680,7 @@ void write_to_pipe(const Arg *arg) {
 	size_t buffer_size = 20;
 	size_t total_bytes = 0;
 	
-	if (arg->i != 3) {
+	if (arg->i != 3 && arg->i != 5) {
 		//create pipe
 		if (pipe(pipefd) == -1) {
 			perror("pipe");
@@ -691,7 +701,7 @@ void write_to_pipe(const Arg *arg) {
     }
 
     if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
-		if (arg->i != 3) {
+		if (arg->i != 3 && arg->i != 5) {
 			// redirect stdin to input
 			close(pipefd[1]);
 			dup2(pipefd[0], STDIN_FILENO);
@@ -743,7 +753,7 @@ void write_to_pipe(const Arg *arg) {
 	else {  // Parent process
         close(pipefd2[1]);
 
-		if (arg->i != 3) {
+		if (arg->i != 3 && arg->i != 5) {
 			close(pipefd[0]);
 			if (mode == 'n') {
 				ch[0] = 0;
@@ -795,12 +805,13 @@ void write_to_pipe(const Arg *arg) {
 			buffer[total_bytes] = '\0';
 
 			if (arg->i == 0) {
+				visual_end();
 				clear();
 				mvprintw(0, 0, buffer);
 				getch();
 			}
-			else if (arg->i == 1 || arg->i == 2 || arg->i == 3) {
-				if (arg->i != 3)
+			else if (arg->i == 1 || arg->i == 2 || arg->i == 3 || arg->i == 5) {
+				if (arg->i != 3 && arg->i != 5)
 					visual_end();
 				int num_cols_2, num_rows_2;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
@@ -820,13 +831,15 @@ void write_to_pipe(const Arg *arg) {
 					free(temp2);
 				}
 				if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, x, y);
-					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, x, y);
+					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x);
+					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x);
 				}
 				free(temp);
 			}
 			free(buffer);
 		}
+		else if (arg->i == 4)
+			visual_end();
     }
 
 	c_y = c_y0;
