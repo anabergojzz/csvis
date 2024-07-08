@@ -10,7 +10,7 @@
 #define FIFO "/bin/command_pipe"
 
 char ***matrix;
-char ***mat_reg;;
+char ***mat_reg = NULL;
 int reg_rows, reg_cols = 0;
 int num_rows, num_cols;
 int rows, cols;
@@ -1115,22 +1115,24 @@ void redo() {
 }
 
 void paste_cells() {
-	char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
-	char *** paste_mat = (char***)malloc(reg_rows * sizeof(char**));
-	for (int i=0; i<reg_rows; i++) {
-		undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
-		paste_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
-	}
-	if (reg_rows <= (num_rows - y) && reg_cols <= (num_cols - x)) {
-		for (int i = 0; i < reg_rows; i++) {
-			for (int j = 0; j < reg_cols; j++) {
-				undo_mat[i][j] = matrix[y + i][x + j];
-				paste_mat[i][j] = strdup(mat_reg[i][j]);
-				matrix[y + i][x + j] = strdup(mat_reg[i][j]);
-			}
+	if (mat_reg != NULL) {
+		char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
+		char *** paste_mat = (char***)malloc(reg_rows * sizeof(char**));
+		for (int i=0; i<reg_rows; i++) {
+			undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
+			paste_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
 		}
-		push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x);
-		push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x);
+		if (reg_rows <= (num_rows - y) && reg_cols <= (num_cols - x)) {
+			for (int i = 0; i < reg_rows; i++) {
+				for (int j = 0; j < reg_cols; j++) {
+					undo_mat[i][j] = matrix[y + i][x + j];
+					paste_mat[i][j] = strdup(mat_reg[i][j]);
+					matrix[y + i][x + j] = strdup(mat_reg[i][j]);
+				}
+			}
+			push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x);
+			push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x);
+		}
 	}
 }
 
