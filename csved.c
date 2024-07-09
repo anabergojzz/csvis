@@ -1183,11 +1183,13 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
     }
 	char *line_buf = NULL;
 	size_t line_buf_size = 0;
-	ssize_t line_size;
+	ssize_t line_size = -1;
 	*num_rows = 0;
 	*num_cols = 0;
 
-	if ((line_size = getline(&line_buf, &line_buf_size, file)) == -1) {
+	if (file != NULL)
+		line_size = getline(&line_buf, &line_buf_size, file);
+	if (line_size == -1 || file == NULL) {
 		matrix[*num_rows] = (char **) malloc(buff_cols * sizeof(char *));
 		 if (!matrix[0]) {
             perror("Napaka pri dodeljevanju pomnilnika za stolpce");
@@ -1222,21 +1224,15 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
-        return 1;
-    }
-
     setlocale(LC_ALL, "");
 	int error;
-	const char *filename = argv[1];
+	const char *filename;
+	if (argc > 1)
+		filename = argv[1];
     FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        perror("Napaka pri odpiranju datoteke");
-		exit(EXIT_FAILURE);
-    }
 	matrix = read_to_matrix(file, &num_rows, &num_cols);
-	fclose(file);
+	if (file != NULL)
+		fclose(file);
 
     initscr();
     cbreak();
