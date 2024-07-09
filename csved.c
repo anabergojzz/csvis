@@ -25,6 +25,7 @@ int s_y0, s_x0 = 0;
 int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
+char *fname;
 
 typedef union {
 	const char i;
@@ -114,6 +115,7 @@ static Key keys[] = {
 	{'S', write_csv, {1}},
 	{'e', write_csv, {2}},
 	{'E', write_csv, {3}},
+	{'\x13', write_csv, {4}},
 	{'>', write_to_pipe, {'>'}},
 	{'|', write_to_pipe, {'|'}},
 	{'\x0F', write_to_pipe, {2}}, // awk
@@ -586,36 +588,44 @@ char** split_string(const char* str, const char delimiter, int* num_tokens, char
 }
 
 void write_csv(const Arg *arg) {
-char* filename;
-char flip;
+	char flip;
+	char *filename;
 
-if (arg->i < 2)
-	filename = get_str("", 0, ':');
-else {
-	char *fname_rel = FIFO;
-	filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
-	strcpy(filename, getenv("HOME"));
-	strcat(filename, fname_rel);
-}
-if (strlen(filename) == 0) {
-	addstr(" Empty filename. ");
-	getch();
-}
-else {
-	FILE *file = fopen(filename, "w");
-	if (!file) {
-		perror("Error opening file for writing");
+	if (arg->i < 2)
+		filename = get_str("", 0, ':');
+	else if (arg->i == 4) {
+		if (fname == NULL)
+			filename = get_str("", 0, ':');
+		else {
+			filename = (char *)malloc(strlen(fname) + 1);
+			strcpy(filename, fname);
+		}
 	}
-
-	if (mode == 'n') {
-		ch[0] = 0;
-		ch[1] = num_rows;
-		ch[2] = 0;
-		ch[3] = num_cols;
+	else {
+		char *fname_rel = FIFO;
+		filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
+		strcpy(filename, getenv("HOME"));
+		strcat(filename, fname_rel);
 	}
+	if (strlen(filename) == 0) {
+		addstr(" Empty filename. ");
+		getch();
+	}
+	else {
+		FILE *file = fopen(filename, "w");
+		if (!file) {
+			perror("Error opening file for writing");
+		}
 
-	if (arg->i == 1 || arg->i == 2) 
-			flip = 1;
+		if (mode == 'n') {
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = 0;
+			ch[3] = num_cols;
+		}
+
+		if (arg->i == 1 || arg->i == 2) 
+				flip = 1;
 
 		if (flip == 1) {
 			int temp1, temp2;
@@ -1230,10 +1240,9 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 int main(int argc, char *argv[]) {
     setlocale(LC_ALL, "");
 	int error;
-	const char *filename;
 	if (argc > 1)
-		filename = argv[1];
-    FILE *file = fopen(filename, "r");
+		fname = argv[1];
+    FILE *file = fopen(fname, "r");
 	matrix = read_to_matrix(file, &num_rows, &num_cols);
 	if (file != NULL)
 		fclose(file);
