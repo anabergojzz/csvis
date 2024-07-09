@@ -113,9 +113,10 @@ static Key keys[] = {
 	{'s', write_csv, {0}},
 	{'S', write_csv, {1}},
 	{'e', write_csv, {2}},
+	{'E', write_csv, {3}},
 	{'>', write_to_pipe, {'>'}},
 	{'|', write_to_pipe, {'|'}},
-	{'E', write_to_pipe, {2}},
+	{'\x0F', write_to_pipe, {2}}, // awk
 	{'<', write_to_pipe, {'<'}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
@@ -585,66 +586,69 @@ char** split_string(const char* str, const char delimiter, int* num_tokens, char
 }
 
 void write_csv(const Arg *arg) {
-	char* filename;
+char* filename;
+char flip;
 
-	if (arg->i != 2)
-		filename = get_str("", 0, ':');
-	else {
-		char *fname_rel = FIFO;
-		filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
-		strcpy(filename, getenv("HOME"));
-		strcat(filename, fname_rel);
+if (arg->i < 2)
+	filename = get_str("", 0, ':');
+else {
+	char *fname_rel = FIFO;
+	filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
+	strcpy(filename, getenv("HOME"));
+	strcat(filename, fname_rel);
+}
+if (strlen(filename) == 0) {
+	addstr(" Empty filename. ");
+	getch();
+}
+else {
+	FILE *file = fopen(filename, "w");
+	if (!file) {
+		perror("Error opening file for writing");
 	}
-	if (strlen(filename) == 0) {
-		addstr(" Empty filename. ");
-		getch();
-	}
-	else {
-		FILE *file = fopen(filename, "w");
-		if (!file) {
-			perror("Error opening file for writing");
-		}
 
-		if (mode == 'n') {
-			ch[0] = 0;
-			ch[1] = num_rows;
-			ch[2] = 0;
-			ch[3] = num_cols;
+	if (mode == 'n') {
+		ch[0] = 0;
+		ch[1] = num_rows;
+		ch[2] = 0;
+		ch[3] = num_cols;
+	}
+
+	if (arg->i == 1 || arg->i == 2) 
+			flip = 1;
+
+		if (flip == 1) {
+			int temp1, temp2;
+			temp1 = ch[0];
+			temp2 = ch[1];
+			ch[0] = ch[2];
+			ch[1] = ch[3];
+			ch[2] = temp1;
+			ch[3] = temp2;
 		}
-		if (arg->i == 0) {
-			for (int i = ch[0]; i < ch[1]; i++) {
-				for (int j = ch[2]; j < ch[3]-1; j++) {
+		char *first = "";
+		char *end = "";
+		if (arg->i == 2 || arg->i == 3) {
+			first = "=[";
+			end = "]";
+		}
+		for (int i = ch[0]; i < ch[1]; i++) {
+			for (int j = ch[2]; j < ch[3]; j++) {
+				if (flip == 1)
+					fprintf(file, "%s", matrix[j][i]);
+				else
 					fprintf(file, "%s", matrix[i][j]);
-					fprintf(file, ",");
+				if (j == ch[3]-1) {
+					if (end != "" && j != ch[2])
+						fprintf(file, end);
+					fprintf(file, "\n");
 				}
-				fprintf(file, "%s", matrix[i][ch[3]-1]);
-				fprintf(file, "\n");
+				else if (j == ch[2] && first != "")
+					fprintf(file, first);
+				else
+					fprintf(file, ",");
 			}
 		}
-		else if (arg->i == 1) {
-			for (int i = ch[2]; i < ch[3]; i++) {
-				for (int j = ch[0]; j < ch[1]-1; j++) {
-					fprintf(file, "%s", matrix[j][i]);
-					fprintf(file, ",");
-				}
-				fprintf(file, "%s", matrix[ch[3]-1][i]);
-				fprintf(file, "\n");
-			}
-		}
-		else if (arg->i == 2) {
-			for (int i = ch[2]; i < ch[3]; i++) {
-				fprintf(file, "%s", matrix[ch[0]][i]);
-				fprintf(file, "=[");
-				for (int j = ch[0]+1; j < ch[1]-1; j++) {
-					fprintf(file, "%s", matrix[j][i]);
-					fprintf(file, ",");
-				}
-				fprintf(file, "%s", matrix[ch[1]-1][i]);
-				fprintf(file, "]");
-				fprintf(file, "\n");
-			}
-		}
-
 		fclose(file);
 	}
 
