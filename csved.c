@@ -496,12 +496,12 @@ void visual_start() {
  
 void visual_end() {
 	ch[0], ch[1], ch[2], ch[3] = 0;
+	c_y = c_y0;
+	c_x = c_x0;
 	if (mode != 'n') {
 		mode = 'n';
 		y = v_y;
 		x = v_x;
-		c_y = c_y0;
-		c_x = c_x0;
 		s_y = s_y0;
 		s_x = s_x0;
 	}
