@@ -524,6 +524,7 @@ void visual() {
 	key = getch();
 	if (key == 'l' || key == 'h') {
 		visual_start();
+		v_y = 0;
 		ch[0] = 0;
 		ch[1] = num_rows;
 		ch[2] = x;
@@ -531,6 +532,7 @@ void visual() {
 	}
 	else if (key == 'j' || key == 'k') {
 		visual_start();
+		v_x = 0;
 		ch[0] = y;
 		ch[1] = y + 1;
 		ch[2] = 0;
