@@ -28,7 +28,7 @@ int scr_x, scr_y;
 char *fname;
 
 typedef union {
-	const char i;
+	char i;
 } Arg;
 
 typedef struct {
@@ -1182,12 +1182,22 @@ void str_change(const Arg *arg) {
 		push(&head, 'r', NULL, undo_cell, 0, 0, y, x);
 		push(&head, 'r', NULL, paste_cell, 0, 0, y, x);
 		if (mode == 'i') {
+			if (y >= num_rows - 1) {
+				Arg insert;
+				insert.i = 1;
+				insert_row(&insert);
+			}
 			y++;
-			c_y++;
+			when_resize();
 		}
 		if (mode == 'j') {
+			if (x >= num_cols - 1) {
+				Arg insert;
+				insert.i = 1;
+				insert_col(&insert);
+			}
 			x++;
-			c_x += CELL_WIDTH;
+			when_resize();
 		}
 	}
 }
