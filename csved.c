@@ -524,17 +524,17 @@ void visual() {
 	key = getch();
 	if (key == 'l' || key == 'h') {
 		visual_start();
-		ch[0] = y;
-		ch[1] = y + 1;
-		ch[2] = 0;
-		ch[3] = num_cols;
-	}
-	else if (key == 'j' || key == 'k') {
-		visual_start();
 		ch[0] = 0;
 		ch[1] = num_rows;
 		ch[2] = x;
 		ch[3] = x + 1;
+	}
+	else if (key == 'j' || key == 'k') {
+		visual_start();
+		ch[0] = y;
+		ch[1] = y + 1;
+		ch[2] = 0;
+		ch[3] = num_cols;
 	}
 }
 
@@ -1158,9 +1158,9 @@ void deleting() {
 	int key;
 	key = getch();
 	if (key == 'l' || key == 'h')
-		delete_row();
-	else if (key == 'j' || key == 'k')
 		delete_col();
+	else if (key == 'j' || key == 'k')
+		delete_row();
 }
 
 void str_change(const Arg *arg) {
