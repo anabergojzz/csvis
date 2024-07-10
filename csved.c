@@ -76,8 +76,6 @@ void redo();
 void paste_cells();
 void deleting();
 void str_change();
-void str_append();
-void str_insert();
 void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
@@ -87,7 +85,7 @@ static Key keys[] = {
 	{'q', quit, {0}},
 	{'v', visual_start, {0}},
 	{'V', visual, {0}},
-	{'\x1b', visual_end, {0}},
+	{'\x03', visual_end, {0}},
 	{'j', move_down, {.i = 1}},
 	{KEY_DOWN, move_down, {.i = 1}},
 	{'k', move_up, {.i = 1}},
@@ -409,6 +407,19 @@ char* get_str(char* str, char loc, const char cmd) {
 		}
         key = getch();
 		if (key == '\n') {
+			if (cmd == 0) {
+				mode = 'i';
+			}
+			break;
+		}
+		if (key == '\t') {
+			if (cmd == 0) {
+				mode = 'j';
+			}
+			break;
+		}
+		else if (key == '\x03' && cmd == 0) {
+			mode = 'n';
 			break;
 		}
 		else if (key == KEY_LEFT) {
@@ -1154,20 +1165,31 @@ void deleting() {
 
 void str_change(const Arg *arg) {
 	if (mode == 'v') visual_end();
+	mode = 'i';
 	char* temp;
-	if (arg->i == 0)
-		temp = get_str("", 0, 0);
-	else if (arg->i == 1)
-		temp = get_str(matrix[y][x], 0, 0);
-	else if (arg->i == 2)
-		temp = get_str(matrix[y][x], 1, 0);
-	char * undo_cell = matrix[y][x];
-    char * paste_cell = strdup(temp);
-    matrix[y][x] = strdup(temp);
-    free(temp);
+	while (mode == 'i' || mode == 'j') {
+		if (arg->i == 0)
+			temp = get_str("", 0, 0);
+		else if (arg->i == 1)
+			temp = get_str(matrix[y][x], 0, 0);
+		else if (arg->i == 2)
+			temp = get_str(matrix[y][x], 1, 0);
+		char * undo_cell = matrix[y][x];
+		char * paste_cell = strdup(temp);
+		matrix[y][x] = strdup(temp);
+		free(temp);
 
-	push(&head, 'r', NULL, undo_cell, 0, 0, y, x);
-	push(&head, 'r', NULL, paste_cell, 0, 0, y, x);
+		push(&head, 'r', NULL, undo_cell, 0, 0, y, x);
+		push(&head, 'r', NULL, paste_cell, 0, 0, y, x);
+		if (mode == 'i') {
+			y++;
+			c_y++;
+		}
+		if (mode == 'j') {
+			x++;
+			c_x += CELL_WIDTH;
+		}
+	}
 }
 
 void quit() {
