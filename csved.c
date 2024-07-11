@@ -453,12 +453,11 @@ char* get_str(char* str, char loc, const char cmd) {
         }
         else if (key == KEY_DC) {
 			if (i <= str_size) {
-				str_size--;
-				memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
-				while ((buffer[i] & 0xC0) == 0x80) {
+				do {
 					str_size--;
 					memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
 				}
+				while ((buffer[i] & 0xC0) == 0x80);
             }
         }
 		else if (key == KEY_RESIZE) {
