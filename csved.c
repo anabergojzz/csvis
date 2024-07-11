@@ -328,9 +328,9 @@ void delete_row() {
 			matrix[i] = matrix[i + 1];
 
 		matrix[num_rows - 1] = NULL;
+		push(&head, 'e', undo_mat, NULL, 1, num_cols, y, x);
 		num_rows--;
 		if (y == num_rows) y--;
-		push(&head, 'e', undo_mat, NULL, 1, num_cols, y, x);
 	}
 }
 
@@ -344,9 +344,9 @@ void delete_col() {
 				matrix[j][i] = matrix[j][i + 1];
 			matrix[j][num_cols - 1] = NULL;
 		}
+		push(&head, 'f', undo_mat, NULL, num_rows, 1, y, x);
 		num_cols--;
 		if (x == num_cols) x--;
-		push(&head, 'f', undo_mat, NULL, num_rows, 1, y, x);
 	}
 }
 
