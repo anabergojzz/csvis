@@ -5,6 +5,8 @@
 #include <locale.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <errno.h>
+#include <fcntl.h>
 
 #define CELL_WIDTH 10
 #define FIFO "/bin/command_pipe"
@@ -85,7 +87,7 @@ static Key keys[] = {
 	{'q', quit, {0}},
 	{'v', visual_start, {0}},
 	{'V', visual, {0}},
-	{'\x03', visual_end, {0}},
+	{'\x03', visual_end, {0}}, //Ctrl-C
 	{'j', move_down, {.i = 1}},
 	{KEY_DOWN, move_down, {.i = 1}},
 	{'k', move_up, {.i = 1}},
@@ -94,8 +96,8 @@ static Key keys[] = {
 	{KEY_RIGHT, move_right, {.i = 1}},
 	{'h', move_left, {.i = 1}},
 	{KEY_LEFT, move_left, {.i = 1}},
-	{'\x04', move_down, {.i = 5}},
-	{'\x15', move_up, {.i = 5}},
+	{'\x04', move_down, {.i = 5}}, //Ctrl-D
+	{'\x15', move_up, {.i = 5}}, //Ctrl-U
 	{'w', move_right, {.i = 3}},
 	{'b', move_left, {.i = 3}},
 	{'G', move_down, {.i = 0}},
@@ -113,10 +115,10 @@ static Key keys[] = {
 	{'S', write_csv, {1}},
 	{'e', write_csv, {2}},
 	{'E', write_csv, {3}},
-	{'\x13', write_csv, {4}},
+	{'\x13', write_csv, {4}}, //Ctrl-S
 	{'>', write_to_pipe, {'>'}},
 	{'|', write_to_pipe, {'|'}},
-	{'\x0F', write_to_pipe, {2}}, // awk
+	{'\x0F', write_to_pipe, {2}}, //Ctrl-O awk
 	{'<', write_to_pipe, {'<'}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
@@ -124,7 +126,7 @@ static Key keys[] = {
 	{'p', paste_cells, {0}},
 	{'P', write_to_pipe, {5}},
 	{'u', undo, {0}},
-	{'\x12', redo, {0}},
+	{'\x12', redo, {0}}, //Ctrl-R
 	{'D', deleting, {0}}
 };
 
@@ -621,6 +623,18 @@ void write_csv(const Arg *arg) {
 		filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
 		strcpy(filename, getenv("HOME"));
 		strcat(filename, fname_rel);
+		int fd = open(filename, O_WRONLY | O_NONBLOCK);
+		if (fd == -1) {
+			if (errno == ENXIO) {
+				mvaddstr(rows-1, 0, " Nobody listens. ");
+				getch();
+			} else {
+				perror("open");
+			}
+			close(fd);
+			return;
+		}
+		close(fd);
 	}
 	if (strlen(filename) == 0) {
 		addstr(" Empty filename. ");
