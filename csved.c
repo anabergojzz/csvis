@@ -173,13 +173,13 @@ void draw() {
 void move_down(const Arg *arg) {
 	if (y < num_rows - arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			if (ch[0] != y)
-				ch[1] = y + arg->i + 1;
-			else if ((ch[0] + arg->i) <= v_y)
-				ch[0] += arg->i;
+			if (y >= v_y)
+				ch[1] = y + 1 + arg->i;
+			else if (y + arg->i <= v_y)
+				ch[0] = y + arg->i;
 			else {
+				ch[1] += arg->i - (v_y - y);
 				ch[0] = v_y;
-				ch[1] += arg->i - (v_y - ch[0]);
 			}
 		}
 		y = y + arg->i;
@@ -198,13 +198,13 @@ void move_down(const Arg *arg) {
 void move_up(const Arg *arg) {
 	if (y >= arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			if (ch[0] != y)
-				ch[1] = y - arg->i + 1;
-			else if (ch[1] == v_y + 1)
-				ch[0] -= arg->i;
+			if (y <= v_y)
+				ch[0] = y - arg->i;
+			else if (y - arg->i >= v_y)
+				ch[1] = y + 1 - arg->i;
 			else {
+				ch[0] -= arg->i - (y - v_y);
 				ch[1] = v_y + 1;
-				ch[0] -= arg->i - (ch[1] - v_y - 1);
 			}
 		}
 		y = y - arg->i;
@@ -223,13 +223,13 @@ void move_up(const Arg *arg) {
 void move_right(const Arg *arg) {
 	if (x < num_cols - arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			if (ch[2] != x)
-				ch[3] = x + arg->i + 1;
-			else if ((ch[2] + arg->i) <= v_x)
-				ch[2] += arg->i;
+			if (x >= v_x)
+				ch[3] = x + 1 + arg->i;
+			else if (x + arg->i <= v_x)
+				ch[2] = x + arg->i;
 			else {
+				ch[3] += arg->i - (v_x - x);
 				ch[2] = v_x;
-				ch[3] += arg->i - (v_x - ch[2]);
 			}
 		}
 		x += arg->i;
@@ -248,13 +248,13 @@ void move_right(const Arg *arg) {
 void move_left(const Arg *arg) {
 	if (x >= arg->i && arg->i != 0) {
 		if (mode == 'v') {
-			if (ch[2] != x)
-				ch[3] = x - arg->i + 1;
-			else if (ch[3] == v_x + 1)
-				ch[2] -= arg->i;
+			if (x <= v_x)
+				ch[2] = x - arg->i;
+			else if (x - arg->i >= v_x)
+				ch[3] = x + 1 - arg->i;
 			else {
+				ch[2] -= arg->i - (x - v_x);
 				ch[3] = v_x + 1;
-				ch[2] -= arg->i - (ch[3] - v_x - 1);
 			}
 		}
 		x -= arg->i;
