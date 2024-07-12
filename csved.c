@@ -521,9 +521,9 @@ void visual_end() {
 
 void visual() {
 	int key;
-	mode = 'n';
 	key = getch();
 	if (key == 'l' || key == 'h') {
+		mode = 'n';
 		visual_start();
 		v_y = 0;
 		ch[0] = 0;
@@ -532,6 +532,7 @@ void visual() {
 		ch[3] = x + 1;
 	}
 	else if (key == 'j' || key == 'k') {
+		mode = 'n';
 		visual_start();
 		v_x = 0;
 		ch[0] = y;
