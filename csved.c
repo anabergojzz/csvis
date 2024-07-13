@@ -1204,24 +1204,67 @@ void redo() {
 			matrix[head->y][head->x] = strdup(head->cell);
 		}
 		else if (head->operation == 'e') {
-			for (int i = 0; i < num_cols; i++)
-				free(matrix[head->y][i]);
-			free(matrix[head->y]);
-
-			for (int i = head->y; i < num_rows - 1; i++)
-				matrix[i] = matrix[i + 1];
-
-			matrix[num_rows - 1] = NULL;
-			num_rows--;
+			int num = head->rows;
+			for (int j = 0; j < num; j++) {
+				for (int i = 0; i < num_cols; i++)
+					free(matrix[head->y + j][i]);
+				free(matrix[head->y + j]);
+			}
+			for (int i = head->y; i < num_rows - num; i++)
+				matrix[i] = matrix[i + num];
+			matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
+			num_rows -= num;
+			if (head->y < s_y) {
+				if (head->y < scr_y)
+					s_y = 0;
+				else
+					s_y = head->y;
+			}
+			else if (head->y >= s_y + scr_y) {
+				if (num_rows - head->y >= scr_y) 
+					s_y = head->y - 1;
+				else
+					s_y = head->y - scr_y + (num_rows - head->y);
+			}
+			if (head->x < s_x) {
+				if (head->x < scr_x)
+					s_x = 0;
+				else
+					s_x = head->x;
+			}
+			else if (head->x > s_x + scr_x)
+				s_x = head->x - scr_x;
 		}
 		else if (head->operation == 'f') {
+			int num = head->cols;
 			for (int j = 0; j < num_rows; j++) {
-				free(matrix[j][head->x]);
-				for (int i = head->x; i < num_cols - 1; i++)
-					matrix[j][i] = matrix[j][i + 1];
-				matrix[j][num_cols - 1] = NULL;
+				for (int i = 0; i < num; i++)
+					free(matrix[j][head->x + i]);
+				for (int i = head->x; i < num_cols - num; i++)
+					matrix[j][i] = matrix[j][i + num];
+				matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 			}
-			num_cols--;
+			num_cols -= num;
+			if (head->x < s_x) {
+				if (head->x < scr_x)
+					s_x = 0;
+				else
+					s_x = head->x;
+			}
+			else if (head->x >= s_x + scr_x) {
+				if (num_cols - head->x >= scr_x) 
+					s_x = head->x - 1;
+				else
+					s_x = head->x - scr_x + (num_cols - head->x);
+			}
+			if (head->y < s_y) {
+				if (head->y < scr_y)
+					s_y = 0;
+				else
+					s_y = head->y;
+			}
+			else if (head->y > s_y + scr_y)
+				s_y = head->y - scr_y;
 		}
 		else if (head->operation == 'g') {
 			for (int i = num_rows; i > head->y + head->cols; i--) {
@@ -1243,8 +1286,14 @@ void redo() {
 			}
 			num_cols++;
 		}
-		y = head->y;
-		x = head->x;
+		if (head->y == num_rows)
+			y = head->y - 1;
+		else
+			y = head->y;
+		if (head->x == num_cols)
+			x = head->x - 1;
+		else
+			x = head->x;
 	}
 }
 
