@@ -48,6 +48,8 @@ typedef struct node {
     char * cell;
 	int y;
 	int x;
+	int s_y;
+	int s_x;
 	int rows;
 	int cols;
 	struct node * next;
@@ -84,7 +86,7 @@ void str_change();
 void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
-void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x);
+void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -296,7 +298,7 @@ void insert_col(const Arg *arg) {
 		matrix[i][x + arg->i] = strdup("");
 	}
 	num_cols++;
-	push(&head, 'h', NULL, NULL, arg->i, 1, y, x);
+	push(&head, 'h', NULL, NULL, arg->i, 1, y, x, s_y, s_x);
 }
 
 void insert_row(const Arg *arg) {
@@ -308,7 +310,7 @@ void insert_row(const Arg *arg) {
 	for (int j = 0; j < num_cols; j++) {
 		matrix[y + arg->i][j] = strdup("");
 	}
-	push(&head, 'g', NULL, NULL, 1, arg->i, y, x);
+	push(&head, 'g', NULL, NULL, 1, arg->i, y, x, s_y, s_x);
 }
 
 void delete_row() {
@@ -320,12 +322,8 @@ void delete_row() {
 		for (int i = ch[0]; i < num_rows - num; i++)
 			matrix[i] = matrix[i + num];
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
-		push(&head, 'e', undo_mat, NULL, num, num_cols, ch[0], x);
-		if (ch[1] == num_rows)
-			y = ch[0] - 1;
-		else
-			y = ch[0];
 		num_rows -= num;
+		push(&head, 'e', undo_mat, NULL, num, num_cols, ch[0], x, s_y, s_x);
 		if (scr_y - (num_rows - s_y) > 0)
 			s_y -= scr_y - (num_rows - s_y);
 		if (y < s_y)
@@ -336,6 +334,10 @@ void delete_row() {
 		//	s_y = num_rows - 1;
 		//else if (num_rows <= scr_y)
 		//	s_y = 0;
+		if (y >= num_rows)
+			y = ch[0] - 1;
+		else
+			y = ch[0];
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		mode = 'n';
 	}
@@ -353,13 +355,9 @@ void delete_col() {
 				matrix[j][i] = matrix[j][i + num];
 			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 		}
-		push(&head, 'f', undo_mat, NULL, num_rows, num, y, ch[2]);
-		if (ch[3] == num_cols)
-			x = ch[2] - 1;
-		else
-			x = ch[2];
 		num_cols -= num;
-		if (scr_x - (num_cols - s_x) > 0)
+		push(&head, 'f', undo_mat, NULL, num_rows, num, y, ch[2], s_y, s_x);
+		if (scr_x - (num_cols - s_x) >= 0)
 			s_x -= scr_x - (num_cols - s_x);
 		if (x < s_x)
 			s_x = x - 1;
@@ -369,6 +367,10 @@ void delete_col() {
 		//	s_x = num_cols - 1;
 		//else if (num_cols <= scr_x)
 		//	s_x = 0;
+		if (x >= num_cols)
+			x = ch[2] - 1;
+		else
+			x = ch[2];
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		mode = 'n';
 	}
@@ -933,8 +935,8 @@ void write_to_pipe(const Arg *arg) {
 					free(temp2);
 				}
 				if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x);
-					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x);
+					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
+					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
 				}
 				free(temp);
 			}
@@ -998,13 +1000,13 @@ void wipe_cells() {
 				matrix[i][j] = strdup("");
 			}
 		}
-		push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2]);
+		push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2], s_y, s_x);
 
 		visual_end();
 	}
 }
 
-void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x) {
+void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x) {
 	if (*head == NULL) {
 		*head = (node_t *) malloc(sizeof(node_t));
 		(*head)->next = NULL;
@@ -1023,6 +1025,8 @@ void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, 
 	new_node->cols = cols;
 	new_node->y = y;
 	new_node->x = x;
+	new_node->s_y = s_y;
+	new_node->s_x = s_x;
 	new_node->next = *head;
 	new_node->prev = NULL;
 
@@ -1090,22 +1094,6 @@ void undo() {
 				}
 			}
 			num_rows += head->rows;
-			if (head->y < s_y) {
-				if (head->y < scr_y)
-					s_y = 0;
-				else
-					s_y = head->y;
-			}
-			else if (head->y >= s_y + scr_y)
-				s_y = head->y - (scr_y - head->rows);
-			if (head->x < s_x) {
-				if (head->x < scr_x)
-					s_x = 0;
-				else
-					s_x = head->x;
-			}
-			else if (head->x > s_x + scr_x)
-				s_x = head->x - scr_x;
 		}
 		else if (head->operation == 'f') {
 			for (int i = 0; i < num_rows; i++) {
@@ -1117,22 +1105,6 @@ void undo() {
 					matrix[i][head->x + j] = strdup(head->mat[i][j]);
 			}
 			num_cols += head->cols;
-			if (head->x < s_x) {
-				if (head->x < scr_x)
-					s_x = 0;
-				else
-					s_x = head->x;
-			}
-			else if (head->x >= s_x + scr_x)
-				s_x = head->x - (scr_x - head->cols);
-			if (head->y < s_y) {
-				if (head->y < scr_y)
-					s_y = 0;
-				else
-					s_y = head->y;
-			}
-			else if (head->y > s_y + scr_y)
-				s_y = head->y - scr_y;
 		}
 		else if (head->operation == 'g') {
 			for (int i = 0; i < num_cols; i++)
@@ -1156,6 +1128,8 @@ void undo() {
 		}
 		y = head->y;
 		x = head->x;
+		s_y = head->s_y;
+		s_x = head->s_x;
 		head = head->next;
 	}
 }
@@ -1214,26 +1188,6 @@ void redo() {
 				matrix[i] = matrix[i + num];
 			matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 			num_rows -= num;
-			if (head->y < s_y) {
-				if (head->y < scr_y)
-					s_y = 0;
-				else
-					s_y = head->y;
-			}
-			else if (head->y >= s_y + scr_y) {
-				if (num_rows - head->y >= scr_y) 
-					s_y = head->y - 1;
-				else
-					s_y = head->y - scr_y + (num_rows - head->y);
-			}
-			if (head->x < s_x) {
-				if (head->x < scr_x)
-					s_x = 0;
-				else
-					s_x = head->x;
-			}
-			else if (head->x > s_x + scr_x)
-				s_x = head->x - scr_x;
 		}
 		else if (head->operation == 'f') {
 			int num = head->cols;
@@ -1245,26 +1199,6 @@ void redo() {
 				matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 			}
 			num_cols -= num;
-			if (head->x < s_x) {
-				if (head->x < scr_x)
-					s_x = 0;
-				else
-					s_x = head->x;
-			}
-			else if (head->x >= s_x + scr_x) {
-				if (num_cols - head->x >= scr_x) 
-					s_x = head->x - 1;
-				else
-					s_x = head->x - scr_x + (num_cols - head->x);
-			}
-			if (head->y < s_y) {
-				if (head->y < scr_y)
-					s_y = 0;
-				else
-					s_y = head->y;
-			}
-			else if (head->y > s_y + scr_y)
-				s_y = head->y - scr_y;
 		}
 		else if (head->operation == 'g') {
 			for (int i = num_rows; i > head->y + head->cols; i--) {
@@ -1294,6 +1228,8 @@ void redo() {
 			x = head->x - 1;
 		else
 			x = head->x;
+		s_y = head->s_y;
+		s_x = head->s_x;
 	}
 }
 
@@ -1313,8 +1249,8 @@ void paste_cells() {
 					matrix[y + i][x + j] = strdup(mat_reg[i][j]);
 				}
 			}
-			push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x);
-			push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x);
+			push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x);
+			push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x);
 		}
 	}
 }
@@ -1358,8 +1294,8 @@ void str_change(const Arg *arg) {
 		matrix[y][x] = strdup(temp);
 		free(temp);
 
-		push(&head, 'r', NULL, undo_cell, 0, 0, y, x);
-		push(&head, 'r', NULL, paste_cell, 0, 0, y, x);
+		push(&head, 'r', NULL, undo_cell, 0, 0, y, x, s_y, s_x);
+		push(&head, 'r', NULL, paste_cell, 0, 0, y, x, s_y, s_x);
 		if (mode == 'i') {
 			if (y >= num_rows - 1) {
 				Arg insert;
