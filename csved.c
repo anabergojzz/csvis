@@ -322,33 +322,65 @@ void insert_row(const Arg *arg) {
 }
 
 void delete_row() {
-	char *** undo_mat = (char***)malloc(1 * sizeof(char**));
-	if (num_rows != 1) {
-		undo_mat[0] = matrix[y];
-
-		for (int i = y; i < num_rows - 1; i++)
-			matrix[i] = matrix[i + 1];
-
-		matrix[num_rows - 1] = NULL;
-		push(&head, 'e', undo_mat, NULL, 1, num_cols, y, x);
-		num_rows--;
-		if (y == num_rows) y--;
+	int num = ch[1] - ch[0];
+	char ***undo_mat = (char ***)malloc(num*sizeof(char**));
+	if (num_rows > num) {
+		for (int i = 0; i < num; i++)
+			undo_mat[i] = matrix[ch[0] + i];
+		for (int i = ch[0]; i < num_rows - num; i++)
+			matrix[i] = matrix[i + num];
+		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
+		push(&head, 'e', undo_mat, NULL, num, num_cols, ch[0], 0);
+		if (ch[1] == num_rows)
+			y = ch[0] - 1;
+		else
+			y = ch[0];
+		num_rows -= num;
+		if (scr_y - (num_rows - s_y) > 0)
+			s_y -= scr_y - (num_rows - s_y);
+		if (y < s_y)
+			s_y = y - 1;
+		if (s_y < 0)
+			s_y = 0;
+		//if (s_y >= num_rows)
+		//	s_y = num_rows - 1;
+		//else if (num_rows <= scr_y)
+		//	s_y = 0;
+		ch[0], ch[1], ch[2], ch[3] = 0;
+		mode = 'n';
 	}
 }
 
 void delete_col() {
-	char *** undo_mat = (char***)malloc(num_rows * sizeof(char**));
-	if (num_cols != 1) {
+	int num = ch[3] - ch[2];
+	char ***undo_mat = (char ***)malloc(num_rows*sizeof(char **));
+	if (num_cols > num) {
 		for (int j = 0; j < num_rows; j++) {
-			undo_mat[j] = (char **)malloc(1 * sizeof(char *));
-			undo_mat[j][0] = matrix[j][x];
-			for (int i = x; i < num_cols - 1; i++)
-				matrix[j][i] = matrix[j][i + 1];
-			matrix[j][num_cols - 1] = NULL;
+			undo_mat[j] = (char **)malloc(num * sizeof(char *));
+			for (int i = 0; i < num; i++)
+				undo_mat[j][i] = matrix[j][ch[2] + i];
+			for (int i = ch[2]; i < num_cols - num; i++)
+				matrix[j][i] = matrix[j][i + num];
+			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 		}
-		push(&head, 'f', undo_mat, NULL, num_rows, 1, y, x);
-		num_cols--;
-		if (x == num_cols) x--;
+		push(&head, 'f', undo_mat, NULL, num_rows, num, 0, ch[2]);
+		if (ch[3] == num_cols)
+			x = ch[2] - 1;
+		else
+			x = ch[2];
+		num_cols -= num;
+		if (scr_x - (num_cols - s_x) > 0)
+			s_x -= scr_x - (num_cols - s_x);
+		if (x < s_x)
+			s_x = x - 1;
+		if (s_x < 0)
+			s_x = 0;
+		//if (s_x >= num_cols)
+		//	s_x = num_cols - 1;
+		//else if (num_cols <= scr_x)
+		//	s_x = 0;
+		ch[0], ch[1], ch[2], ch[3] = 0;
+		mode = 'n';
 	}
 }
 
@@ -1215,12 +1247,26 @@ void paste_cells() {
 }
 
 void deleting() {
-	int key;
-	key = getch();
-	if (key == 'l' || key == 'h')
-		delete_col();
-	else if (key == 'j' || key == 'k')
-		delete_row();
+	if (mode == 'v') {
+		if (ch[0] == 0 && ch[1] == num_rows)
+			delete_col();
+		else if (ch[2] == 0 && ch[3] == num_cols)
+			delete_row();
+	}
+	else {
+		int key;
+		key = getch();
+		if (key == 'l' || key == 'h') {
+			ch[2] = x;
+			ch[3] = x + 1;
+			delete_col();
+		}
+		else if (key == 'j' || key == 'k') {
+			ch[0] = y;
+			ch[1] = y + 1;
+			delete_row();
+		}
+	}
 }
 
 void str_change(const Arg *arg) {
