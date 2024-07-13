@@ -75,7 +75,6 @@ void visual();
 char** split_string(const char* str, const char delimiter, int* num_tokens, char keep_last);
 void write_csv(const Arg *arg);
 void write_to_pipe(const Arg *arg);
-void read_from_pipe(const Arg *arg);
 void yank_cells();
 void wipe_cells();
 void undo();
@@ -176,7 +175,7 @@ void draw() {
 }
 
 void move_down(const Arg *arg) {
-	if (y < num_rows - arg->i && arg->i != 0) {
+	if (y + arg->i < num_rows && arg->i != 0) {
 		if (mode == 'v') {
 			if (y >= v_y)
 				ch[1] = y + 1 + arg->i;
@@ -196,12 +195,12 @@ void move_down(const Arg *arg) {
 		}
 		y = num_rows - 1;
 	}
-	if (c_y >= scr_y - arg->i || arg->i == 0)
+	if (y > s_y + scr_y - 1)
 		s_y = y - (scr_y - 1);
 }
 
 void move_up(const Arg *arg) {
-	if (y >= arg->i && arg->i != 0) {
+	if (y - arg->i >= 0 && arg->i != 0) {
 		if (mode == 'v') {
 			if (y <= v_y)
 				ch[0] = y - arg->i;
@@ -221,20 +220,20 @@ void move_up(const Arg *arg) {
 		}
 		y = 0;
 	}
-	if (c_y < arg->i || arg->i == 0)
+	if (y <= s_y)
 		s_y = y;
 }
 
 void move_right(const Arg *arg) {
-	if (x < num_cols - arg->i && arg->i != 0) {
+	if (x + arg->i < num_cols && arg->i != 0) {
 		if (mode == 'v') {
-			if (x >= v_x)
-				ch[3] = x + 1 + arg->i;
-			else if (x + arg->i <= v_x)
-				ch[2] = x + arg->i;
+			if (ch[2] != x)
+				ch[3] = x + arg->i + 1;
+			else if ((ch[2] + arg->i) <= v_x)
+				ch[2] += arg->i;
 			else {
-				ch[3] += arg->i - (v_x - x);
 				ch[2] = v_x;
+				ch[3] += arg->i - (v_x - ch[2]);
 			}
 		}
 		x += arg->i;
@@ -246,12 +245,12 @@ void move_right(const Arg *arg) {
 		}
 		x = num_cols - 1;
 	}
-	if (c_x >= (scr_x - arg->i)*CELL_WIDTH || arg->i == 0)
+	if (x > s_x + scr_x - 1)
 		s_x = x - (scr_x - 1);
 }
 
 void move_left(const Arg *arg) {
-	if (x >= arg->i && arg->i != 0) {
+	if (x - arg->i >= 0 && arg->i != 0) {
 		if (mode == 'v') {
 			if (x <= v_x)
 				ch[2] = x - arg->i;
@@ -271,11 +270,13 @@ void move_left(const Arg *arg) {
 		}
 		x = 0;
 	}
-	if (c_x < (arg->i)*CELL_WIDTH || arg->i == 0)
+	if (x <= s_x)
 		s_x = x;
 }
 
 void when_resize() {
+		//if (x > s_x + scr_x - 1)
+		//	s_x = x - (scr_x - 1);
 	getmaxyx(stdscr, rows, cols);
 	if ((num_cols - s_x)*CELL_WIDTH < cols) {
 		scr_x = num_cols - s_x;
