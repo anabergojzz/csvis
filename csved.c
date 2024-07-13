@@ -282,19 +282,8 @@ void when_resize() {
 		scr_y = num_rows - s_y;
 	}
 	else scr_y = rows;
-	if (c_y < scr_y)
-		c_y = y - s_y;
-	else {
-		c_y = scr_y - 1;
-		s_y = y - (scr_y - 1);
-	}
-	if (scr_x == 0);
-	else if (c_x < scr_x*CELL_WIDTH)
-		c_x = (x - s_x)*CELL_WIDTH;
-	else {
-		c_x = (scr_x - 1)*CELL_WIDTH;
-		s_x = x - (scr_x - 1);
-	}
+	c_x = (x - s_x)*CELL_WIDTH;
+	c_y = y - s_y;
 }
 
 void insert_col(const Arg *arg) {
