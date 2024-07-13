@@ -7,9 +7,10 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #define CELL_WIDTH 10
-#define FIFO "/bin/command_pipe"
+#define FIFO "/tmp/pyfifo"
 #define XCLIP_COPY "vis-clipboard --copy"
 #define XCLIP_PASTE "vis-clipboard --paste"
 #define MOVE_X 3
@@ -684,10 +685,8 @@ void write_csv(const Arg *arg) {
 		}
 	}
 	else {
-		char *fname_rel = FIFO;
-		filename = (char *)malloc(strlen(getenv("HOME")) + strlen(fname_rel) + 1);
-		strcpy(filename, getenv("HOME"));
-		strcat(filename, fname_rel);
+		filename = (char *)malloc(strlen(FIFO) + 1);
+		strcpy(filename, FIFO);
 		int fd = open(filename, O_WRONLY | O_NONBLOCK);
 		if (fd == -1) {
 			if (errno == ENXIO) {
@@ -1342,6 +1341,7 @@ void quit() {
 		free(matrix[i]);
 	}
 	free(matrix);
+	unlink(FIFO);
 	exit(0);
 }
 
@@ -1411,6 +1411,11 @@ int main(int argc, char *argv[]) {
 	matrix = read_to_matrix(file, &num_rows, &num_cols);
 	if (file != NULL)
 		fclose(file);
+
+	if (mkfifo(FIFO, 0666) == -1) {
+        if (errno != EEXIST)
+            perror("mkfifo");
+    }
 
     initscr();
     cbreak();
