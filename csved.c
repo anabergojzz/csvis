@@ -12,6 +12,8 @@
 #define FIFO "/bin/command_pipe"
 #define XCLIP_COPY "vis-clipboard --copy"
 #define XCLIP_PASTE "vis-clipboard --paste"
+#define MOVE_X 3
+#define MOVE_Y 5
 
 char ***matrix;
 char ***mat_reg = NULL;
@@ -96,10 +98,10 @@ static Key keys[] = {
 	{KEY_RIGHT, move_right, {.i = 1}},
 	{'h', move_left, {.i = 1}},
 	{KEY_LEFT, move_left, {.i = 1}},
-	{'\x04', move_down, {.i = 5}}, //Ctrl-D
-	{'\x15', move_up, {.i = 5}}, //Ctrl-U
-	{'w', move_right, {.i = 3}},
-	{'b', move_left, {.i = 3}},
+	{'\x04', move_down, {.i = MOVE_Y}}, //Ctrl-D
+	{'\x15', move_up, {.i = MOVE_Y}}, //Ctrl-U
+	{'w', move_right, {.i = MOVE_X}},
+	{'b', move_left, {.i = MOVE_X}},
 	{'G', move_down, {.i = 0}},
 	{'g', move_up, {.i = 0}},
 	{'$', move_right, {.i = 0}},
@@ -522,7 +524,8 @@ void visual_end() {
 void visual() {
 	int key;
 	key = getch();
-	if (key == 'l' || key == 'h') {
+	if (key == 'l' || key == 'h' || key == '$' || key == '0' ||
+			key == 'w' || key == 'b' || key == KEY_RIGHT || key == KEY_LEFT) {
 		mode = 'n';
 		visual_start();
 		v_y = 0;
@@ -530,8 +533,29 @@ void visual() {
 		ch[1] = num_rows;
 		ch[2] = x;
 		ch[3] = x + 1;
+		if (key == '$') {
+			Arg move;
+			move.i = 0;
+			move_right(&move);
+		}
+		if (key == '0') {
+			Arg move;
+			move.i = 0;
+			move_left(&move);
+		}
+		if (key == 'w') {
+			Arg move;
+			move.i = MOVE_X;
+			move_right(&move);
+		}
+		if (key == 'b') {
+			Arg move;
+			move.i = MOVE_X;
+			move_left(&move);
+		}
 	}
-	else if (key == 'j' || key == 'k') {
+	else if (key == 'j' || key == 'k' || key == 'G' || key == 'g' ||
+			key == '\x04' || key == '\x15' || key == KEY_UP || key == KEY_DOWN) {
 		mode = 'n';
 		visual_start();
 		v_x = 0;
@@ -539,6 +563,26 @@ void visual() {
 		ch[1] = y + 1;
 		ch[2] = 0;
 		ch[3] = num_cols;
+		if (key == 'G') {
+			Arg move;
+			move.i = 0;
+			move_down(&move);
+		}
+		if (key == 'g') {
+			Arg move;
+			move.i = 0;
+			move_up(&move);
+		}
+		if (key == '\x04') {
+			Arg move;
+			move.i = MOVE_Y;
+			move_down(&move);
+		}
+		if (key == '\x15') {
+			Arg move;
+			move.i = MOVE_Y;
+			move_up(&move);
+		}
 	}
 }
 
