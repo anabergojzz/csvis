@@ -151,8 +151,17 @@ size_t utf8_strlen(const char *str) {
 
 void draw() {
 	clear();
-	for (int i = 0; i < scr_y; i++) {
-		for (int j = 0; j < scr_x; j++) {
+	int draw_cols, draw_rows;
+	if (scr_x < num_cols)
+		draw_cols = scr_x;
+	else
+		draw_cols = num_cols;
+	if (scr_y < num_rows)
+		draw_rows = scr_y;
+	else
+		draw_rows = num_rows;
+	for (int i = 0; i < draw_rows; i++) {
+		for (int j = 0; j < draw_cols; j++) {
 			if (ch[0] <= s_y + i && s_y + i < ch[1] && ch[2] <= s_x + j && s_x + j < ch[3]) {
 				attron(A_STANDOUT);
 			}
@@ -275,17 +284,9 @@ void move_left(const Arg *arg) {
 }
 
 void when_resize() {
-		//if (x > s_x + scr_x - 1)
-		//	s_x = x - (scr_x - 1);
 	getmaxyx(stdscr, rows, cols);
-	if ((num_cols - s_x)*CELL_WIDTH < cols) {
-		scr_x = num_cols - s_x;
-	}
-	else scr_x = cols/CELL_WIDTH;
-	if (num_rows - s_y < rows)  {
-		scr_y = num_rows - s_y;
-	}
-	else scr_y = rows;
+	scr_x = cols/CELL_WIDTH;
+	scr_y = rows;
 	c_x = (x - s_x)*CELL_WIDTH;
 	c_y = y - s_y;
 }
