@@ -1091,8 +1091,29 @@ void undo() {
 			}
 			num_cols--;
 		}
-		y = head->y;
-		x = head->x;
+		else if (head->operation == 's') {
+			for (int i = 0; i < num_cols; i++)
+				free(matrix[head->y][i]);
+			free(matrix[head->y]);
+
+			matrix[num_rows - 1] = NULL;
+			num_rows--;
+		}
+		else if (head->operation == 't') {
+			for (int j = 0; j < num_rows; j++) {
+				free(matrix[j][head->x]);
+				matrix[j][num_cols - 1] = NULL;
+			}
+			num_cols--;
+		}
+		if (head->y == num_rows)
+			y = head->y - 1;
+		else
+			y = head->y;
+		if (head->x == num_cols)
+			x = head->x - 1;
+		else
+			x = head->x;
 		s_y = head->s_y;
 		s_x = head->s_x;
 		head = head->next;
@@ -1185,6 +1206,26 @@ void redo() {
 			}
 			num_cols++;
 		}
+		else if (head->operation == 's') {
+			num_rows++;
+			matrix[head->y] = (char **)malloc(num_cols * sizeof(char *));
+			for (int j = 0; j < num_cols; j++) {
+				if (j == head->x)
+					matrix[head->y][j] = strdup(head->cell);
+				else
+					matrix[head->y][j] = strdup("");
+			}
+		}
+		else if (head->operation == 't') {
+			num_cols++;
+			for (int i = 0; i < num_rows; i++) {
+				matrix[i] = (char **)realloc(matrix[i], num_cols * sizeof(char *));
+				if (i == head->y)
+					matrix[i][head->x] = strdup(head->cell);
+				else
+					matrix[i][head->x] = strdup("");
+			}
+		}
 		if (head->y == num_rows)
 			y = head->y - 1;
 		else
@@ -1271,6 +1312,7 @@ void str_change(const Arg *arg) {
 			}
 			temp = get_str("", 0, 0);
 			matrix[y][x] = strdup(temp);
+			push(&head, 's', NULL, strdup(temp), 0, 0, y, x, s_y, s_x);
 			free(temp);
 		}
 		else if (x == num_cols) {
@@ -1283,6 +1325,7 @@ void str_change(const Arg *arg) {
 				else
 					matrix[i][x] = strdup("");
 			}
+			push(&head, 't', NULL, strdup(temp), 0, 0, y, x, s_y, s_x);
 			free(temp);
 		}
 		if (mode == 'i') {
