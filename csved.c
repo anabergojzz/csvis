@@ -383,11 +383,6 @@ char* get_str(char* str, char loc, const char cmd) {
 	int key;
 	char k = 0; // to track multibyte utf8 chars
 
-	if (cmd != 0) {
-		c_x = 1;
-		c_y = rows - 1;
-	}
-
     while (1) {
         if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
             bufsize += 10;
@@ -401,9 +396,13 @@ char* get_str(char* str, char loc, const char cmd) {
         }
 		if (k > 0) k--;
 		else {
+			when_resize();
 			draw();
-			if (cmd != 0)
+			if (cmd != 0) {
+				c_x = 1;
+				c_y = rows - 1;
 				mvaddch(c_y, c_x-1, cmd);
+			}
 			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer);
 			addch(' ');
@@ -470,13 +469,6 @@ char* get_str(char* str, char loc, const char cmd) {
 				while ((buffer[i] & 0xC0) == 0x80);
             }
         }
-		else if (key == KEY_RESIZE) {
-			when_resize();
-			if (cmd == ':') {
-				c_x = 1;
-				c_y = rows - 1;
-			}
-		}
 		else {
 			memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
 			if (key < 256) {
