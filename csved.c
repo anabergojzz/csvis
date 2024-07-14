@@ -204,8 +204,6 @@ void move_down(const Arg *arg) {
 		}
 		y = num_rows - 1;
 	}
-	if (y > s_y + scr_y - 1)
-		s_y = y - (scr_y - 1);
 }
 
 void move_up(const Arg *arg) {
@@ -229,8 +227,6 @@ void move_up(const Arg *arg) {
 		}
 		y = 0;
 	}
-	if (y <= s_y)
-		s_y = y;
 }
 
 void move_right(const Arg *arg) {
@@ -254,8 +250,6 @@ void move_right(const Arg *arg) {
 		}
 		x = num_cols - 1;
 	}
-	if (x > s_x + scr_x - 1)
-		s_x = x - (scr_x - 1);
 }
 
 void move_left(const Arg *arg) {
@@ -279,14 +273,28 @@ void move_left(const Arg *arg) {
 		}
 		x = 0;
 	}
-	if (x <= s_x)
-		s_x = x;
 }
 
 void when_resize() {
 	getmaxyx(stdscr, rows, cols);
 	scr_x = cols/CELL_WIDTH;
 	scr_y = rows;
+	if (y <= s_y)
+		s_y = y;
+	if (y > s_y + scr_y - 1)
+		s_y = y - (scr_y - 1);
+	if (scr_y - (num_rows - s_y) > 0)
+		s_y -= scr_y - (num_rows - s_y);
+	if (s_y < 0)
+		s_y = 0;
+	if (x <= s_x)
+		s_x = x;
+	if (x > s_x + scr_x - 1)
+		s_x = x - (scr_x - 1);
+	if (scr_x - (num_cols - s_x) > 0)
+		s_x -= scr_x - (num_cols - s_x);
+	if (s_x < 0)
+		s_x = 0;
 	c_x = (x - s_x)*CELL_WIDTH;
 	c_y = y - s_y;
 }
@@ -326,20 +334,9 @@ void delete_row() {
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 		num_rows -= num;
 		push(&head, 'e', undo_mat, NULL, num, num_cols, ch[0], x, s_y, s_x);
-		if (scr_y - (num_rows - s_y) > 0)
-			s_y -= scr_y - (num_rows - s_y);
-		if (y < s_y)
-			s_y = y - 1;
-		if (s_y < 0)
-			s_y = 0;
-		//if (s_y >= num_rows)
-		//	s_y = num_rows - 1;
-		//else if (num_rows <= scr_y)
-		//	s_y = 0;
+		y = ch[0];
 		if (y >= num_rows)
 			y = ch[0] - 1;
-		else
-			y = ch[0];
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		mode = 'n';
 	}
@@ -359,20 +356,9 @@ void delete_col() {
 		}
 		num_cols -= num;
 		push(&head, 'f', undo_mat, NULL, num_rows, num, y, ch[2], s_y, s_x);
-		if (scr_x - (num_cols - s_x) >= 0)
-			s_x -= scr_x - (num_cols - s_x);
-		if (x < s_x)
-			s_x = x - 1;
-		if (s_x < 0)
-			s_x = 0;
-		//if (s_x >= num_cols)
-		//	s_x = num_cols - 1;
-		//else if (num_cols <= scr_x)
-		//	s_x = 0;
+		x = ch[2];
 		if (x >= num_cols)
 			x = ch[2] - 1;
-		else
-			x = ch[2];
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		mode = 'n';
 	}
