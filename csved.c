@@ -1248,36 +1248,48 @@ void str_change(const Arg *arg) {
 	mode = 'i';
 	char* temp;
 	while (mode == 'i' || mode == 'j') {
-		if (arg->i == 0)
-			temp = get_str("", 0, 0);
-		else if (arg->i == 1)
-			temp = get_str(matrix[y][x], 0, 0);
-		else if (arg->i == 2)
-			temp = get_str(matrix[y][x], 1, 0);
-		char * undo_cell = matrix[y][x];
-		char * paste_cell = strdup(temp);
-		matrix[y][x] = strdup(temp);
-		free(temp);
+		if (y < num_rows && x < num_cols) {
+			if (arg->i == 0)
+				temp = get_str("", 0, 0);
+			else if (arg->i == 1)
+				temp = get_str(matrix[y][x], 0, 0);
+			else if (arg->i == 2)
+				temp = get_str(matrix[y][x], 1, 0);
+			char * undo_cell = matrix[y][x];
+			char * paste_cell = strdup(temp);
+			matrix[y][x] = strdup(temp);
+			free(temp);
 
-		push(&head, 'r', NULL, undo_cell, 0, 0, y, x, s_y, s_x);
-		push(&head, 'r', NULL, paste_cell, 0, 0, y, x, s_y, s_x);
-		if (mode == 'i') {
-			if (y >= num_rows - 1) {
-				Arg insert;
-				insert.i = 1;
-				insert_row(&insert);
+			push(&head, 'r', NULL, undo_cell, 0, 0, y, x, s_y, s_x);
+			push(&head, 'r', NULL, paste_cell, 0, 0, y, x, s_y, s_x);
+		}
+		else if (y == num_rows) {
+			num_rows++;
+			matrix[y] = (char **)malloc(num_cols * sizeof(char *));
+			for (int j = 0; j < num_cols; j++) {
+				matrix[y][j] = strdup("");
 			}
+			temp = get_str("", 0, 0);
+			matrix[y][x] = strdup(temp);
+			free(temp);
+		}
+		else if (x == num_cols) {
+			temp = get_str("", 0, 0);
+			num_cols++;
+			for (int i = 0; i < num_rows; i++) {
+				matrix[i] = (char **)realloc(matrix[i], num_cols * sizeof(char *));
+				if (i == y)
+					matrix[i][x] = strdup(temp);
+				else
+					matrix[i][x] = strdup("");
+			}
+			free(temp);
+		}
+		if (mode == 'i') {
 			y++;
-			when_resize();
 		}
 		if (mode == 'j') {
-			if (x >= num_cols - 1) {
-				Arg insert;
-				insert.i = 1;
-				insert_col(&insert);
-			}
 			x++;
-			when_resize();
 		}
 	}
 }
