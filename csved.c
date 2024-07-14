@@ -25,7 +25,6 @@ int y, x = 0;
 int c_y, c_x = 0;
 int v_y, v_x = 0;
 int s_y, s_x = 0;
-int c_y0, c_x0 = 0;
 int s_y0, s_x0 = 0;
 int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
@@ -383,11 +382,8 @@ char* get_str(char* str, char loc, const char cmd) {
 
 	int key;
 	char k = 0; // to track multibyte utf8 chars
-	int c_y0, c_x0;	
 
 	if (cmd != 0) {
-		c_y0 = c_y;
-		c_x0 = c_x;
 		c_x = 1;
 		c_y = rows - 1;
 	}
@@ -475,10 +471,6 @@ char* get_str(char* str, char loc, const char cmd) {
             }
         }
 		else if (key == KEY_RESIZE) {
-			if (cmd == ':') {
-				c_x = c_x0;
-				c_y = c_y0;
-			}
 			when_resize();
 			if (cmd == ':') {
 				c_x = 1;
@@ -503,8 +495,6 @@ char* get_str(char* str, char loc, const char cmd) {
 void visual_start() {
 	if (mode != 'v') {
 		mode = 'v';
-		c_y0 = c_y;
-		c_x0 = c_x;
 		s_y0 = s_y;
 		s_x0 = s_x;
 		v_y = y;
@@ -522,8 +512,6 @@ void visual_start() {
  
 void visual_end() {
 	ch[0], ch[1], ch[2], ch[3] = 0;
-	c_y = c_y0;
-	c_x = c_x0;
 	if (mode != 'n') {
 		mode = 'n';
 		y = v_y;
@@ -933,9 +921,6 @@ void write_to_pipe(const Arg *arg) {
 		else if (arg->i == 4)
 			visual_end();
     }
-
-	c_y = c_y0;
-	c_x = c_x0;
 }
 
 void yank_cells() {
