@@ -889,23 +889,40 @@ void write_to_pipe(const Arg *arg) {
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
 				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+				/* If not enough rows */
+				if (num_rows_2 - (num_rows - y) > 0) {
+					matrix = (char ***)realloc(matrix, (y + num_rows_2)*sizeof(char **));
+					for (int i = num_rows; i < y + num_rows_2; i++) {
+						matrix[i] = (char **)malloc(num_cols * sizeof(char *));
+						for (int j = 0; j < num_cols; j++) {
+							matrix[i][j] = strdup("");
+						}
+					}
+					num_rows = y + num_rows_2;
+				}
 				for (int i = 0; i < num_rows_2; i++) {
 					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
+					/* If not enough cols */
+					if (num_cols_2 - (num_cols - x) > 0) {
+						for (int i = 0; i < num_rows; i++) {
+							matrix[i] = (char **)realloc(matrix[i], (x + num_cols_2)*sizeof(char *));
+							for (int j = x; j < x + num_cols_2; j++) {
+								matrix[i][j] = strdup("");
+							}
+						}
+						num_cols = x + num_cols_2;
+					}
 					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-						for (int j = 0; j < num_cols_2; j++) {
-							undo_mat[i][j] = matrix[y + i][x + j];
-							paste_mat[i][j] = strdup(temp2[j]);
-							matrix[y + i][x + j] = strdup(temp2[j]);
-						}
+					for (int j = 0; j < num_cols_2; j++) {
+						undo_mat[i][j] = matrix[y + i][x + j];
+						paste_mat[i][j] = strdup(temp2[j]);
+						matrix[y + i][x + j] = strdup(temp2[j]);
 					}
 					free(temp2);
 				}
-				if (num_rows_2 <= (num_rows - y) && num_cols_2 <= (num_cols - x)) {
-					push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
-					push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
-				}
+				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
+				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
 				free(temp);
 			}
 			free(buffer);
