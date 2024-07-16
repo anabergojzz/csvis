@@ -32,7 +32,7 @@ int scr_x, scr_y;
 char *fname;
 
 typedef union {
-	char i;
+	signed char i;
 } Arg;
 
 typedef struct {
@@ -60,10 +60,9 @@ node_t * head = NULL;
 
 size_t utf8_strlen(const char *str);
 void draw();
-void move_down(const Arg *arg);
+void move_y(const Arg *arg);
 void move_up(const Arg *arg);
-void move_right(const Arg *arg);
-void move_left(const Arg *arg);
+void move_x(const Arg *arg);
 void when_resize();
 void insert_col(const Arg *arg);
 void insert_row(const Arg *arg);
@@ -93,22 +92,22 @@ static Key keys[] = {
 	{'v', visual_start, {0}},
 	{'V', visual, {0}},
 	{'\x03', visual_end, {0}}, //Ctrl-C
-	{'j', move_down, {.i = 1}},
-	{KEY_DOWN, move_down, {.i = 1}},
-	{'k', move_up, {.i = 1}},
-	{KEY_UP, move_up, {.i = 1}},
-	{'l', move_right, {.i = 1}},
-	{KEY_RIGHT, move_right, {.i = 1}},
-	{'h', move_left, {.i = 1}},
-	{KEY_LEFT, move_left, {.i = 1}},
-	{'\x04', move_down, {.i = MOVE_Y}}, //Ctrl-D
-	{'\x15', move_up, {.i = MOVE_Y}}, //Ctrl-U
-	{'w', move_right, {.i = MOVE_X}},
-	{'b', move_left, {.i = MOVE_X}},
-	{'G', move_down, {.i = 0}},
-	{'g', move_up, {.i = 0}},
-	{'$', move_right, {.i = 0}},
-	{'0', move_left, {.i = 0}},
+	{'j', move_y, {.i = 1}},
+	{KEY_DOWN, move_y, {.i = 1}},
+	{'k', move_y, {.i = -1}},
+	{KEY_UP, move_y, {.i = -1}},
+	{'l', move_x, {.i = 1}},
+	{KEY_RIGHT, move_x, {.i = 1}},
+	{'h', move_x, {.i = -1}},
+	{KEY_LEFT, move_x, {.i = -1}},
+	{'\x04', move_y, {.i = MOVE_Y}}, //Ctrl-D
+	{'\x15', move_y, {.i = -MOVE_Y}}, //Ctrl-U
+	{'w', move_x, {.i = MOVE_X}},
+	{'b', move_x, {.i = -MOVE_X}},
+	{'G', move_y, {.i = 100}},
+	{'g', move_y, {.i = 0}},
+	{'$', move_x, {.i = 100}},
+	{'0', move_x, {.i = 0}},
 	{'c', str_change, {0}},
 	{'a', str_change, {2}},
 	{'i', str_change, {1}},
@@ -184,95 +183,45 @@ void draw() {
 	attroff(A_STANDOUT);
 }
 
-void move_down(const Arg *arg) {
-	if (y + arg->i < num_rows && arg->i != 0) {
-		if (mode == 'v') {
-			if (y >= v_y)
-				ch[1] = y + 1 + arg->i;
-			else if (y + arg->i <= v_y)
-				ch[0] = y + arg->i;
-			else {
-				ch[1] += arg->i - (v_y - y);
-				ch[0] = v_y;
-			}
-		}
-		y = y + arg->i;
-	}
-	else {
-		if (mode == 'v') {
-			ch[1] = num_rows;
+void move_y(const Arg *arg) {
+	int move;
+	if (arg->i == 100 || y + arg->i >= num_rows)
+		move = num_rows - y - 1;
+	else if (arg->i == 0 || y + arg->i < 0)
+		move = -y;
+	else
+		move = arg->i;
+	y += move;
+	if (mode == 'v') {
+		if (y >= v_y) {
 			ch[0] = v_y;
+			ch[1] = y + 1;
 		}
-		y = num_rows - 1;
-	}
-}
-
-void move_up(const Arg *arg) {
-	if (y - arg->i >= 0 && arg->i != 0) {
-		if (mode == 'v') {
-			if (y <= v_y)
-				ch[0] = y - arg->i;
-			else if (y - arg->i >= v_y)
-				ch[1] = y + 1 - arg->i;
-			else {
-				ch[0] -= arg->i - (y - v_y);
-				ch[1] = v_y + 1;
-			}
-		}
-		y = y - arg->i;
-	}
-	else {
-		if (mode == 'v') {
-			ch[0] = 0;
+		else {
+			ch[0] = y;
 			ch[1] = v_y + 1;
 		}
-		y = 0;
 	}
 }
 
-void move_right(const Arg *arg) {
-	if (x + arg->i < num_cols && arg->i != 0) {
-		if (mode == 'v') {
-			if (ch[2] != x)
-				ch[3] = x + arg->i + 1;
-			else if ((ch[2] + arg->i) <= v_x)
-				ch[2] += arg->i;
-			else {
-				ch[2] = v_x;
-				ch[3] += arg->i - (v_x - ch[2]);
-			}
-		}
-		x += arg->i;
-	}
-	else {
-		if (mode == 'v') {
-			ch[3] = num_cols;
+void move_x(const Arg *arg) {
+	int move;
+	if (arg->i == 100 || x + arg->i >= num_cols)
+		move = num_cols - x - 1;
+	else if (arg->i == 0 || x + arg->i < 0)
+		move = -x;
+	else
+		move = arg->i;
+	x += move;
+	if (mode == 'v') {
+		if (x >= v_x) {
 			ch[2] = v_x;
+			ch[3] = x + 1;
 		}
-		x = num_cols - 1;
-	}
-}
-
-void move_left(const Arg *arg) {
-	if (x - arg->i >= 0 && arg->i != 0) {
-		if (mode == 'v') {
-			if (x <= v_x)
-				ch[2] = x - arg->i;
-			else if (x - arg->i >= v_x)
-				ch[3] = x + 1 - arg->i;
-			else {
-				ch[2] -= arg->i - (x - v_x);
-				ch[3] = v_x + 1;
-			}
-		}
-		x -= arg->i;
-	}
-	else {
-		if (mode == 'v') {
-			ch[2] = 0;
+		else {
+			ch[2] = x;
 			ch[3] = v_x + 1;
 		}
-		x = 0;
 	}
 }
 
@@ -529,23 +478,23 @@ void visual() {
 		ch[3] = x + 1;
 		if (key == '$') {
 			Arg move;
-			move.i = 0;
-			move_right(&move);
+			move.i = 100;
+			move_x(&move);
 		}
 		if (key == '0') {
 			Arg move;
 			move.i = 0;
-			move_left(&move);
+			move_x(&move);
 		}
 		if (key == 'w') {
 			Arg move;
 			move.i = MOVE_X;
-			move_right(&move);
+			move_x(&move);
 		}
 		if (key == 'b') {
 			Arg move;
-			move.i = MOVE_X;
-			move_left(&move);
+			move.i = -MOVE_X;
+			move_x(&move);
 		}
 	}
 	else if (key == 'j' || key == 'k' || key == 'G' || key == 'g' ||
@@ -559,23 +508,23 @@ void visual() {
 		ch[3] = num_cols;
 		if (key == 'G') {
 			Arg move;
-			move.i = 0;
-			move_down(&move);
+			move.i = 100;
+			move_y(&move);
 		}
 		if (key == 'g') {
 			Arg move;
 			move.i = 0;
-			move_up(&move);
+			move_y(&move);
 		}
 		if (key == '\x04') {
 			Arg move;
 			move.i = MOVE_Y;
-			move_down(&move);
+			move_y(&move);
 		}
 		if (key == '\x15') {
 			Arg move;
-			move.i = MOVE_Y;
-			move_up(&move);
+			move.i = -MOVE_Y;
+			move_y(&move);
 		}
 	}
 }
