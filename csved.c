@@ -30,6 +30,8 @@ int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
 char *fname;
+int to_num_y;
+int to_num_x;
 
 typedef union {
 	signed char i;
@@ -86,6 +88,7 @@ void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
 void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x, int add_y, int add_x);
+void move_n();
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -131,6 +134,7 @@ static Key keys[] = {
 	{'P', write_to_pipe, {5}},
 	{'u', undo, {0}},
 	{'\x12', redo, {0}}, //Ctrl-R
+	{':', move_n, {0}}, //Ctrl-R
 	{'D', deleting, {0}}
 };
 
@@ -185,7 +189,9 @@ void draw() {
 
 void move_y(const Arg *arg) {
 	int move;
-	if (arg->i == 100 || y + arg->i >= num_rows)
+	if (arg->i == 99)
+		move = to_num_y;
+	else if (arg->i == 100 || y + arg->i >= num_rows)
 		move = num_rows - y - 1;
 	else if (arg->i == 0 || y + arg->i < 0)
 		move = -y;
@@ -206,7 +212,9 @@ void move_y(const Arg *arg) {
 
 void move_x(const Arg *arg) {
 	int move;
-	if (arg->i == 100 || x + arg->i >= num_cols)
+	if (arg->i == 99)
+		move = to_num_x;
+	else if (arg->i == 100 || x + arg->i >= num_cols)
 		move = num_cols - x - 1;
 	else if (arg->i == 0 || x + arg->i < 0)
 		move = -x;
@@ -223,6 +231,45 @@ void move_x(const Arg *arg) {
 			ch[3] = v_x + 1;
 		}
 	}
+}
+
+void move_n() {
+	char *temp = get_str("", 0, ':');
+    int length = strlen(temp);
+	to_num_y = y;
+	to_num_x = 0;
+    int is_number = 0;
+	char next = 0;
+
+    for (int i = 0; i < length; i++) {
+        if (*(temp + i) >= '0' && *(temp + i) <= '9') {
+			if (next == 0)
+				to_num_x = to_num_x * 10 + (*(temp + i) - '0');
+			else if (next == 1)
+				to_num_y = to_num_y * 10 + (*(temp + i) - '0');
+            is_number = 1;
+        }
+		else if (*(temp + i) == '.') {
+			if (is_number == 0)
+				to_num_x = x;
+			next = 1;
+			to_num_y = 0;
+			is_number = 0;
+		}
+		else
+			break;
+	}
+	free(temp);
+	if (is_number) {
+		to_num_y -= y;
+		to_num_x -= x;
+		Arg move;
+		move.i = 99;
+		if (to_num_y != 0)
+			move_y(&move);
+		if (to_num_x != 0)
+			move_x(&move);
+    }
 }
 
 void when_resize() {
