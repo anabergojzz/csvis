@@ -838,8 +838,9 @@ void write_to_pipe(const Arg *arg) {
 					visual_end();
 				int num_cols_2, num_rows_2;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
-				int add_y, add_x;
-				add_y = y + num_rows_2 - num_rows;
+				int add_y, add_x = 0;
+				if (y + num_rows_2 - num_rows > 0)
+					add_y = y + num_rows_2 - num_rows;
 				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				/* If not enough rows */
@@ -856,7 +857,8 @@ void write_to_pipe(const Arg *arg) {
 				for (int i = 0; i < num_rows_2; i++) {
 					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
 					if (i == 0) {
-						add_x = x + num_cols_2 - num_cols;
+						if (x + num_cols_2 - num_cols > 0)
+							add_x = x + num_cols_2 - num_cols;
 						/* If not enough cols */
 						if (num_cols_2 - (num_cols - x) > 0) {
 							for (int i = 0; i < num_rows; i++) {
@@ -1012,7 +1014,7 @@ void undo() {
 				if (j < num_rows - head->add_y) {
 					for (int i = 1; i <= head->add_x; i++)
 						free(matrix[j][num_cols - i]);
-					matrix[j] = realloc(matrix[j], (num_cols - head->add_x)*sizeof(char*));
+					matrix[j] = (char **)realloc(matrix[j], (num_cols - head->add_x)*sizeof(char*));
 				}
 				else {
 					for (int i = 0; i < num_cols; i++)
@@ -1020,7 +1022,7 @@ void undo() {
 					free(matrix[j]);
 				}
 			}
-			matrix = realloc(matrix, (num_rows - head->add_y)*sizeof(char**));
+			matrix = (char ***)realloc(matrix, (num_rows - head->add_y)*sizeof(char**));
 			num_cols -= head->add_x;
 			num_rows -= head->add_y;
 		}
