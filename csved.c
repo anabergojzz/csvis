@@ -51,6 +51,8 @@ typedef struct node {
 	int s_x;
 	int rows;
 	int cols;
+	int add_y;
+	int add_x;
 	struct node * next;
 	struct node * prev;
 } node_t;
@@ -84,7 +86,7 @@ void str_change();
 void quit();
 void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
-void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x);
+void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x, int add_y, int add_x);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -307,7 +309,7 @@ void insert_col(const Arg *arg) {
 		matrix[i][x + arg->i] = strdup("");
 	}
 	num_cols++;
-	push(&head, 'h', NULL, NULL, arg->i, 1, y, x, s_y, s_x);
+	push(&head, 'h', NULL, NULL, arg->i, 1, y, x, s_y, s_x, 0, 0);
 }
 
 void insert_row(const Arg *arg) {
@@ -319,7 +321,7 @@ void insert_row(const Arg *arg) {
 	for (int j = 0; j < num_cols; j++) {
 		matrix[y + arg->i][j] = strdup("");
 	}
-	push(&head, 'g', NULL, NULL, 1, arg->i, y, x, s_y, s_x);
+	push(&head, 'g', NULL, NULL, 1, arg->i, y, x, s_y, s_x, 0, 0);
 }
 
 void delete_row() {
@@ -332,7 +334,7 @@ void delete_row() {
 			matrix[i] = matrix[i + num];
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 		num_rows -= num;
-		push(&head, 'e', undo_mat, NULL, num, num_cols, ch[0], x, s_y, s_x);
+		push(&head, 'e', undo_mat, NULL, num, num_cols, ch[0], x, s_y, s_x, 0, 0);
 		y = ch[0];
 		if (y >= num_rows)
 			y = ch[0] - 1;
@@ -354,7 +356,7 @@ void delete_col() {
 			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 		}
 		num_cols -= num;
-		push(&head, 'f', undo_mat, NULL, num_rows, num, y, ch[2], s_y, s_x);
+		push(&head, 'f', undo_mat, NULL, num_rows, num, y, ch[2], s_y, s_x, 0, 0);
 		x = ch[2];
 		if (x >= num_cols)
 			x = ch[2] - 1;
@@ -887,6 +889,8 @@ void write_to_pipe(const Arg *arg) {
 					visual_end();
 				int num_cols_2, num_rows_2;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
+				int add_y, add_x;
+				add_y = y + num_rows_2 - num_rows;
 				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 				/* If not enough rows */
@@ -902,15 +906,18 @@ void write_to_pipe(const Arg *arg) {
 				}
 				for (int i = 0; i < num_rows_2; i++) {
 					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
-					/* If not enough cols */
-					if (num_cols_2 - (num_cols - x) > 0) {
-						for (int i = 0; i < num_rows; i++) {
-							matrix[i] = (char **)realloc(matrix[i], (x + num_cols_2)*sizeof(char *));
-							for (int j = x; j < x + num_cols_2; j++) {
-								matrix[i][j] = strdup("");
+					if (i == 0) {
+						add_x = x + num_cols_2 - num_cols;
+						/* If not enough cols */
+						if (num_cols_2 - (num_cols - x) > 0) {
+							for (int i = 0; i < num_rows; i++) {
+								matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+								for (int j = num_cols; j < num_cols + add_x; j++) {
+									matrix[i][j] = strdup("");
+								}
 							}
+							num_cols = x + num_cols_2;
 						}
-						num_cols = x + num_cols_2;
 					}
 					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
@@ -921,8 +928,8 @@ void write_to_pipe(const Arg *arg) {
 					}
 					free(temp2);
 				}
-				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
-				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x);
+				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x, add_y, add_x);
+				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x, 0, 0);
 				free(temp);
 			}
 			free(buffer);
@@ -982,13 +989,13 @@ void wipe_cells() {
 				matrix[i][j] = strdup("");
 			}
 		}
-		push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2], s_y, s_x);
+		push(&head, 'd', undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2], s_y, s_x, 0, 0);
 
 		visual_end();
 	}
 }
 
-void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x) {
+void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x, int add_y, int add_x) {
 	if (*head == NULL) {
 		*head = (node_t *) malloc(sizeof(node_t));
 		(*head)->next = NULL;
@@ -1009,6 +1016,8 @@ void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, 
 	new_node->x = x;
 	new_node->s_y = s_y;
 	new_node->s_x = s_x;
+	new_node->add_y = add_y;
+	new_node->add_x = add_x;
 	new_node->next = *head;
 	new_node->prev = NULL;
 
@@ -1043,12 +1052,6 @@ void undo() {
 			}
 		}
 		else if (head->operation == 'p') {
-			for (int i=head->y; i<(head->y + head->rows); i++) {
-				for (int j=head->x; j<(head->x + head->cols); j++) {
-					free(matrix[i][j]);
-					matrix[i][j] = strdup("");
-				}
-			}
 			head = head->next;
 			for (int i = 0; i < head->rows; i++) {
 				for (int j = 0; j < head->cols; j++) {
@@ -1056,6 +1059,21 @@ void undo() {
 					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
 				}
 			}
+			for (int j = 0; j < num_rows; j++) {
+				if (j < num_rows - head->add_y) {
+					for (int i = 1; i <= head->add_x; i++)
+						free(matrix[j][num_cols - i]);
+					matrix[j] = realloc(matrix[j], (num_cols - head->add_x)*sizeof(char*));
+				}
+				else {
+					for (int i = 0; i < num_cols; i++)
+						free(matrix[j][i]);
+					free(matrix[j]);
+				}
+			}
+			matrix = realloc(matrix, (num_rows - head->add_y)*sizeof(char**));
+			num_cols -= head->add_x;
+			num_rows -= head->add_y;
 		}
 		else if (head->operation == 'r') {
 			free(matrix[head->y][head->x]);
@@ -1157,12 +1175,22 @@ void redo() {
 			}
 		}
 		else if (head->operation == 'p') {
-			for (int i=head->y; i<(head->y + head->rows); i++) {
-				for (int j=head->x; j<(head->x + head->cols); j++) {
-					free(matrix[i][j]);
-					matrix[i][j] = strdup("");
+			matrix = (char ***)realloc(matrix, (num_rows + head->add_y)*sizeof(char **));
+			for (int i = 0; i < num_rows + head->add_y; i++) {
+				if (i < num_rows) {
+					matrix[i] = (char **)realloc(matrix[i], (num_cols + head->add_x)*sizeof(char *));
+					for (int j = 0; j < head->add_x; j++)
+						matrix[i][num_cols + j] = strdup("");
+				}
+				else {
+					matrix[i] = (char **)malloc((num_cols + head->add_x)*sizeof(char *));
+					for (int j = 0; j < num_cols + head->add_x; j++) {
+						matrix[i][j] = strdup("");
+					}
 				}
 			}
+			num_rows += head->add_y;
+			num_cols += head->add_x;
 			if (head->prev != NULL)
 				head = head->prev;
 			for (int i = 0; i < head->rows; i++) {
@@ -1272,8 +1300,8 @@ void paste_cells() {
 					matrix[y + i][x + j] = strdup(mat_reg[i][j]);
 				}
 			}
-			push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x);
-			push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x);
+			push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, 0, 0);
+			push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, 0, 0);
 		}
 	}
 }
@@ -1318,8 +1346,8 @@ void str_change(const Arg *arg) {
 			matrix[y][x] = strdup(temp);
 			free(temp);
 
-			push(&head, 'r', NULL, undo_cell, 0, 0, y, x, s_y, s_x);
-			push(&head, 'r', NULL, paste_cell, 0, 0, y, x, s_y, s_x);
+			push(&head, 'r', NULL, undo_cell, 0, 0, y, x, s_y, s_x, 0, 0);
+			push(&head, 'r', NULL, paste_cell, 0, 0, y, x, s_y, s_x, 0, 0);
 		}
 		else if (y == num_rows) {
 			num_rows++;
@@ -1329,7 +1357,7 @@ void str_change(const Arg *arg) {
 			}
 			temp = get_str("", 0, 0);
 			matrix[y][x] = strdup(temp);
-			push(&head, 's', NULL, strdup(temp), 0, 0, y, x, s_y, s_x);
+			push(&head, 's', NULL, strdup(temp), 0, 0, y, x, s_y, s_x, 0, 0);
 			free(temp);
 		}
 		else if (x == num_cols) {
@@ -1342,7 +1370,7 @@ void str_change(const Arg *arg) {
 				else
 					matrix[i][x] = strdup("");
 			}
-			push(&head, 't', NULL, strdup(temp), 0, 0, y, x, s_y, s_x);
+			push(&head, 't', NULL, strdup(temp), 0, 0, y, x, s_y, s_x, 0, 0);
 			free(temp);
 		}
 		if (mode == 'i') {
