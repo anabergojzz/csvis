@@ -728,6 +728,38 @@ void write_csv(const Arg *arg) {
 	visual_end();
 }
 
+char **parse_command(char * cmd, char arg) {
+	char* temp = strdup(cmd);
+	int num_args = 0;
+	char* token = strtok(temp, " ");
+	while (token != NULL) {
+		num_args++;
+		token = strtok(NULL, " ");
+	}
+	free(temp);
+	char** cmd_arg = malloc((num_args+1)*sizeof(char*));
+	if (cmd_arg == NULL)
+		return NULL;
+	if (arg == 2) {
+		cmd_arg[0] = "awk";
+		cmd_arg[1] = "-F,";
+		cmd_arg[2] = "-vOFS=,";
+		cmd_arg[3] = cmd;
+		cmd_arg[4] = NULL;
+	}
+	else {
+		int i = 0;
+		token = strtok(cmd, " ");
+		while (token != NULL) {
+			cmd_arg[i++] = token;
+			token = strtok(NULL, " ");
+		}
+		cmd_arg[i] = NULL;
+	}
+
+	return cmd_arg;
+}
+
 void write_to_pipe(const Arg *arg) {
 	char* cmd;
 	if (arg->i == 2)
@@ -784,35 +816,7 @@ void write_to_pipe(const Arg *arg) {
         dup2(pipefd2[1], STDOUT_FILENO);
         close(pipefd2[1]);
 
-		char* temp = strdup(cmd);
-		int num_args = 0;
-		char* token = strtok(temp, " ");
-		while (token != NULL) {
-			num_args++;
-			token = strtok(NULL, " ");
-		}
-		free(temp);
-		char** cmd_arg = malloc((num_args+1)*sizeof(char*));
-		if (cmd_arg == NULL) {
-			perror("malloc failed");
-			exit(1);
-		}
-		if (arg->i == 2) {
-			cmd_arg[0] = "awk";
-			cmd_arg[1] = "-F,";
-			cmd_arg[2] = "-vOFS=,";
-			cmd_arg[3] = cmd;
-			cmd_arg[4] = NULL;
-		}
-		else {
-			int i = 0;
-			token = strtok(cmd, " ");
-			while (token != NULL) {
-				cmd_arg[i++] = token;
-				token = strtok(NULL, " ");
-			}
-			cmd_arg[i] = NULL;
-		}
+		char **cmd_arg = parse_command(cmd, arg->i);
 
         execvp(cmd_arg[0], cmd_arg);
         // if execlp witout success
