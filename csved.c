@@ -236,24 +236,24 @@ void move_x(const Arg *arg) {
 void move_n() {
 	char *temp = get_str("", 0, ':');
     int length = strlen(temp);
-	to_num_y = y;
-	to_num_x = 0;
+	to_num_y = 0;
+	to_num_x = x;
     int is_number = 0;
 	char next = 0;
 
     for (int i = 0; i < length; i++) {
         if (*(temp + i) >= '0' && *(temp + i) <= '9') {
 			if (next == 0)
-				to_num_x = to_num_x * 10 + (*(temp + i) - '0');
-			else if (next == 1)
 				to_num_y = to_num_y * 10 + (*(temp + i) - '0');
+			else if (next == 1)
+				to_num_x = to_num_x * 10 + (*(temp + i) - '0');
             is_number = 1;
         }
 		else if (*(temp + i) == '.') {
 			if (is_number == 0)
-				to_num_x = x;
+				to_num_y = y;
 			next = 1;
-			to_num_y = 0;
+			to_num_x = 0;
 			is_number = 0;
 		}
 		else
