@@ -467,6 +467,7 @@ char* get_str(char* str, char loc, const char cmd) {
 				while ((buffer[i] & 0xC0) == 0x80);
             }
         }
+		else if (key == KEY_RESIZE);
 		else {
 			memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
 			if (key < 256) {
