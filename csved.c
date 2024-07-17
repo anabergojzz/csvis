@@ -265,9 +265,9 @@ void move_n() {
 		to_num_x -= x;
 		Arg move;
 		move.i = 99;
-		if (to_num_y != 0)
+		if (to_num_y != 0 && y + to_num_y < num_rows && y + to_num_y >= 0)
 			move_y(&move);
-		if (to_num_x != 0)
+		if (to_num_x != 0 && x + to_num_x < num_cols && x + to_num_x >= 0)
 			move_x(&move);
     }
 }
