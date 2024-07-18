@@ -760,6 +760,22 @@ char **parse_command(char * cmd, char arg) {
 	return cmd_arg;
 }
 
+void write_selection(int fd) {
+	char flip = 0;
+	for (int i = ch[0]; i < ch[1]; i++) {
+		for (int j = ch[2]; j < ch[3]; j++) {
+			if (flip == 1)
+				write(fd, matrix[j][i], strlen(matrix[j][i]));
+			else
+				write(fd, matrix[i][j], strlen(matrix[i][j]));
+			if (j == ch[3]-1)
+				write(fd, "\n", 1);
+			else
+				write(fd, ",", 1);
+		}
+	}
+}
+
 void write_to_pipe(const Arg *arg) {
 	char* cmd;
 	if (arg->i == 2)
@@ -837,17 +853,7 @@ void write_to_pipe(const Arg *arg) {
 				ch[3] = num_cols;
 			}
 
-			char* str;
-			for (int i = ch[0]; i < ch[1]; i++) {
-				for (int j = ch[2]; j < ch[3] - 1; j++) {
-					str = matrix[i][j];
-					write(pipefd[1], str, strlen(str));
-					write(pipefd[1], ",", 1);
-				}
-				str = matrix[i][ch[3] - 1];
-				write(pipefd[1], str, strlen(str));
-				write(pipefd[1], "\n", 1);
-			}
+			write_selection(pipefd[1]);
 			close(pipefd[1]);
 		}
 
