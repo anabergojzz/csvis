@@ -16,6 +16,9 @@
 #define MOVE_X 3
 #define MOVE_Y 5
 
+/* enums */
+enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
+
 char ***matrix;
 char ***mat_reg = NULL;
 int reg_rows, reg_cols = 0;
@@ -34,7 +37,7 @@ int to_num_y;
 int to_num_x;
 
 typedef union {
-	signed char i;
+	int i;
 } Arg;
 
 typedef struct {
@@ -89,6 +92,8 @@ void keypress(int key);
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
 void push(node_t ** head, char operation, char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x, int add_y, int add_x);
 void move_n();
+void write_selection(int fd);
+char **parse_command(char * cmd, const int arg);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -123,15 +128,15 @@ static Key keys[] = {
 	{'e', write_csv, {2}},
 	{'E', write_csv, {3}},
 	{'\x13', write_csv, {4}}, //Ctrl-S
-	{'>', write_to_pipe, {'>'}},
-	{'|', write_to_pipe, {'|'}},
-	{'\x0F', write_to_pipe, {2}}, //Ctrl-O awk
-	{'<', write_to_pipe, {'<'}},
+	{'>', write_to_pipe, {PipeTo}},
+	{'|', write_to_pipe, {PipeThrough}},
+	{'\x0F', write_to_pipe, {PipeAwk}}, //Ctrl-O awk
+	{'<', write_to_pipe, {PipeRead}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
-	{'Y', write_to_pipe, {4}},
+	{'Y', write_to_pipe, {PipeToClip}},
 	{'p', paste_cells, {0}},
-	{'P', write_to_pipe, {5}},
+	{'P', write_to_pipe, {PipeReadClip}},
 	{'u', undo, {0}},
 	{'\x12', redo, {0}}, //Ctrl-R
 	{':', move_n, {0}}, //Ctrl-R
@@ -728,7 +733,7 @@ void write_csv(const Arg *arg) {
 	visual_end();
 }
 
-char **parse_command(char * cmd, char arg) {
+char **parse_command(char * cmd, int arg) {
 	char* temp = strdup(cmd);
 	int num_args = 0;
 	char* token = strtok(temp, " ");
@@ -740,7 +745,7 @@ char **parse_command(char * cmd, char arg) {
 	char** cmd_arg = malloc((num_args+1)*sizeof(char*));
 	if (cmd_arg == NULL)
 		return NULL;
-	if (arg == 2) {
+	if (arg == PipeAwk) {
 		cmd_arg[0] = "awk";
 		cmd_arg[1] = "-F,";
 		cmd_arg[2] = "-vOFS=,";
@@ -778,18 +783,23 @@ void write_selection(int fd) {
 
 void write_to_pipe(const Arg *arg) {
 	char* cmd;
-	if (arg->i == 2)
+	if (arg->i == PipeThrough)
 		cmd = get_str("", 0, '|');
-	else if (arg->i == 4) {
+	else if (arg->i == PipeTo)
+		cmd = get_str("", 0, '>');
+	else if (arg->i == PipeRead)
+		cmd = get_str("", 0, '<');
+	else if (arg->i == PipeAwk)
+		cmd = get_str("", 0, '|');
+	else if (arg->i == PipeToClip) {
 		cmd = malloc(30);
 		strcpy(cmd, XCLIP_COPY);
 	}
-	else if (arg->i == 5) {
+	else if (arg->i == PipeReadClip) {
 		cmd = malloc(30);
 		strcpy(cmd, XCLIP_PASTE);
 	}
-	else
-		cmd = get_str("", 0, arg->i);
+
     int pipefd[2];
     int pipefd2[2];
 	pid_t pid;
@@ -799,7 +809,7 @@ void write_to_pipe(const Arg *arg) {
 	size_t buffer_size = 20;
 	size_t total_bytes = 0;
 	
-	if (arg->i != '<' && arg->i != 5) {
+	if (arg->i != PipeRead && arg->i != PipeReadClip) {
 		//create pipe
 		if (pipe(pipefd) == -1) {
 			perror("pipe");
@@ -820,7 +830,7 @@ void write_to_pipe(const Arg *arg) {
     }
 
     if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
-		if (arg->i != '<' && arg->i != 5) {
+		if (arg->i != PipeRead && arg->i != PipeReadClip) {
 			// redirect stdin to input
 			close(pipefd[1]);
 			dup2(pipefd[0], STDIN_FILENO);
@@ -844,7 +854,7 @@ void write_to_pipe(const Arg *arg) {
 	else {  // Parent process
         close(pipefd2[1]);
 
-		if (arg->i != '<' && arg->i != 5) {
+		if (arg->i != PipeRead && arg->i != PipeReadClip) {
 			close(pipefd[0]);
 			if (mode == 'n') {
 				ch[0] = 0;
@@ -892,7 +902,7 @@ void write_to_pipe(const Arg *arg) {
 				getch();
 			}
 			else {
-				if (arg->i != '<' && arg->i != 5)
+				if (arg->i != PipeRead && arg->i != PipeReadClip)
 					visual_end();
 				int num_cols_2, num_rows_2;
 				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
@@ -943,7 +953,7 @@ void write_to_pipe(const Arg *arg) {
 			}
 			free(buffer);
 		}
-		else if (arg->i == 4)
+		else if (arg->i == PipeToClip)
 			visual_end();
     }
 }
