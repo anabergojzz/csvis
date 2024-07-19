@@ -94,6 +94,7 @@ void push(node_t ** head, char operation, char *** mat, char * cell, int rows, i
 void move_n();
 void write_selection(int fd);
 char **parse_command(char * cmd, const int arg);
+void write_from(char *buffer);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -733,7 +734,7 @@ void write_csv(const Arg *arg) {
 	visual_end();
 }
 
-char **parse_command(char * cmd, int arg) {
+char **parse_command(char * cmd, const int arg) {
 	char* temp = strdup(cmd);
 	int num_args = 0;
 	char* token = strtok(temp, " ");
@@ -779,6 +780,55 @@ void write_selection(int fd) {
 				write(fd, ",", 1);
 		}
 	}
+}
+
+void write_from(char *buffer) {
+	int num_cols_2, num_rows_2;
+	char **temp = split_string(buffer, '\n', &num_rows_2, 0);
+	int add_y, add_x = 0;
+	if (y + num_rows_2 - num_rows > 0)
+		add_y = y + num_rows_2 - num_rows;
+	char ***undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+	char ***paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+	/* If not enough rows */
+	if (num_rows_2 - (num_rows - y) > 0) {
+		matrix = (char ***)realloc(matrix, (y + num_rows_2)*sizeof(char **));
+		for (int i = num_rows; i < y + num_rows_2; i++) {
+			matrix[i] = (char **)malloc(num_cols * sizeof(char *));
+			for (int j = 0; j < num_cols; j++) {
+				matrix[i][j] = strdup("");
+			}
+		}
+		num_rows = y + num_rows_2;
+	}
+	for (int i = 0; i < num_rows_2; i++) {
+		char **temp2 = split_string(temp[i], ',', &num_cols_2, 1);
+		if (i == 0) {
+			if (x + num_cols_2 - num_cols > 0)
+				add_x = x + num_cols_2 - num_cols;
+			/* If not enough cols */
+			if (num_cols_2 - (num_cols - x) > 0) {
+				for (int i = 0; i < num_rows; i++) {
+					matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+					for (int j = num_cols; j < num_cols + add_x; j++) {
+						matrix[i][j] = strdup("");
+					}
+				}
+				num_cols = x + num_cols_2;
+			}
+		}
+		undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+		paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
+		for (int j = 0; j < num_cols_2; j++) {
+			undo_mat[i][j] = matrix[y + i][x + j];
+			paste_mat[i][j] = strdup(temp2[j]);
+			matrix[y + i][x + j] = strdup(temp2[j]);
+		}
+		free(temp2);
+	}
+	push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x, add_y, add_x);
+	push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x, 0, 0);
+	free(temp);
 }
 
 void write_to_pipe(const Arg *arg) {
@@ -904,52 +954,7 @@ void write_to_pipe(const Arg *arg) {
 			else {
 				if (arg->i != PipeRead && arg->i != PipeReadClip)
 					visual_end();
-				int num_cols_2, num_rows_2;
-				char** temp = split_string(buffer, '\n', &num_rows_2, 0);
-				int add_y, add_x = 0;
-				if (y + num_rows_2 - num_rows > 0)
-					add_y = y + num_rows_2 - num_rows;
-				char *** undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-				char *** paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-				/* If not enough rows */
-				if (num_rows_2 - (num_rows - y) > 0) {
-					matrix = (char ***)realloc(matrix, (y + num_rows_2)*sizeof(char **));
-					for (int i = num_rows; i < y + num_rows_2; i++) {
-						matrix[i] = (char **)malloc(num_cols * sizeof(char *));
-						for (int j = 0; j < num_cols; j++) {
-							matrix[i][j] = strdup("");
-						}
-					}
-					num_rows = y + num_rows_2;
-				}
-				for (int i = 0; i < num_rows_2; i++) {
-					char** temp2 = split_string(temp[i], ',', &num_cols_2, 1);
-					if (i == 0) {
-						if (x + num_cols_2 - num_cols > 0)
-							add_x = x + num_cols_2 - num_cols;
-						/* If not enough cols */
-						if (num_cols_2 - (num_cols - x) > 0) {
-							for (int i = 0; i < num_rows; i++) {
-								matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
-								for (int j = num_cols; j < num_cols + add_x; j++) {
-									matrix[i][j] = strdup("");
-								}
-							}
-							num_cols = x + num_cols_2;
-						}
-					}
-					undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-					for (int j = 0; j < num_cols_2; j++) {
-						undo_mat[i][j] = matrix[y + i][x + j];
-						paste_mat[i][j] = strdup(temp2[j]);
-						matrix[y + i][x + j] = strdup(temp2[j]);
-					}
-					free(temp2);
-				}
-				push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x, add_y, add_x);
-				push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, y, x, s_y, s_x, 0, 0);
-				free(temp);
+				write_from(buffer);
 			}
 			free(buffer);
 		}
