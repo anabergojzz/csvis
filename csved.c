@@ -94,7 +94,7 @@ void push(node_t ** head, char operation, char *** mat, char * cell, int rows, i
 void move_n();
 void write_selection(int fd);
 char **parse_command(char * cmd, const int arg);
-void write_from(char *buffer);
+void write_to_cells(char *buffer);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -782,7 +782,7 @@ void write_selection(int fd) {
 	}
 }
 
-void write_from(char *buffer) {
+void write_to_cells(char *buffer) {
 	int num_cols_2, num_rows_2;
 	char **temp = split_string(buffer, '\n', &num_rows_2, 0);
 	int add_y, add_x = 0;
@@ -831,6 +831,30 @@ void write_from(char *buffer) {
 	free(temp);
 }
 
+size_t read_from(int fd, char **buffer) {
+	ssize_t bytes_read;
+	size_t buffer_size = 20;
+	size_t total_bytes = 0;
+	*buffer = (char *)malloc(buffer_size);
+	if (*buffer == NULL) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	while ((bytes_read = read(fd, *buffer + total_bytes, buffer_size - total_bytes - 1)) > 0) {
+		total_bytes += bytes_read;
+		if (total_bytes >= buffer_size - 1) {
+			buffer_size *= 2;
+			*buffer = (char *)realloc(*buffer, buffer_size);
+			if (*buffer == NULL) {
+				perror("realloc");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+	return total_bytes;
+}
+
 void write_to_pipe(const Arg *arg) {
 	char* cmd;
 	if (arg->i == PipeThrough)
@@ -850,24 +874,20 @@ void write_to_pipe(const Arg *arg) {
 		strcpy(cmd, XCLIP_PASTE);
 	}
 
-    int pipefd[2];
-    int pipefd2[2];
+    int pipefd_w[2];
+    int pipefd_r[2];
 	pid_t pid;
 	int status;
-    ssize_t bytes_read;
-	char* buffer;
-	size_t buffer_size = 20;
-	size_t total_bytes = 0;
 	
 	if (arg->i != PipeRead && arg->i != PipeReadClip) {
 		//create pipe
-		if (pipe(pipefd) == -1) {
+		if (pipe(pipefd_w) == -1) {
 			perror("pipe");
 			exit(1);
 		}
 	}
 
-    if (pipe(pipefd2) == -1) {
+    if (pipe(pipefd_r) == -1) {
         perror("pipe");
         exit(EXIT_FAILURE);
     }
@@ -879,33 +899,33 @@ void write_to_pipe(const Arg *arg) {
         exit(2);
     }
 
-    if (pid == 0) { // Child: Connect pipA[0] (read) to standard input 0
+    if (pid == 0) { // child process
 		if (arg->i != PipeRead && arg->i != PipeReadClip) {
 			// redirect stdin to input
-			close(pipefd[1]);
-			dup2(pipefd[0], STDIN_FILENO);
-			close(pipefd[0]);
+			close(pipefd_w[1]);
+			dup2(pipefd_w[0], STDIN_FILENO);
+			close(pipefd_w[0]);
 		}
 
 		// redirect stdout to output
-        close(pipefd2[0]);
-        dup2(pipefd2[1], STDOUT_FILENO);
-        close(pipefd2[1]);
+        close(pipefd_r[0]);
+        dup2(pipefd_r[1], STDOUT_FILENO);
+        close(pipefd_r[1]);
 
 		char **cmd_arg = parse_command(cmd, arg->i);
 
         execvp(cmd_arg[0], cmd_arg);
-        // if execlp witout success
+        // if execvp witout success
         perror(" execvp");
         exit(EXIT_FAILURE);
 		free(cmd);
 		free(cmd_arg);
 	}
-	else {  // Parent process
-        close(pipefd2[1]);
+	else { // parent process
+        close(pipefd_r[1]);
 
 		if (arg->i != PipeRead && arg->i != PipeReadClip) {
-			close(pipefd[0]);
+			close(pipefd_w[0]);
 			if (mode == 'n') {
 				ch[0] = 0;
 				ch[1] = num_rows;
@@ -913,29 +933,14 @@ void write_to_pipe(const Arg *arg) {
 				ch[3] = num_cols;
 			}
 
-			write_selection(pipefd[1]);
-			close(pipefd[1]);
+			write_selection(pipefd_w[1]);
+			close(pipefd_w[1]);
 		}
 
-        buffer = (char *)malloc(buffer_size);
-        if (buffer == NULL) {
-            perror("malloc");
-            exit(EXIT_FAILURE);
-        }
+		char *buffer;
+		size_t total_bytes = read_from(pipefd_r[0], &buffer);
 
-		while ((bytes_read = read(pipefd2[0], buffer + total_bytes, buffer_size - total_bytes - 1)) > 0) {
-            total_bytes += bytes_read;
-            if (total_bytes >= buffer_size - 1) {
-                buffer_size *= 2;
-                buffer = (char *)realloc(buffer, buffer_size);
-                if (buffer == NULL) {
-                    perror("realloc");
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
-
-        close(pipefd2[0]);  // close output
+        close(pipefd_r[0]);  // close output
 
 		waitpid(pid, &status, 0);
         if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
@@ -954,7 +959,7 @@ void write_to_pipe(const Arg *arg) {
 			else {
 				if (arg->i != PipeRead && arg->i != PipeReadClip)
 					visual_end();
-				write_from(buffer);
+				write_to_cells(buffer);
 			}
 			free(buffer);
 		}
