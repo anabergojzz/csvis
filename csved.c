@@ -18,6 +18,7 @@
 
 /* enums */
 enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
+enum {WriteTo, WriteTranspose, WriteFifo, WriteFifoTranspose, WriteExisting};
 
 char ***matrix;
 char ***mat_reg = NULL;
@@ -124,11 +125,11 @@ static Key keys[] = {
 	{'o', insert_row, {1}},
 	{'I', insert_col, {0}},
 	{'A', insert_col, {1}},
-	{'s', write_csv, {0}},
-	{'S', write_csv, {1}},
-	{'e', write_csv, {2}},
-	{'E', write_csv, {3}},
-	{'\x13', write_csv, {4}}, //Ctrl-S
+	{'s', write_csv, {WriteTo}},
+	{'S', write_csv, {WriteTranspose}},
+	{'e', write_csv, {WriteFifo}},
+	{'E', write_csv, {WriteFifoTranspose}},
+	{'\x13', write_csv, {WriteExisting}}, //Ctrl-S
 	{'>', write_to_pipe, {PipeTo}},
 	{'|', write_to_pipe, {PipeThrough}},
 	{'\x0F', write_to_pipe, {PipeAwk}}, //Ctrl-O awk
@@ -649,9 +650,9 @@ void write_csv(const Arg *arg) {
 	char flip;
 	char *filename;
 
-	if (arg->i < 2)
+	if (arg->i == WriteTo || arg->i == WriteTranspose)
 		filename = get_str("", 0, ':');
-	else if (arg->i == 4) {
+	else if (arg->i == WriteExisting) {
 		if (fname == NULL)
 			filename = get_str("", 0, ':');
 		else {
@@ -692,7 +693,7 @@ void write_csv(const Arg *arg) {
 			ch[3] = num_cols;
 		}
 
-		if (arg->i == 1 || arg->i == 2) 
+		if (arg->i == WriteTranspose || arg->i == WriteFifoTranspose) 
 				flip = 1;
 
 		if (flip == 1) {
@@ -706,7 +707,7 @@ void write_csv(const Arg *arg) {
 		}
 		char *first = "";
 		char *end = "";
-		if (arg->i == 2 || arg->i == 3) {
+		if (arg->i == WriteFifo || arg->i == WriteFifoTranspose) {
 			first = "=[";
 			end = "]";
 		}
