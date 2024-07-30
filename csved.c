@@ -1437,28 +1437,29 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	int buff_rows, buff_cols = 20;
 	char ***matrix = (char ***) malloc(buff_rows*sizeof(char **));
     if (!matrix) {
-        perror("Napaka pri dodeljevanju pomnilnika za vrstice");
+		perror("memerror");
         return NULL;
     }
 	char *line_buf = NULL;
 	size_t line_buf_size = 0;
-	ssize_t line_size = -1;
+	ssize_t line_size = 0;
 	*num_rows = 0;
 	*num_cols = 0;
 
-	if (file != NULL)
-		line_size = getline(&line_buf, &line_buf_size, file);
-	if (line_size == -1 || file == NULL) {
-		matrix[*num_rows] = (char **) malloc(buff_cols * sizeof(char *));
-		 if (!matrix[0]) {
-            perror("Napaka pri dodeljevanju pomnilnika za stolpce");
+	if (file == NULL) {
+		matrix[0] = (char **) malloc(buff_cols * sizeof(char *));
+		if (!matrix[0]) {
+			perror("memerror");
             free(matrix);
             return NULL;
         }
-		matrix[*num_rows][*num_cols] = strdup("");
-		(*num_cols)++;
-		(*num_rows)++;
+		matrix[0][0] = strdup("");
+		*num_cols = 1;
+		*num_rows = 1;
+		return matrix;
 	}
+
+	line_size = getline(&line_buf, &line_buf_size, file);
 	while (line_size >= 0) {
         if (*num_rows >= buff_rows - 2) { // If buffer is nearly full, increase its size
             buff_rows += 50;
@@ -1483,10 +1484,10 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 }
 
 int main(int argc, char *argv[]) {
-    setlocale(LC_ALL, "");
-	int error;
 	if (argc > 1)
 		fname = argv[1];
+	else fname = NULL;
+
     FILE *file = fopen(fname, "r");
 	matrix = read_to_matrix(file, &num_rows, &num_cols);
 	if (file != NULL)
@@ -1497,15 +1498,13 @@ int main(int argc, char *argv[]) {
             perror("mkfifo");
     }
 
+    setlocale(LC_ALL, "");
     initscr();
     cbreak();
 	raw();
     noecho();
-	set_tabsize(CELL_WIDTH);
     keypad(stdscr, TRUE); // enable use of special keys as KEY_LEFT
 	int key;
-	int h, w;
-	int step_mv = 3;
 
 	while (1) {
 		when_resize();
