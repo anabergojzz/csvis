@@ -1445,6 +1445,7 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	ssize_t line_size = 0;
 	*num_rows = 0;
 	*num_cols = 0;
+	int num_cols_max = 0;
 
 	if (file == NULL) {
 		matrix[0] = (char **) malloc(buff_cols * sizeof(char *));
@@ -1472,13 +1473,35 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
             matrix = new_matrix;
         }
 		line_buf[strcspn(line_buf, "\n")] = '\0';
-
 		matrix[*num_rows] = split_string(line_buf, ',', num_cols, 1);
-
+		if (*num_cols > num_cols_max) {
+			for (int i = 0; i < *num_rows; i++) {
+				char **new_row = (char **)realloc(matrix[i], (*num_cols)*sizeof(char *));
+				if (new_row == NULL) {
+					free(matrix);
+					exit(1);
+				}
+				matrix[i] = new_row;
+				for (int j = num_cols_max; j < *num_cols; j++)
+					matrix[i][j] = strdup("");
+			}
+			num_cols_max = *num_cols;
+		}
+		else if (*num_cols < num_cols_max) {
+			char **new_row = (char **)realloc(matrix[*num_rows], num_cols_max*sizeof(char *));
+			if (new_row == NULL) {
+				free(matrix);
+				exit(1);
+			}
+			matrix[*num_rows] = new_row;
+			for (int j = *num_cols; j < num_cols_max; j++)
+				matrix[*num_rows][j] = strdup("");
+		}
 		(*num_rows)++;
 		line_size = getline(&line_buf, &line_buf_size, file);
 	}
 
+	*num_cols = num_cols_max;
 	free(line_buf);
 	return matrix;
 }
@@ -1487,7 +1510,6 @@ int main(int argc, char *argv[]) {
 	if (argc > 1)
 		fname = argv[1];
 	else fname = NULL;
-
     FILE *file = fopen(fname, "r");
 	matrix = read_to_matrix(file, &num_rows, &num_cols);
 	if (file != NULL)
@@ -1512,5 +1534,4 @@ int main(int argc, char *argv[]) {
 		key = getch();
 		keypress(key);
 	}
-
 }
