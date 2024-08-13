@@ -660,6 +660,7 @@ void write_csv(const Arg *arg) {
 			filename = (char *)malloc(strlen(fname) + 1);
 			strcpy(filename, fname);
 		}
+		visual_end();
 	}
 	else {
 		filename = (char *)malloc(strlen(FIFO) + 1);
