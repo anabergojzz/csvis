@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 
 #define CELL_WIDTH 10
+#define PIPE_BUF 4096
 #define FIFO "/tmp/pyfifo"
 #define XCLIP_COPY "vis-clipboard --copy"
 #define XCLIP_PASTE "vis-clipboard --paste"
@@ -810,7 +811,14 @@ void write_to_cells(char *buffer) {
 			/* If not enough cols */
 			if (num_cols_2 - (num_cols - ch[2]) > 0) {
 				for (int i = 0; i < num_rows; i++) {
-					matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+					char **temp_mat = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+					if (temp_mat == NULL) {       
+						free(matrix[i]);
+						exit(0);
+					}
+					else {
+						matrix[i] = temp_mat;
+					}
 					for (int j = num_cols; j < num_cols + add_x; j++) {
 						matrix[i][j] = strdup("");
 					}
@@ -832,28 +840,159 @@ void write_to_cells(char *buffer) {
 	free(temp);
 }
 
-size_t read_from(int fd, char **buffer) {
-	ssize_t bytes_read;
-	size_t buffer_size = 20;
-	size_t total_bytes = 0;
-	*buffer = (char *)malloc(buffer_size);
-	if (*buffer == NULL) {
-		perror("malloc");
+int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_arg) {
+	int pin[2], pout[2], perr[2], status = -1;
+	
+	if (pipe(pin) == -1)
+		return -1;
+	if (pipe(pout) == -1) {
+		close(pin[0]);
+		close(pin[1]);
+		return -1;
+	}
+	if (pipe(perr) == -1) {
+		close(pin[0]);
+		close(pin[1]);
+		close(pout[0]);
+		close(pout[1]);
+		return -1;
+	}
+
+	pid_t pid = fork();
+
+	if (pid == -1) {
+		close(pin[0]);
+		close(pin[1]);
+		close(pout[0]);
+		close(pout[1]);
+		close(perr[0]);
+		close(perr[1]);
+		perror("Failed to fork");
+		return -1;
+	} else if (pid == 0) {  // Child process
+		close(pin[1]);
+		close(pout[0]);
+		close(perr[0]);
+		dup2(pin[0], STDIN_FILENO);
+		dup2(pout[1], STDOUT_FILENO);
+		dup2(perr[1], STDERR_FILENO);
+		close(pin[0]);
+		close(pout[1]);
+		close(perr[1]);
+
+        execvp(cmd_arg[0], cmd_arg);
+        // if execvp witout success
+		perror("Exec failure");
 		exit(EXIT_FAILURE);
 	}
 
-	while ((bytes_read = read(fd, *buffer + total_bytes, buffer_size - total_bytes - 1)) > 0) {
-		total_bytes += bytes_read;
-		if (total_bytes >= buffer_size - 1) {
-			buffer_size *= 2;
-			*buffer = (char *)realloc(*buffer, buffer_size);
-			if (*buffer == NULL) {
-				perror("realloc");
-				exit(EXIT_FAILURE);
+	close(pin[0]);
+	close(pout[1]);
+	close(perr[1]);
+
+	fcntl(pout[0], F_SETFL, O_NONBLOCK);
+	fcntl(perr[0], F_SETFL, O_NONBLOCK);
+
+	char buffer[PIPE_BUF];
+	ssize_t nread, nwritten;
+	size_t buffer_len = 0;
+	int row = ch[0], col = ch[2];
+	size_t pos = 0, pos_str = 0;
+	ssize_t buffer_capacity = 0;
+
+	while (pin[1] != -1 || pout[0] != -1 || perr[0] != -1) {
+
+		if (pin[1] != -1) {
+			if (buffer_len == 0 && row < ch[1]) {
+				pos = 0;
+				for (; row < ch[1]; row++) {
+					for (; col < ch[3]; col++) {
+						size_t len = strlen(matrix[row][col]) - pos_str;
+						if (pos + len >= PIPE_BUF) {
+							memcpy(buffer + pos, matrix[row][col] + pos_str, PIPE_BUF - pos);
+							pos_str += PIPE_BUF - pos;
+							pos = PIPE_BUF;
+							break;
+						}
+						memcpy(buffer + pos, matrix[row][col] + pos_str, len);
+						pos += len;
+						pos_str = 0;
+						if (col < ch[3] - 1) {
+							buffer[pos++] = ',';
+						}
+						else {
+							buffer[pos++] = '\n';
+						}
+					}
+					if (col < ch[3]) break;
+					col = ch[2];
+				}
+				buffer_len = pos;
+			}
+			if (buffer_len > 0) {
+				nwritten = write(pin[1], buffer, buffer_len);
+				if (nwritten > 0) {
+					buffer_len -= nwritten;
+					memmove(buffer, buffer + nwritten, buffer_len);
+				}
+				else {
+					perror("error writing to pipe.");
+					break;
+				}
+			}
+			if (row >= ch[1] && buffer_len == 0) {
+				close(pin[1]);
+				pin[1] = -1;
+			}
+		}
+
+        if (pout[0] != -1) {
+			char buf[PIPE_BUF];
+            nread = read(pout[0], buf, sizeof(buf));
+            if (nread > 0) {
+				if (*output_buffer_size + nread + 1 > buffer_capacity) {
+					buffer_capacity = buffer_capacity ? buffer_capacity * 2 : nread * 2;
+					char *newbuf = realloc(*output_buffer, buffer_capacity);
+					if (!newbuf) {
+						perror("Failed to reallocate buffer");
+						return -1;
+					}
+					*output_buffer = newbuf;
+				}
+				memcpy(*output_buffer + *output_buffer_size, buf, nread);
+				*output_buffer_size += nread;
+            } else if (nread == 0) {
+				*(*output_buffer + *output_buffer_size) = '\0';
+				(*output_buffer_size)++;
+                close(pout[0]);
+                pout[0] = -1;
+            } else if (errno != EINTR && errno != EWOULDBLOCK) {
+                perror("Error reading from stdout");
+                break;
+            }
+        }
+
+		if (perr[0] != -1) {
+			char buf[PIPE_BUF];
+			nread = read(perr[0], buf, sizeof(buf));
+			if (nread > 0) {
+				fwrite(buf, 1, nread, stderr);
+			} else if (nread == 0) {
+				close(perr[0]);
+				perr[0] = -1;
+			} else if (errno != EINTR && errno != EWOULDBLOCK) {
+				perror("Error reading from stderr");
+				break;
 			}
 		}
 	}
-	return total_bytes;
+
+	waitpid(pid, &status, 0);
+
+	if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+		fprintf(stderr, "Command failed with exit status %d\n", WEXITSTATUS(status));
+		getch();
+	}
 }
 
 void write_to_pipe(const Arg *arg) {
@@ -875,98 +1014,40 @@ void write_to_pipe(const Arg *arg) {
 		strcpy(cmd, XCLIP_PASTE);
 	}
 
-    int pipefd_w[2];
-    int pipefd_r[2];
-	pid_t pid;
-	int status;
-	
-	if (arg->i != PipeRead && arg->i != PipeReadClip) {
-		//create pipe
-		if (pipe(pipefd_w) == -1) {
-			perror("pipe");
-			exit(1);
-		}
+	if (arg->i != PipeRead && arg->i != PipeReadClip && mode == 'n') {
+		ch[0] = 0;
+		ch[1] = num_rows;
+		ch[2] = 0;
+		ch[3] = num_cols;
+	}
+	else if (arg->i == PipeRead) {
+		ch[0] = y;
+		ch[2] = x;
 	}
 
-    if (pipe(pipefd_r) == -1) {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
+	char **cmd_arg = parse_command(cmd, arg->i);
+	char *output_buffer = NULL;
+	ssize_t output_buffer_size = 0;
+	pipe_through(&output_buffer, &output_buffer_size, cmd_arg);
+	free(cmd);
+	free(cmd_arg);
 
-	// fork process
-    pid = fork();
-    if (pid == -1) {
-        perror("fork");
-        exit(2);
-    }
-
-    if (pid == 0) { // child process
-		if (arg->i != PipeRead && arg->i != PipeReadClip) {
-			// redirect stdin to input
-			close(pipefd_w[1]);
-			dup2(pipefd_w[0], STDIN_FILENO);
-			close(pipefd_w[0]);
-		}
-
-		// redirect stdout to output
-        close(pipefd_r[0]);
-        dup2(pipefd_r[1], STDOUT_FILENO);
-        close(pipefd_r[1]);
-
-		char **cmd_arg = parse_command(cmd, arg->i);
-
-        execvp(cmd_arg[0], cmd_arg);
-        // if execvp witout success
-        perror(" execvp");
-        exit(EXIT_FAILURE);
-		free(cmd);
-		free(cmd_arg);
-	}
-	else { // parent process
-        close(pipefd_r[1]);
-
-		if (arg->i != PipeRead && arg->i != PipeReadClip) {
-			close(pipefd_w[0]);
-			if (mode == 'n') {
-				ch[0] = 0;
-				ch[1] = num_rows;
-				ch[2] = 0;
-				ch[3] = num_cols;
-			}
-
-			write_selection(pipefd_w[1]);
-			close(pipefd_w[1]);
-		}
-
-		char *buffer;
-		size_t total_bytes = read_from(pipefd_r[0], &buffer);
-
-        close(pipefd_r[0]);  // close output
-
-		waitpid(pid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-			getch();
-        }
-
-		if (total_bytes > 0) {
-			buffer[total_bytes] = '\0';
-
-			if (arg->i == '>') {
-				visual_end();
-				clear();
-				mvprintw(0, 0, buffer);
-				getch();
-			}
-			else {
-				write_to_cells(buffer);
-				if (arg->i != PipeRead && arg->i != PipeReadClip)
-					visual_end();
-			}
-			free(buffer);
-		}
-		else if (arg->i == PipeToClip)
+	if (output_buffer_size > 0) {
+		if (arg->i == PipeTo) {
 			visual_end();
-    }
+			clear();
+			mvprintw(0, 0, output_buffer);
+			getch();
+		}
+		else {
+			write_to_cells(output_buffer);
+			if (arg->i != PipeRead && arg->i != PipeReadClip)
+				visual_end();
+		}
+		free(output_buffer);
+	}
+	else if (arg->i == PipeToClip)
+		visual_end();
 }
 
 void yank_cells() {
