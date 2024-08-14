@@ -373,10 +373,6 @@ char* get_str(char* str, char loc, const char cmd) {
 	ssize_t str_size = strlen(str);
     ssize_t bufsize = str_size + 10; // Initial buffer size
     char* buffer = (char*) malloc(bufsize * sizeof(char));
-    if (buffer == NULL) {
-        fprintf(stderr, "Memory allocation failed\n");
-        exit(1);
-    }
 	strcpy(buffer, str);
 	int i = 0;
 	int i_utf8 = 0;
@@ -392,13 +388,7 @@ char* get_str(char* str, char loc, const char cmd) {
     while (1) {
         if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
             bufsize += 10;
-            char* new_buffer = (char*)realloc(buffer, bufsize * sizeof(char));
-            if (new_buffer == NULL) {
-                free(buffer);
-                fprintf(stderr, "Memory reallocation failed\n");
-                exit(1);
-            }
-            buffer = new_buffer;
+            buffer = (char*)realloc(buffer, bufsize * sizeof(char));
         }
 		if (k > 0) k--;
 		else {
@@ -602,10 +592,6 @@ char** split_string(const char* str, const char delimiter, int* num_tokens, char
     }
 
     result = (char **) malloc((count + 2) * sizeof(char *));
-    if (!result) {
-        perror("Napaka pri dodeljevanju pomnilnika");
-        return NULL;
-    }
 
     int i = 0;
     tmp = str;
@@ -619,14 +605,6 @@ char** split_string(const char* str, const char delimiter, int* num_tokens, char
             result[i] = strdup("");
         } else {
             result[i] = (char *) malloc((tmp - start + 1) * sizeof(char));
-            if (!result[i]) {
-                perror("Napaka pri dodeljevanju pomnilnika");
-                for (int j = 0; j < i; j++) {
-                    free(result[j]);
-                }
-                free(result);
-                return NULL;
-            }
             strncpy(result[i], start, tmp - start);
             result[i][tmp - start] = '\0';
         }
@@ -747,8 +725,6 @@ char **parse_command(char * cmd, const int arg) {
 	}
 	free(temp);
 	char** cmd_arg = malloc((num_args+1)*sizeof(char*));
-	if (cmd_arg == NULL)
-		return NULL;
 	if (arg == PipeAwk) {
 		cmd_arg[0] = "awk";
 		cmd_arg[1] = "-F,";
@@ -812,14 +788,7 @@ void write_to_cells(char *buffer) {
 			/* If not enough cols */
 			if (num_cols_2 - (num_cols - ch[2]) > 0) {
 				for (int i = 0; i < num_rows; i++) {
-					char **temp_mat = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
-					if (temp_mat == NULL) {       
-						free(matrix[i]);
-						exit(0);
-					}
-					else {
-						matrix[i] = temp_mat;
-					}
+					matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
 					for (int j = num_cols; j < num_cols + add_x; j++) {
 						matrix[i][j] = strdup("");
 					}
@@ -953,12 +922,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
             if (nread > 0) {
 				if (*output_buffer_size + nread + 1 > buffer_capacity) {
 					buffer_capacity = buffer_capacity ? buffer_capacity * 2 : nread * 2;
-					char *newbuf = realloc(*output_buffer, buffer_capacity);
-					if (!newbuf) {
-						perror("Failed to reallocate buffer");
-						return -1;
-					}
-					*output_buffer = newbuf;
+					*output_buffer = realloc(*output_buffer, buffer_capacity);
 				}
 				memcpy(*output_buffer + *output_buffer_size, buf, nread);
 				*output_buffer_size += nread;
@@ -1115,9 +1079,6 @@ void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, 
 	}
     node_t * new_node;
     new_node = (node_t *) malloc(sizeof(node_t));
-	if (new_node == NULL) {
-		exit(1);
-	}
 
 	new_node->operation = operation;
 	new_node->mat = mat;
@@ -1518,10 +1479,6 @@ void keypress(int key) {
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	int buff_rows, buff_cols = 20;
 	char ***matrix = (char ***) malloc(buff_rows*sizeof(char **));
-    if (!matrix) {
-		perror("memerror");
-        return NULL;
-    }
 	char *line_buf = NULL;
 	size_t line_buf_size = 0;
 	ssize_t line_size = 0;
@@ -1531,11 +1488,6 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 
 	if (file == NULL) {
 		matrix[0] = (char **) malloc(buff_cols * sizeof(char *));
-		if (!matrix[0]) {
-			perror("memerror");
-            free(matrix);
-            return NULL;
-        }
 		matrix[0][0] = strdup("");
 		*num_cols = 1;
 		*num_rows = 1;
@@ -1544,38 +1496,22 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 
 	line_size = getline(&line_buf, &line_buf_size, file);
 	while (line_size >= 0) {
-        if (*num_rows >= buff_rows - 2) { // If buffer is nearly full, increase its size
+        if (*num_rows >= buff_rows - 2) {
             buff_rows += 50;
-            char*** new_matrix = (char***)realloc(matrix, buff_rows * sizeof(char**));
-            if (new_matrix == NULL) {
-                free(matrix);
-                fprintf(stderr, "Memory reallocation failed\n");
-                exit(1);
-            }
-            matrix = new_matrix;
+            matrix = (char***)realloc(matrix, buff_rows * sizeof(char**));
         }
 		line_buf[strcspn(line_buf, "\n")] = '\0';
 		matrix[*num_rows] = split_string(line_buf, ',', num_cols, 1);
 		if (*num_cols > num_cols_max) {
 			for (int i = 0; i < *num_rows; i++) {
-				char **new_row = (char **)realloc(matrix[i], (*num_cols)*sizeof(char *));
-				if (new_row == NULL) {
-					free(matrix);
-					exit(1);
-				}
-				matrix[i] = new_row;
+				matrix[i] = (char **)realloc(matrix[i], (*num_cols)*sizeof(char *));
 				for (int j = num_cols_max; j < *num_cols; j++)
 					matrix[i][j] = strdup("");
 			}
 			num_cols_max = *num_cols;
 		}
 		else if (*num_cols < num_cols_max) {
-			char **new_row = (char **)realloc(matrix[*num_rows], num_cols_max*sizeof(char *));
-			if (new_row == NULL) {
-				free(matrix);
-				exit(1);
-			}
-			matrix[*num_rows] = new_row;
+			matrix[*num_rows] = (char **)realloc(matrix[*num_rows], num_cols_max*sizeof(char *));
 			for (int j = *num_cols; j < num_cols_max; j++)
 				matrix[*num_rows][j] = strdup("");
 		}
