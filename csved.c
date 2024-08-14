@@ -97,6 +97,7 @@ void move_n();
 void write_selection(int fd);
 char **parse_command(char * cmd, const int arg);
 void write_to_cells(char *buffer);
+void free_matrix(char ****matrix, int num_rows, int num_cols);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -1016,13 +1017,7 @@ void write_to_pipe(const Arg *arg) {
 }
 
 void yank_cells() {
-	for (int i = 0; i < reg_rows; i++) {
-		for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
-			free(mat_reg[i][j]);
-		}
-		free(mat_reg[i]);
-	}
-	free(mat_reg);
+	free_matrix(&mat_reg, reg_rows, reg_cols);
 	reg_rows = (ch[1]-ch[0]);
 	reg_cols = (ch[3]-ch[2]);
 	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
@@ -1041,13 +1036,7 @@ void wipe_cells() {
 		int range_rows = (ch[1]-ch[0]);
 		int range_cols = (ch[3]-ch[2]);
 
-		for (int i = 0; i < reg_rows; i++) {
-			for (int j = 0; j < reg_cols && mat_reg[i][j] != NULL; j++) {
-				free(mat_reg[i][j]);
-			}
-			free(mat_reg[i]);
-		}
-		free(mat_reg);
+		free_matrix(&mat_reg, reg_rows, reg_cols);
 		reg_rows = range_rows;
 		reg_cols = range_cols;
 		mat_reg = (char***)malloc(reg_rows * sizeof(char**));
@@ -1457,13 +1446,7 @@ void str_change(const Arg *arg) {
 
 void quit() {
 	endwin();
-	for (int i = 0; i < num_rows; i++) {
-		for (int j = 0; j < num_cols && matrix[i][j] != NULL; j++) {
-			free(matrix[i][j]);
-		}
-		free(matrix[i]);
-	}
-	free(matrix);
+	free_matrix(&matrix, num_rows, num_cols);
 	unlink(FIFO);
 	exit(0);
 }
@@ -1522,6 +1505,16 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
 	*num_cols = num_cols_max;
 	free(line_buf);
 	return matrix;
+}
+
+void free_matrix(char ****matrix, int num_rows, int num_cols) {
+	for (int i = 0; i < num_rows; i++) {
+		for (int j = 0; j < num_cols && (*matrix)[i][j] != NULL; j++) {
+			free((*matrix)[i][j]);
+		}
+		free((*matrix)[i]);
+	}
+	free(*matrix);
 }
 
 int main(int argc, char *argv[]) {
