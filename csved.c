@@ -908,6 +908,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
 				}
 				else {
 					perror("error writing to pipe.");
+					close(pin[1]);
+					pin[1] = -1;
 					break;
 				}
 			}
@@ -920,11 +922,11 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
         if (pout[0] != -1) {
 			char buf[PIPE_BUF];
             nread = read(pout[0], buf, sizeof(buf));
+			if (*output_buffer_size + nread + 1 > buffer_capacity) {
+				buffer_capacity = buffer_capacity ? buffer_capacity * 2 : nread * 2;
+				*output_buffer = realloc(*output_buffer, buffer_capacity);
+			}
             if (nread > 0) {
-				if (*output_buffer_size + nread + 1 > buffer_capacity) {
-					buffer_capacity = buffer_capacity ? buffer_capacity * 2 : nread * 2;
-					*output_buffer = realloc(*output_buffer, buffer_capacity);
-				}
 				memcpy(*output_buffer + *output_buffer_size, buf, nread);
 				*output_buffer_size += nread;
             } else if (nread == 0) {
@@ -934,6 +936,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
                 pout[0] = -1;
             } else if (errno != EINTR && errno != EWOULDBLOCK) {
                 perror("Error reading from stdout");
+                close(pout[0]);
+                pout[0] = -1;
                 break;
             }
         }
@@ -948,6 +952,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
 				perr[0] = -1;
 			} else if (errno != EINTR && errno != EWOULDBLOCK) {
 				perror("Error reading from stderr");
+				close(perr[0]);
+				perr[0] = -1;
 				break;
 			}
 		}
@@ -958,6 +964,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
 	if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
 		fprintf(stderr, "Command failed with exit status %d\n", WEXITSTATUS(status));
 		getch();
+		return -1;
 	}
 }
 
@@ -979,6 +986,10 @@ void write_to_pipe(const Arg *arg) {
 		cmd = malloc(30);
 		strcpy(cmd, XCLIP_PASTE);
 	}
+	if (strlen(cmd) == 0) {
+		free(cmd);
+		return;
+	}
 
 	if (arg->i != PipeRead && arg->i != PipeReadClip && mode == 'n') {
 		ch[0] = 0;
@@ -994,7 +1005,10 @@ void write_to_pipe(const Arg *arg) {
 	char **cmd_arg = parse_command(cmd, arg->i);
 	char *output_buffer = NULL;
 	ssize_t output_buffer_size = 0;
-	pipe_through(&output_buffer, &output_buffer_size, cmd_arg);
+	if (pipe_through(&output_buffer, &output_buffer_size, cmd_arg) == -1) {
+		visual_end();
+		return;
+	}
 	free(cmd);
 	free(cmd_arg);
 
@@ -1012,8 +1026,7 @@ void write_to_pipe(const Arg *arg) {
 		}
 		free(output_buffer);
 	}
-	else if (arg->i == PipeToClip)
-		visual_end();
+	else if (arg->i == PipeToClip) visual_end();
 }
 
 void yank_cells() {
