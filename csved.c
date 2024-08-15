@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <signal.h>
 
 #define CELL_WIDTH 10
 #define PIPE_BUF 4096
@@ -829,6 +830,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
 		return -1;
 	}
 
+	signal(SIGPIPE, SIG_IGN);
 	pid_t pid = fork();
 
 	if (pid == -1) {
