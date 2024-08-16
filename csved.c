@@ -12,6 +12,7 @@
 
 #define CELL_WIDTH 10
 #define PIPE_BUF 4096
+#define SHELL "/bin/sh"
 #define FIFO "/tmp/pyfifo"
 #define XCLIP_COPY "vis-clipboard --copy"
 #define XCLIP_PASTE "vis-clipboard --paste"
@@ -717,36 +718,6 @@ void write_csv(const Arg *arg) {
 	visual_end();
 }
 
-char **parse_command(char * cmd, const int arg) {
-	char* temp = strdup(cmd);
-	int num_args = 0;
-	char* token = strtok(temp, " ");
-	while (token != NULL) {
-		num_args++;
-		token = strtok(NULL, " ");
-	}
-	free(temp);
-	char** cmd_arg = malloc((num_args+1)*sizeof(char*));
-	if (arg == PipeAwk) {
-		cmd_arg[0] = "awk";
-		cmd_arg[1] = "-F,";
-		cmd_arg[2] = "-vOFS=,";
-		cmd_arg[3] = cmd;
-		cmd_arg[4] = NULL;
-	}
-	else {
-		int i = 0;
-		token = strtok(cmd, " ");
-		while (token != NULL) {
-			cmd_arg[i++] = token;
-			token = strtok(NULL, " ");
-		}
-		cmd_arg[i] = NULL;
-	}
-
-	return cmd_arg;
-}
-
 void write_selection(int fd) {
 	char flip = 0;
 	for (int i = ch[0]; i < ch[1]; i++) {
@@ -812,7 +783,7 @@ void write_to_cells(char *buffer) {
 	free(temp);
 }
 
-int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_arg) {
+int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
 	int pin[2], pout[2], perr[2], status = -1;
 	
 	if (pipe(pin) == -1)
@@ -853,8 +824,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char **cmd_a
 		close(pout[1]);
 		close(perr[1]);
 
-        execvp(cmd_arg[0], cmd_arg);
-        // if execvp witout success
+		execlp(SHELL, SHELL, "-c", cmd, (char*)NULL);
+        // if execlp witout success
 		perror("Exec failure");
 		exit(EXIT_FAILURE);
 	}
@@ -978,8 +949,15 @@ void write_to_pipe(const Arg *arg) {
 		cmd = get_str("", 0, '>');
 	else if (arg->i == PipeRead)
 		cmd = get_str("", 0, '<');
-	else if (arg->i == PipeAwk)
-		cmd = get_str("", 0, '|');
+	else if (arg->i == PipeAwk) {
+		char *temp = get_str("", 0, '|');
+		char *preposition = "awk -F, -vOFS=, '";
+		cmd = malloc(strlen(temp) + strlen(preposition) + 2);
+		strcpy(cmd, preposition);
+		strcpy(cmd + strlen(preposition), temp);
+		strcpy(cmd + strlen(preposition) + strlen(temp), "'");
+		free(temp);
+	}
 	else if (arg->i == PipeToClip) {
 		cmd = malloc(30);
 		strcpy(cmd, XCLIP_COPY);
@@ -1004,15 +982,13 @@ void write_to_pipe(const Arg *arg) {
 		ch[2] = x;
 	}
 
-	char **cmd_arg = parse_command(cmd, arg->i);
 	char *output_buffer = NULL;
 	ssize_t output_buffer_size = 0;
-	if (pipe_through(&output_buffer, &output_buffer_size, cmd_arg) == -1) {
+	if (pipe_through(&output_buffer, &output_buffer_size, cmd) == -1) {
 		if (mode == 'n') visual_end();
 		return;
 	}
 	free(cmd);
-	free(cmd_arg);
 
 	if (arg->i == PipeToClip);
 	else if (output_buffer_size > 0) {
