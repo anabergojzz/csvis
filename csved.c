@@ -999,7 +999,7 @@ void write_to_pipe(const Arg *arg) {
 		ch[2] = 0;
 		ch[3] = num_cols;
 	}
-	else if (arg->i == PipeRead) {
+	else if (arg->i == PipeRead || arg->i == PipeReadClip) {
 		ch[0] = y;
 		ch[2] = x;
 	}
@@ -1014,7 +1014,8 @@ void write_to_pipe(const Arg *arg) {
 	free(cmd);
 	free(cmd_arg);
 
-	if (output_buffer_size > 0) {
+	if (arg->i == PipeToClip) visual_end();
+	else if (output_buffer_size > 0) {
 		if (arg->i == PipeTo) {
 			visual_end();
 			clear();
@@ -1028,7 +1029,6 @@ void write_to_pipe(const Arg *arg) {
 		}
 		free(output_buffer);
 	}
-	else if (arg->i == PipeToClip) visual_end();
 }
 
 void yank_cells() {
