@@ -1008,27 +1008,25 @@ void write_to_pipe(const Arg *arg) {
 	char *output_buffer = NULL;
 	ssize_t output_buffer_size = 0;
 	if (pipe_through(&output_buffer, &output_buffer_size, cmd_arg) == -1) {
-		visual_end();
+		if (mode == 'n') visual_end();
 		return;
 	}
 	free(cmd);
 	free(cmd_arg);
 
-	if (arg->i == PipeToClip) visual_end();
+	if (arg->i == PipeToClip);
 	else if (output_buffer_size > 0) {
 		if (arg->i == PipeTo) {
-			visual_end();
 			clear();
 			mvprintw(0, 0, output_buffer);
 			getch();
 		}
 		else {
 			write_to_cells(output_buffer);
-			if (arg->i != PipeRead && arg->i != PipeReadClip)
-				visual_end();
 		}
 		free(output_buffer);
 	}
+	visual_end();
 }
 
 void yank_cells() {
