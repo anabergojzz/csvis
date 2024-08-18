@@ -22,6 +22,7 @@
 /* enums */
 enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
 enum {WriteTo, WriteTranspose, WriteFifo, WriteFifoTranspose, WriteExisting};
+enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell};
 
 char ***matrix;
 char ***mat_reg = NULL;
@@ -51,7 +52,7 @@ typedef struct {
 } Key;
 
 typedef struct node {
-	char operation;
+	int operation;
     char *** mat;
     char * cell;
 	int y;
@@ -317,7 +318,7 @@ void insert_col(const Arg *arg) {
 		matrix[i][x] = strdup("");
 	}
 	num_cols++;
-	push(&head, 'g', NULL, NULL, 0, 1, y, x, s_y, s_x, 0, 0);
+	push(&head, Insert, NULL, NULL, 0, 1, y, x, s_y, s_x, 0, 0);
 }
 
 void insert_row(const Arg *arg) {
@@ -331,7 +332,7 @@ void insert_row(const Arg *arg) {
 		matrix[y][j] = strdup("");
 	}
 	num_rows++;
-	push(&head, 'g', NULL, NULL, 1, 0, y, x, s_y, s_x, 0, 0);
+	push(&head, Insert, NULL, NULL, 1, 0, y, x, s_y, s_x, 0, 0);
 }
 
 void delete_row() {
@@ -344,7 +345,7 @@ void delete_row() {
 			matrix[i] = matrix[i + num];
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 		num_rows -= num;
-		push(&head, 'c', undo_mat, NULL, num, 0, ch[0], x, s_y, s_x, 0, 0);
+		push(&head, Cut, undo_mat, NULL, num, 0, ch[0], x, s_y, s_x, 0, 0);
 		y = ch[0];
 		if (y >= num_rows)
 			y = ch[0] - 1;
@@ -366,7 +367,7 @@ void delete_col() {
 			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 		}
 		num_cols -= num;
-		push(&head, 'c', undo_mat, NULL, 0, num, y, ch[2], s_y, s_x, 0, 0);
+		push(&head, Cut, undo_mat, NULL, 0, num, y, ch[2], s_y, s_x, 0, 0);
 		x = ch[2];
 		if (x >= num_cols)
 			x = ch[2] - 1;
@@ -1132,7 +1133,7 @@ void undo() {
 			free(matrix[head->y][head->x]);
 			matrix[head->y][head->x] = strdup(head->cell);
 		}
-		else if (head->operation == 'c') {
+		else if (head->operation == Cut) {
 			if (head->rows > 0) {
 				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
 				for (int i = num_rows + head->rows - 1; i >= head->y + head->rows; i--) {
@@ -1158,7 +1159,7 @@ void undo() {
 				num_cols += head->cols;
 			}
 		}
-		else if (head->operation == 'g') {
+		else if (head->operation == Insert) {
 			if (head->rows > 0) {
 				int num = head->rows;
 				for (int j = 0; j < num; j++) {
@@ -1265,7 +1266,7 @@ void redo() {
 			free(matrix[head->y][head->x]);
 			matrix[head->y][head->x] = strdup(head->cell);
 		}
-		else if (head->operation == 'c') {
+		else if (head->operation == Cut) {
 			if (head->rows > 0) {
 				int num = head->rows;
 				for (int j = 0; j < num; j++) {
@@ -1290,7 +1291,7 @@ void redo() {
 				num_cols -= num;
 			}
 		}
-		else if (head->operation == 'g') {
+		else if (head->operation == Insert) {
 			if (head->rows > 0) {
 				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
 				for (int i = num_rows + head->rows - 1; i >= head->y + head->rows; i--) {
