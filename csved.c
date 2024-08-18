@@ -53,18 +53,18 @@ typedef struct {
 
 typedef struct node {
 	int operation;
-    char *** mat;
-    char * cell;
+    char ***mat;
+    char *cell;
 	int y;
 	int x;
 	int s_y;
 	int s_x;
 	int rows;
 	int cols;
-	int add_y;
-	int add_x;
-	struct node * next;
-	struct node * prev;
+	int loc_y;
+	int loc_x;
+	struct node *next;
+	struct node *prev;
 } node_t;
 node_t * head = NULL;
 
@@ -318,7 +318,7 @@ void insert_col(const Arg *arg) {
 		matrix[i][x] = strdup("");
 	}
 	num_cols++;
-	push(&head, Insert, NULL, NULL, 0, 1, y, x, s_y, s_x, 0, 0);
+	push(&head, Insert, NULL, NULL, 0, 1, y, x, s_y, s_x, y, x);
 }
 
 void insert_row(const Arg *arg) {
@@ -332,7 +332,7 @@ void insert_row(const Arg *arg) {
 		matrix[y][j] = strdup("");
 	}
 	num_rows++;
-	push(&head, Insert, NULL, NULL, 1, 0, y, x, s_y, s_x, 0, 0);
+	push(&head, Insert, NULL, NULL, 1, 0, y, x, s_y, s_x, y, x);
 }
 
 void delete_row() {
@@ -345,7 +345,7 @@ void delete_row() {
 			matrix[i] = matrix[i + num];
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 		num_rows -= num;
-		push(&head, Cut, undo_mat, NULL, num, 0, ch[0], x, s_y, s_x, 0, 0);
+		push(&head, Cut, undo_mat, NULL, num, 0, ch[0], x, s_y, s_x, ch[0], x);
 		y = ch[0];
 		if (y >= num_rows)
 			y = ch[0] - 1;
@@ -367,7 +367,7 @@ void delete_col() {
 			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 		}
 		num_cols -= num;
-		push(&head, Cut, undo_mat, NULL, 0, num, y, ch[2], s_y, s_x, 0, 0);
+		push(&head, Cut, undo_mat, NULL, 0, num, y, ch[2], s_y, s_x, y, ch[2]);
 		x = ch[2];
 		if (x >= num_cols)
 			x = ch[2] - 1;
@@ -778,8 +778,9 @@ void write_to_cells(char *buffer) {
 		}
 		free(temp2);
 	}
-	push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, add_y, add_x);
-	push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, 0, 0);
+	push(&head, 'p', NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x);
+	push(&head, 'p', undo_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]);
+	push(&head, 'p', paste_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]);
 	free(temp);
 }
 
@@ -1049,7 +1050,7 @@ void wipe_cells() {
 	}
 }
 
-void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x, int add_y, int add_x) {
+void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, int cols, int y, int x, int s_y, int s_x, int loc_y, int loc_x) {
 	if (*head == NULL) {
 		*head = (node_t *) malloc(sizeof(node_t));
 		(*head)->next = NULL;
@@ -1067,8 +1068,8 @@ void push(node_t ** head, char operation,  char *** mat, char * cell, int rows, 
 	new_node->x = x;
 	new_node->s_y = s_y;
 	new_node->s_x = s_x;
-	new_node->add_y = add_y;
-	new_node->add_x = add_x;
+	new_node->loc_y = loc_y;
+	new_node->loc_x = loc_x;
 	new_node->next = *head;
 	new_node->prev = NULL;
 
@@ -1106,68 +1107,19 @@ void undo() {
 			head = head->next;
 			for (int i = 0; i < head->rows; i++) {
 				for (int j = 0; j < head->cols; j++) {
-					free(matrix[head->y + i][head->x + j]);
-					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+					free(matrix[head->loc_y + i][head->x + j]);
+					matrix[head->loc_y + i][head->x + j] = strdup(head->mat[i][j]);
 				}
 			}
-			for (int j = 0; j < num_rows; j++) {
-				if (j < num_rows - head->add_y) {
-					for (int i = 1; i <= head->add_x; i++)
-						free(matrix[j][num_cols - i]);
-					matrix[j] = (char **)realloc(matrix[j], (num_cols - head->add_x)*sizeof(char*));
-				}
-				else {
-					for (int i = 0; i < num_cols; i++)
-						free(matrix[j][i]);
-					free(matrix[j]);
-				}
-			}
-			matrix = (char ***)realloc(matrix, (num_rows - head->add_y)*sizeof(char**));
-			num_cols -= head->add_x;
-			num_rows -= head->add_y;
-		}
-		else if (head->operation == 'r') {
-			free(matrix[head->y][head->x]);
-			matrix[head->y][head->x] = strdup("");
 			head = head->next;
-			free(matrix[head->y][head->x]);
-			matrix[head->y][head->x] = strdup(head->cell);
-		}
-		else if (head->operation == Cut) {
-			if (head->rows > 0) {
-				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
-				for (int i = num_rows + head->rows - 1; i >= head->y + head->rows; i--) {
-					matrix[i] = matrix[i - head->rows];
-				}
-				for (int i = 0; i < head->rows; i++) {
-					matrix[head->y + i] = (char **)malloc(num_cols * sizeof(char *));
-					for (int j = 0; j < num_cols; j++) {
-						matrix[head->y + i][j] = strdup(head->mat[i][j]);
-					}
-				}
-				num_rows += head->rows;
-			}
-			if (head->cols > 0) {
-				for (int i = 0; i < num_rows; i++) {
-					matrix[i] = (char **)realloc(matrix[i], (num_cols + head->cols) * sizeof(char *));
-					for (int j = num_cols + head->cols - 1; j >= head->x + head->cols; j--) {
-						matrix[i][j] = matrix[i][j - head->cols];
-					}
-					for (int j = 0; j < head->cols; j++)
-						matrix[i][head->x + j] = strdup(head->mat[i][j]);
-				}
-				num_cols += head->cols;
-			}
-		}
-		else if (head->operation == Insert) {
 			if (head->rows > 0) {
 				int num = head->rows;
 				for (int j = 0; j < num; j++) {
 					for (int i = 0; i < num_cols; i++)
-						free(matrix[head->y + j][i]);
-					free(matrix[head->y + j]);
+						free(matrix[head->loc_y + j][i]);
+					free(matrix[head->loc_y + j]);
 				}
-				for (int i = head->y; i < num_rows - num; i++)
+				for (int i = head->loc_y; i < num_rows - num; i++)
 					matrix[i] = matrix[i + num];
 				matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 				num_rows -= num;
@@ -1178,6 +1130,64 @@ void undo() {
 					for (int i = 0; i < num; i++)
 						free(matrix[j][head->x + i]);
 					for (int i = head->x; i < num_cols - num; i++)
+						matrix[j][i] = matrix[j][i + num];
+					matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
+				}
+				num_cols -= num;
+			}
+		}
+		else if (head->operation == 'r') {
+			free(matrix[head->loc_y][head->x]);
+			matrix[head->loc_y][head->x] = strdup("");
+			head = head->next;
+			free(matrix[head->loc_y][head->x]);
+			matrix[head->loc_y][head->x] = strdup(head->cell);
+		}
+		else if (head->operation == Cut) {
+			if (head->cols > 0) {
+				for (int i = 0; i < num_rows; i++) {
+					matrix[i] = (char **)realloc(matrix[i], (num_cols + head->cols) * sizeof(char *));
+					for (int j = num_cols + head->cols - 1; j >= head->loc_x + head->cols; j--) {
+						matrix[i][j] = matrix[i][j - head->cols];
+					}
+					for (int j = 0; j < head->cols; j++)
+						matrix[i][head->loc_x + j] = strdup(head->mat[i][j]);
+				}
+				num_cols += head->cols;
+			}
+			if (head->rows > 0) {
+				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
+				for (int i = num_rows + head->rows - 1; i >= head->loc_y + head->rows; i--) {
+					matrix[i] = matrix[i - head->rows];
+				}
+				for (int i = 0; i < head->rows; i++) {
+					matrix[head->loc_y + i] = (char **)malloc(num_cols * sizeof(char *));
+					for (int j = 0; j < num_cols; j++) {
+						matrix[head->loc_y + i][j] = strdup(head->mat[i][j]);
+					}
+				}
+				num_rows += head->rows;
+			}
+		}
+		else if (head->operation == Insert) {
+			if (head->rows > 0) {
+				int num = head->rows;
+				for (int j = 0; j < num; j++) {
+					for (int i = 0; i < num_cols; i++)
+						free(matrix[head->loc_y + j][i]);
+					free(matrix[head->loc_y + j]);
+				}
+				for (int i = head->loc_y; i < num_rows - num; i++)
+					matrix[i] = matrix[i + num];
+				matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
+				num_rows -= num;
+			}
+			if (head->cols > 0) {
+				int num = head->cols;
+				for (int j = 0; j < num_rows; j++) {
+					for (int i = 0; i < num; i++)
+						free(matrix[j][head->loc_x + i]);
+					for (int i = head->loc_x; i < num_cols - num; i++)
 						matrix[j][i] = matrix[j][i + num];
 					matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 				}
@@ -1233,28 +1243,38 @@ void redo() {
 			}
 		}
 		else if (head->operation == 'p') {
-			matrix = (char ***)realloc(matrix, (num_rows + head->add_y)*sizeof(char **));
-			for (int i = 0; i < num_rows + head->add_y; i++) {
-				if (i < num_rows) {
-					matrix[i] = (char **)realloc(matrix[i], (num_cols + head->add_x)*sizeof(char *));
-					for (int j = 0; j < head->add_x; j++)
-						matrix[i][num_cols + j] = strdup("");
+			if (head->cols > 0) {
+				for (int i = 0; i < num_rows; i++) {
+					matrix[i] = (char **)realloc(matrix[i], (num_cols + head->cols) * sizeof(char *));
+					for (int j = num_cols + head->cols - 1; j >= head->loc_x + head->cols; j--) {
+						matrix[i][j] = matrix[i][j - head->cols];
+					}
+					for (int j = 0; j < head->cols; j++)
+						matrix[i][head->loc_x + j] = strdup("");
 				}
-				else {
-					matrix[i] = (char **)malloc((num_cols + head->add_x)*sizeof(char *));
-					for (int j = 0; j < num_cols + head->add_x; j++) {
-						matrix[i][j] = strdup("");
+				num_cols += head->cols;
+			}
+			if (head->rows > 0) {
+				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
+				for (int i = num_rows + head->rows - 1; i >= head->loc_y + head->rows; i--) {
+					matrix[i] = matrix[i - head->rows];
+				}
+				for (int i = 0; i < head->rows; i++) {
+					matrix[head->loc_y + i] = (char **)malloc(num_cols * sizeof(char *));
+					for (int j = 0; j < num_cols; j++) {
+						matrix[head->loc_y + i][j] = strdup("");
 					}
 				}
+				num_rows += head->rows;
 			}
-			num_rows += head->add_y;
-			num_cols += head->add_x;
+			if (head->prev != NULL)
+				head = head->prev;
 			if (head->prev != NULL)
 				head = head->prev;
 			for (int i = 0; i < head->rows; i++) {
 				for (int j = 0; j < head->cols; j++) {
-					free(matrix[head->y + i][head->x + j]);
-					matrix[head->y + i][head->x + j] = strdup(head->mat[i][j]);
+					free(matrix[head->loc_y + i][head->loc_x + j]);
+					matrix[head->loc_y + i][head->loc_x + j] = strdup(head->mat[i][j]);
 				}
 			}
 		}
@@ -1271,10 +1291,10 @@ void redo() {
 				int num = head->rows;
 				for (int j = 0; j < num; j++) {
 					for (int i = 0; i < num_cols; i++)
-						free(matrix[head->y + j][i]);
-					free(matrix[head->y + j]);
+						free(matrix[head->loc_y + j][i]);
+					free(matrix[head->loc_y + j]);
 				}
-				for (int i = head->y; i < num_rows - num; i++)
+				for (int i = head->loc_y; i < num_rows - num; i++)
 					matrix[i] = matrix[i + num];
 				matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 				num_rows -= num;
@@ -1283,8 +1303,8 @@ void redo() {
 				int num = head->cols;
 				for (int j = 0; j < num_rows; j++) {
 					for (int i = 0; i < num; i++)
-						free(matrix[j][head->x + i]);
-					for (int i = head->x; i < num_cols - num; i++)
+						free(matrix[j][head->loc_x + i]);
+					for (int i = head->loc_x; i < num_cols - num; i++)
 						matrix[j][i] = matrix[j][i + num];
 					matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 				}
@@ -1292,29 +1312,29 @@ void redo() {
 			}
 		}
 		else if (head->operation == Insert) {
-			if (head->rows > 0) {
-				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
-				for (int i = num_rows + head->rows - 1; i >= head->y + head->rows; i--) {
-					matrix[i] = matrix[i - head->rows];
-				}
-				for (int i = 0; i < head->rows; i++) {
-					matrix[head->y + i] = (char **)malloc(num_cols * sizeof(char *));
-					for (int j = 0; j < num_cols; j++) {
-						matrix[head->y + i][j] = strdup("");
-					}
-				}
-				num_rows += head->rows;
-			}
 			if (head->cols > 0) {
 				for (int i = 0; i < num_rows; i++) {
 					matrix[i] = (char **)realloc(matrix[i], (num_cols + head->cols) * sizeof(char *));
-					for (int j = num_cols + head->cols - 1; j >= head->x + head->cols; j--) {
+					for (int j = num_cols + head->cols - 1; j >= head->loc_x + head->cols; j--) {
 						matrix[i][j] = matrix[i][j - head->cols];
 					}
 					for (int j = 0; j < head->cols; j++)
-						matrix[i][head->x + j] = strdup("");
+						matrix[i][head->loc_x + j] = strdup("");
 				}
 				num_cols += head->cols;
+			}
+			if (head->rows > 0) {
+				matrix = (char ***)realloc(matrix, (num_rows + head->rows) * sizeof(char **));
+				for (int i = num_rows + head->rows - 1; i >= head->loc_y + head->rows; i--) {
+					matrix[i] = matrix[i - head->rows];
+				}
+				for (int i = 0; i < head->rows; i++) {
+					matrix[head->loc_y + i] = (char **)malloc(num_cols * sizeof(char *));
+					for (int j = 0; j < num_cols; j++) {
+						matrix[head->loc_y + i][j] = strdup("");
+					}
+				}
+				num_rows += head->rows;
 			}
 		}
 		else if (head->operation == 's') {
@@ -1388,8 +1408,9 @@ void paste_cells() {
 			matrix[y + i][x + j] = strdup(mat_reg[i][j]);
 		}
 	}
-	push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, add_y, add_x);
-	push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, 0, 0);
+	push(&head, 'p', NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x);
+	push(&head, 'p', undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x);
+	push(&head, 'p', paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x);
 }
 
 void deleting() {
