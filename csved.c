@@ -1088,8 +1088,19 @@ void push(node_t ** head, struct undo_data *data, int data_count) {
 	// free previous nodes if in the middle of history
 	while ((*head)->prev != NULL) {
 		node_t * temp = (*head)->prev;
+		for (int i = 0; i < temp->data_count; i++) {
+			if (temp->data[i].mat != NULL) {
+				free_matrix(&(temp->data[i].mat), temp->data[i].rows, temp->data[i].cols);
+				temp->data[i].mat = NULL;
+			}
+			if (temp->data[i].cell != NULL) {
+				free(temp->data[i].cell);
+				temp->data[i].cell = NULL;
+			}
+		}
+		free(temp->data);
 		(*head)->prev = (*head)->prev->prev;
-		//free(temp->mat);
+		free(temp);
 	}
 
 	(*head)->prev = new_node;
@@ -1105,7 +1116,7 @@ void undo(const Arg *arg) {
 			int l;
 			if (arg->i == Undo) l = head->data_count - 1 - m;
 			else l = m;
-			int op = (head->data)[l].operation;
+			int op = head->data[l].operation;
 			if (arg->i == Undo) {
 				if (op == Delete) op = Paste;
 				else if (op == Paste) op = Delete;
@@ -1115,48 +1126,48 @@ void undo(const Arg *arg) {
 				else if (op == DeleteCell) op = PasteCell;
 			}
 			if (op == Delete) {
-				for (int i=(head->data)[l].loc_y; i<((head->data)[l].loc_y + (head->data)[l].rows); i++) {
-					for (int j=(head->data)[l].loc_x; j<((head->data)[l].loc_x + (head->data)[l].cols); j++) {
+				for (int i=head->data[l].loc_y; i<(head->data[l].loc_y + head->data[l].rows); i++) {
+					for (int j=head->data[l].loc_x; j<(head->data[l].loc_x + head->data[l].cols); j++) {
 						free(matrix[i][j]);
 						matrix[i][j] = strdup("");
 					}
 				}
 			}
 			else if (op == Paste) {
-				for (int i = 0; i < (head->data)[l].rows; i++) {
-					for (int j = 0; j < (head->data)[l].cols; j++) {
-						free(matrix[(head->data)[l].loc_y + i][(head->data)[l].loc_x + j]);
-						matrix[(head->data)[l].loc_y + i][(head->data)[l].loc_x + j] = strdup((head->data)[l].mat[i][j]);
+				for (int i = 0; i < head->data[l].rows; i++) {
+					for (int j = 0; j < head->data[l].cols; j++) {
+						free(matrix[head->data[l].loc_y + i][head->data[l].loc_x + j]);
+						matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = strdup(head->data[l].mat[i][j]);
 					}
 				}
 			}
 			else if (op == PasteCell) {
-				free(matrix[(head->data)[l].loc_y][(head->data)[l].loc_x]);
-				matrix[(head->data)[l].loc_y][(head->data)[l].loc_x] = strdup((head->data)[l].cell);
+				free(matrix[head->data[l].loc_y][head->data[l].loc_x]);
+				matrix[head->data[l].loc_y][head->data[l].loc_x] = strdup(head->data[l].cell);
 			}
 			else if (op == DeleteCell) {
-				free(matrix[(head->data)[l].loc_y][(head->data)[l].loc_x]);
-				matrix[(head->data)[l].loc_y][(head->data)[l].loc_x] = strdup("");
+				free(matrix[head->data[l].loc_y][head->data[l].loc_x]);
+				matrix[head->data[l].loc_y][head->data[l].loc_x] = strdup("");
 			}
 			else if (op == Cut) {
-				if ((head->data)[l].rows > 0) {
-					int num = (head->data)[l].rows;
+				if (head->data[l].rows > 0) {
+					int num = head->data[l].rows;
 					for (int j = 0; j < num; j++) {
 						for (int i = 0; i < num_cols; i++)
-							free(matrix[(head->data)[l].loc_y + j][i]);
-						free(matrix[(head->data)[l].loc_y + j]);
+							free(matrix[head->data[l].loc_y + j][i]);
+						free(matrix[head->data[l].loc_y + j]);
 					}
-					for (int i = (head->data)[l].loc_y; i < num_rows - num; i++)
+					for (int i = head->data[l].loc_y; i < num_rows - num; i++)
 						matrix[i] = matrix[i + num];
 					matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 					num_rows -= num;
 				}
-				if ((head->data)[l].cols > 0) {
-					int num = (head->data)[l].cols;
+				if (head->data[l].cols > 0) {
+					int num = head->data[l].cols;
 					for (int j = 0; j < num_rows; j++) {
 						for (int i = 0; i < num; i++)
-							free(matrix[j][(head->data)[l].loc_x + i]);
-						for (int i = (head->data)[l].loc_x; i < num_cols - num; i++)
+							free(matrix[j][head->data[l].loc_x + i]);
+						for (int i = head->data[l].loc_x; i < num_cols - num; i++)
 							matrix[j][i] = matrix[j][i + num];
 						matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 					}
@@ -1164,41 +1175,41 @@ void undo(const Arg *arg) {
 				}
 			}
 			else if (op == Insert) {
-				if ((head->data)[l].cols > 0) {
+				if (head->data[l].cols > 0) {
 					for (int i = 0; i < num_rows; i++) {
-						matrix[i] = (char **)realloc(matrix[i], (num_cols + (head->data)[l].cols) * sizeof(char *));
-						for (int j = num_cols + (head->data)[l].cols - 1; j >= (head->data)[l].loc_x + (head->data)[l].cols; j--) {
-							matrix[i][j] = matrix[i][j - (head->data)[l].cols];
+						matrix[i] = (char **)realloc(matrix[i], (num_cols + head->data[l].cols) * sizeof(char *));
+						for (int j = num_cols + head->data[l].cols - 1; j >= head->data[l].loc_x + head->data[l].cols; j--) {
+							matrix[i][j] = matrix[i][j - head->data[l].cols];
 						}
-						for (int j = 0; j < (head->data)[l].cols; j++)
-							matrix[i][(head->data)[l].loc_x + j] = strdup("");
+						for (int j = 0; j < head->data[l].cols; j++)
+							matrix[i][head->data[l].loc_x + j] = strdup("");
 					}
-					num_cols += (head->data)[l].cols;
+					num_cols += head->data[l].cols;
 				}
-				if ((head->data)[l].rows > 0) {
-					matrix = (char ***)realloc(matrix, (num_rows + (head->data)[l].rows) * sizeof(char **));
-					for (int i = num_rows + (head->data)[l].rows - 1; i >= (head->data)[l].loc_y + (head->data)[l].rows; i--) {
-						matrix[i] = matrix[i - (head->data)[l].rows];
+				if (head->data[l].rows > 0) {
+					matrix = (char ***)realloc(matrix, (num_rows + head->data[l].rows) * sizeof(char **));
+					for (int i = num_rows + head->data[l].rows - 1; i >= head->data[l].loc_y + head->data[l].rows; i--) {
+						matrix[i] = matrix[i - head->data[l].rows];
 					}
-					for (int i = 0; i < (head->data)[l].rows; i++) {
-						matrix[(head->data)[l].loc_y + i] = (char **)malloc(num_cols * sizeof(char *));
+					for (int i = 0; i < head->data[l].rows; i++) {
+						matrix[head->data[l].loc_y + i] = (char **)malloc(num_cols * sizeof(char *));
 						for (int j = 0; j < num_cols; j++) {
-							matrix[(head->data)[l].loc_y + i][j] = strdup("");
+							matrix[head->data[l].loc_y + i][j] = strdup("");
 						}
 					}
-					num_rows += (head->data)[l].rows;
+					num_rows += head->data[l].rows;
 				}
 			}
-			if ((head->data)[l].y == num_rows)
-				y = (head->data)[l].y - 1;
+			if (head->data[l].y == num_rows)
+				y = head->data[l].y - 1;
 			else
-				y = (head->data)[l].y;
-			if ((head->data)[l].x == num_cols)
-				x = (head->data)[l].x - 1;
+				y = head->data[l].y;
+			if (head->data[l].x == num_cols)
+				x = head->data[l].x - 1;
 			else
-				x = (head->data)[l].x;
-			s_y = (head->data)[l].s_y;
-			s_x = (head->data)[l].s_x;
+				x = head->data[l].x;
+			s_y = head->data[l].s_y;
+			s_x = head->data[l].s_x;
 		}
 		if (arg->i == Undo) head = head->next;
 	}
