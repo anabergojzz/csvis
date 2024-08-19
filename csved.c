@@ -22,7 +22,7 @@
 /* enums */
 enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
 enum {WriteTo, WriteTranspose, WriteFifo, WriteFifoTranspose, WriteExisting};
-enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell};
+enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell, Undo, Redo};
 
 char ***matrix;
 char ***mat_reg = NULL;
@@ -92,8 +92,7 @@ void write_csv(const Arg *arg);
 void write_to_pipe(const Arg *arg);
 void yank_cells();
 void wipe_cells();
-void undo();
-void redo();
+void undo(const Arg *arg);
 void paste_cells();
 void deleting();
 void str_change();
@@ -149,9 +148,9 @@ static Key keys[] = {
 	{'Y', write_to_pipe, {PipeToClip}},
 	{'p', paste_cells, {0}},
 	{'P', write_to_pipe, {PipeReadClip}},
-	{'u', undo, {0}},
-	{'\x12', redo, {0}}, //Ctrl-R
-	{':', move_n, {0}}, //Ctrl-R
+	{'u', undo, {Undo}},
+	{'\x12', undo, {Redo}}, //Ctrl-R
+	{':', move_n, {0}},
 	{'D', deleting, {0}}
 };
 
@@ -352,8 +351,11 @@ void delete_row() {
 			matrix[i] = matrix[i + num];
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
 		num_rows -= num;
-		struct undo_data data[] = {{Cut, undo_mat, NULL, num, 0, ch[0], x, s_y, s_x, ch[0], x}};
-		push(&head, data, 1);
+		struct undo_data data[] = {
+			{Delete, undo_mat, NULL, num, num_cols, ch[0], x, s_y, s_x, ch[0], 0},
+			{Cut, NULL, NULL, num, 0, ch[0], x, s_y, s_x, ch[0], x}
+		};
+		push(&head, data, 2);
 		y = ch[0];
 		if (y >= num_rows)
 			y = ch[0] - 1;
@@ -375,8 +377,11 @@ void delete_col() {
 			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
 		}
 		num_cols -= num;
-		struct undo_data data[] = {{Cut, undo_mat, NULL, 0, num, y, ch[2], s_y, s_x, y, ch[2]}};
-		push(&head, data, 1);
+		struct undo_data data[] = {
+			{Delete, undo_mat, NULL, num_rows, num, y, ch[2], s_y, s_x, 0, ch[2]},
+			{Cut, NULL, NULL, 0, num, y, ch[2], s_y, s_x, y, ch[2]}
+		};
+		push(&head, data, 2);
 		x = ch[2];
 		if (x >= num_cols)
 			x = ch[2] - 1;
@@ -788,9 +793,9 @@ void write_to_cells(char *buffer) {
 		free(temp2);
 	}
 	struct undo_data data[] = {
-		{Paste, paste_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
+		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x},
 		{Delete, undo_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
-		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x}
+		{Paste, paste_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&head, data, 3);
 	free(temp);
@@ -1091,92 +1096,25 @@ void push(node_t ** head, struct undo_data *data, int data_count) {
 	*head = new_node;
 }
 
-void undo() {
-	if (head != NULL && head->next != NULL) {
-		for (int l = 0; l < head->data_count; l++) {
-			if ((head->data)[l].operation == Delete) {
-				for (int i = 0; i < (head->data)[l].rows; i++) {
-					for (int j = 0; j < (head->data)[l].cols; j++) {
-						free(matrix[(head->data)[l].loc_y + i][(head->data)[l].loc_x + j]);
-						matrix[(head->data)[l].loc_y + i][(head->data)[l].loc_x + j] = strdup(((head->data)[l].mat)[i][j]);
-					}
-				}
+void undo(const Arg *arg) {
+	if (head != NULL) {
+		if (arg->i == Redo && head->prev == NULL) return;
+		else if (arg->i == Undo && head->next == NULL) return;
+		if (arg->i == Redo) head = head->prev;
+		for (int m = 0; m < head->data_count; m++) {
+			int l;
+			if (arg->i == Undo) l = head->data_count - 1 - m;
+			else l = m;
+			int op = (head->data)[l].operation;
+			if (arg->i == Undo) {
+				if (op == Delete) op = Paste;
+				else if (op == Paste) op = Delete;
+				else if (op == Cut) op = Insert;
+				else if (op == Insert) op = Cut;
+				else if (op == PasteCell) op = DeleteCell;
+				else if (op == DeleteCell) op = PasteCell;
 			}
-			else if ((head->data)[l].operation == Insert) {
-				if ((head->data)[l].rows > 0) {
-					int num = (head->data)[l].rows;
-					for (int j = 0; j < num; j++) {
-						for (int i = 0; i < num_cols; i++)
-							free(matrix[(head->data)[l].loc_y + j][i]);
-						free(matrix[(head->data)[l].loc_y + j]);
-					}
-					for (int i = (head->data)[l].loc_y; i < num_rows - num; i++)
-						matrix[i] = matrix[i + num];
-					matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
-					num_rows -= num;
-				}
-				if ((head->data)[l].cols > 0) {
-					int num = (head->data)[l].cols;
-					for (int j = 0; j < num_rows; j++) {
-						for (int i = 0; i < num; i++)
-							free(matrix[j][(head->data)[l].loc_x + i]);
-						for (int i = (head->data)[l].loc_x; i < num_cols - num; i++)
-							matrix[j][i] = matrix[j][i + num];
-						matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
-					}
-					num_cols -= num;
-				}
-			}
-			else if ((head->data)[l].operation == Cut) {
-				if ((head->data)[l].cols > 0) {
-					for (int i = 0; i < num_rows; i++) {
-						matrix[i] = (char **)realloc(matrix[i], (num_cols + (head->data)[l].cols) * sizeof(char *));
-						for (int j = num_cols + (head->data)[l].cols - 1; j >= (head->data)[l].loc_x + (head->data)[l].cols; j--) {
-							matrix[i][j] = matrix[i][j - (head->data)[l].cols];
-						}
-						for (int j = 0; j < (head->data)[l].cols; j++)
-							matrix[i][(head->data)[l].loc_x + j] = strdup((head->data)[l].mat[i][j]);
-					}
-					num_cols += (head->data)[l].cols;
-				}
-				if ((head->data)[l].rows > 0) {
-					matrix = (char ***)realloc(matrix, (num_rows + (head->data)[l].rows) * sizeof(char **));
-					for (int i = num_rows + (head->data)[l].rows - 1; i >= (head->data)[l].loc_y + (head->data)[l].rows; i--) {
-						matrix[i] = matrix[i - (head->data)[l].rows];
-					}
-					for (int i = 0; i < (head->data)[l].rows; i++) {
-						matrix[(head->data)[l].loc_y + i] = (char **)malloc(num_cols * sizeof(char *));
-						for (int j = 0; j < num_cols; j++) {
-							matrix[(head->data)[l].loc_y + i][j] = strdup((head->data)[l].mat[i][j]);
-						}
-					}
-					num_rows += (head->data)[l].rows;
-				}
-			}
-			else if ((head->data)[l].operation == DeleteCell) {
-				free(matrix[(head->data)[l].loc_y][(head->data)[l].loc_x]);
-				matrix[(head->data)[l].loc_y][(head->data)[l].loc_x] = strdup((head->data)[l].cell);
-			}
-			if ((head->data)[l].y == num_rows)
-				y = (head->data)[l].y - 1;
-			else
-				y = (head->data)[l].y;
-			if ((head->data)[l].x == num_cols)
-				x = (head->data)[l].x - 1;
-			else
-				x = (head->data)[l].x;
-			s_y = (head->data)[l].s_y;
-			s_x = (head->data)[l].s_x;
-		}
-	head = head->next;
-	}
-}
-
-void redo() {
-	if (head != NULL && head->prev != NULL) {
-		head = head->prev;
-		for (int l = head->data_count - 1; l >= 0; l--) {
-			if ((head->data)[l].operation == Delete) {
+			if (op == Delete) {
 				for (int i=(head->data)[l].loc_y; i<((head->data)[l].loc_y + (head->data)[l].rows); i++) {
 					for (int j=(head->data)[l].loc_x; j<((head->data)[l].loc_x + (head->data)[l].cols); j++) {
 						free(matrix[i][j]);
@@ -1184,7 +1122,7 @@ void redo() {
 					}
 				}
 			}
-			else if ((head->data)[l].operation == Paste) {
+			else if (op == Paste) {
 				for (int i = 0; i < (head->data)[l].rows; i++) {
 					for (int j = 0; j < (head->data)[l].cols; j++) {
 						free(matrix[(head->data)[l].loc_y + i][(head->data)[l].loc_x + j]);
@@ -1192,11 +1130,15 @@ void redo() {
 					}
 				}
 			}
-			else if ((head->data)[l].operation == PasteCell) {
+			else if (op == PasteCell) {
 				free(matrix[(head->data)[l].loc_y][(head->data)[l].loc_x]);
 				matrix[(head->data)[l].loc_y][(head->data)[l].loc_x] = strdup((head->data)[l].cell);
 			}
-			else if ((head->data)[l].operation == Cut) {
+			else if (op == DeleteCell) {
+				free(matrix[(head->data)[l].loc_y][(head->data)[l].loc_x]);
+				matrix[(head->data)[l].loc_y][(head->data)[l].loc_x] = strdup("");
+			}
+			else if (op == Cut) {
 				if ((head->data)[l].rows > 0) {
 					int num = (head->data)[l].rows;
 					for (int j = 0; j < num; j++) {
@@ -1221,7 +1163,7 @@ void redo() {
 					num_cols -= num;
 				}
 			}
-			else if ((head->data)[l].operation == Insert) {
+			else if (op == Insert) {
 				if ((head->data)[l].cols > 0) {
 					for (int i = 0; i < num_rows; i++) {
 						matrix[i] = (char **)realloc(matrix[i], (num_cols + (head->data)[l].cols) * sizeof(char *));
@@ -1258,6 +1200,7 @@ void redo() {
 			s_y = (head->data)[l].s_y;
 			s_x = (head->data)[l].s_x;
 		}
+		if (arg->i == Undo) head = head->next;
 	}
 }
 
@@ -1300,9 +1243,9 @@ void paste_cells() {
 		}
 	}
 	struct undo_data data[] = {
-		{Paste, paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x},
+		{Insert, NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x},
 		{Delete, undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x},
-		{Insert, NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x}
+		{Paste, paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x}
 	};
 	push(&head, data, 3);
 }
@@ -1364,9 +1307,9 @@ void str_change(const Arg *arg) {
 		free(temp);
 
 		struct undo_data data[] = {
-			{PasteCell, NULL, paste_cell, rows, cols, y, x, s_y, s_x, y, x},
+			{Insert, NULL, NULL, rows, cols, y, x, s_y, s_x, y, x},
 			{DeleteCell, NULL, undo_cell, rows, cols, y, x, s_y, s_x, y, x},
-			{Insert, NULL, NULL, rows, cols, y, x, s_y, s_x, y, x}
+			{PasteCell, NULL, paste_cell, rows, cols, y, x, s_y, s_x, y, x}
 		};
 		push(&head, data, 3);
 		if (mode == 'i') {
