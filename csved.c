@@ -344,9 +344,17 @@ void insert_row(const Arg *arg) {
 void delete_row() {
 	int num = ch[1] - ch[0];
 	if (num_rows > num) {
+		free_matrix(&mat_reg, reg_rows, reg_cols);
+		mat_reg = (char***)malloc(num * sizeof(char**));
+		reg_rows = num;
+		reg_cols = num_cols;
 		char ***undo_mat = (char ***)malloc(num*sizeof(char**));
-		for (int i = 0; i < num; i++)
+		for (int i = 0; i < num; i++) {
 			undo_mat[i] = matrix[ch[0] + i];
+			mat_reg[i] = (char **)malloc(num_cols * sizeof(char *));
+			for (int j = 0; j < num_cols; j++)
+				mat_reg[i][j] = strdup(matrix[ch[0] + i][j]);
+		}
 		for (int i = ch[0]; i < num_rows - num; i++)
 			matrix[i] = matrix[i + num];
 		matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
@@ -367,11 +375,18 @@ void delete_row() {
 void delete_col() {
 	int num = ch[3] - ch[2];
 	char ***undo_mat = (char ***)malloc(num_rows*sizeof(char **));
+	free_matrix(&mat_reg, reg_rows, reg_cols);
+	mat_reg = (char***)malloc(num_rows * sizeof(char**));
+	reg_rows = num_rows;
+	reg_cols = num;
 	if (num_cols > num) {
 		for (int j = 0; j < num_rows; j++) {
 			undo_mat[j] = (char **)malloc(num * sizeof(char *));
-			for (int i = 0; i < num; i++)
+			mat_reg[j] = (char**)malloc(num * sizeof(char*));
+			for (int i = 0; i < num; i++) {
 				undo_mat[j][i] = matrix[j][ch[2] + i];
+				mat_reg[j][i] = strdup(matrix[j][ch[2] + i]);
+			}
 			for (int i = ch[2]; i < num_cols - num; i++)
 				matrix[j][i] = matrix[j][i + num];
 			matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
