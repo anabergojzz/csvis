@@ -801,9 +801,15 @@ void write_to_cells(char *buffer) {
 		undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 		paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 		for (int j = 0; j < num_cols_2; j++) {
-			undo_mat[i][j] = matrix[ch[0] + i][ch[2] + j];
-			paste_mat[i][j] = strdup(temp[i][j]);
-			matrix[ch[0] + i][ch[2] + j] = strdup(temp[i][j]);
+			if (temp[i][j] != NULL) {
+				undo_mat[i][j] = matrix[ch[0] + i][ch[2] + j];
+				paste_mat[i][j] = strdup(temp[i][j]);
+				matrix[ch[0] + i][ch[2] + j] = strdup(temp[i][j]);
+			}
+			else {
+				undo_mat[i][j] = NULL;
+				paste_mat[i][j] = NULL;
+			}
 		}
 	}
 	struct undo_data data[] = {
@@ -1139,18 +1145,22 @@ void undo(const Arg *arg) {
 				else if (op == DeleteCell) op = PasteCell;
 			}
 			if (op == Delete) {
-				for (int i=head->data[l].loc_y; i<(head->data[l].loc_y + head->data[l].rows); i++) {
-					for (int j=head->data[l].loc_x; j<(head->data[l].loc_x + head->data[l].cols); j++) {
-						free(matrix[i][j]);
-						matrix[i][j] = strdup("");
+				for (int i = 0; i < head->data[l].rows; i++) {
+					for (int j = 0; j < head->data[l].cols; j++) {
+						if (head->data[l].mat[i][j] != NULL) {
+							free(matrix[head->data[l].loc_y + i][head->data[l].loc_x + j]);
+							matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = strdup("");
+						}
 					}
 				}
 			}
 			else if (op == Paste) {
 				for (int i = 0; i < head->data[l].rows; i++) {
 					for (int j = 0; j < head->data[l].cols; j++) {
-						free(matrix[head->data[l].loc_y + i][head->data[l].loc_x + j]);
-						matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = strdup(head->data[l].mat[i][j]);
+						if (head->data[l].mat[i][j] != NULL) {
+							free(matrix[head->data[l].loc_y + i][head->data[l].loc_x + j]);
+							matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = strdup(head->data[l].mat[i][j]);
+						}
 					}
 				}
 			}
@@ -1395,7 +1405,7 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
 		matrix[i][j] = start;
 		k++;
 		for (;++j < *num_cols;)
-			matrix[i][j] = strdup("");
+			matrix[i][j] = NULL;
 	}
 	return matrix;
 }
