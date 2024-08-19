@@ -105,6 +105,7 @@ void write_selection(int fd);
 char **parse_command(char * cmd, const int arg);
 void write_to_cells(char *buffer);
 void free_matrix(char ****matrix, int num_rows, int num_cols);
+char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -769,9 +770,9 @@ void write_selection(int fd) {
 
 void write_to_cells(char *buffer) {
 	int num_cols_2, num_rows_2;
-	char **temp = split_string(buffer, '\n', &num_rows_2, 0);
-	char ***undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+	char ***temp = write_to_matrix(&buffer, &num_rows_2, &num_cols_2);
 	char ***paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+	char ***undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
 	int add_y, add_x = 0;
 	if ((add_y = ch[0] + num_rows_2 - num_rows) < 0) add_y = 0;
 	if (add_y > 0) { /* If not enough rows */
@@ -785,7 +786,6 @@ void write_to_cells(char *buffer) {
 		num_rows += add_y;
 	}
 	for (int i = 0; i < num_rows_2; i++) {
-		char **temp2 = split_string(temp[i], ',', &num_cols_2, 1);
 		if (i == 0) {
 			if ((add_x = ch[2] + num_cols_2 - num_cols) < 0) add_x = 0;
 			if (add_x > 0) { /* If not enough cols */
@@ -802,10 +802,9 @@ void write_to_cells(char *buffer) {
 		paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
 		for (int j = 0; j < num_cols_2; j++) {
 			undo_mat[i][j] = matrix[ch[0] + i][ch[2] + j];
-			paste_mat[i][j] = strdup(temp2[j]);
-			matrix[ch[0] + i][ch[2] + j] = strdup(temp2[j]);
+			paste_mat[i][j] = strdup(temp[i][j]);
+			matrix[ch[0] + i][ch[2] + j] = strdup(temp[i][j]);
 		}
-		free(temp2);
 	}
 	struct undo_data data[] = {
 		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x},
@@ -813,7 +812,6 @@ void write_to_cells(char *buffer) {
 		{Paste, paste_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&head, data, 3);
-	free(temp);
 }
 
 int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
@@ -1360,6 +1358,46 @@ void keypress(int key) {
 			(*keys[i].func)(&keys[i].arg);
 		}
 	}
+}
+
+char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
+	ssize_t l = strlen(*buffer);
+	int n = 0, f = 0, temp = 0;
+	for (int i = 0; i < l; i++) {
+		if ((*buffer)[i] == '\n') {
+			f++;
+			if (f > temp)
+				temp = f;
+			f = 0;
+			n++;
+		}
+		else if ((*buffer)[i] == ',')
+			f++;
+	}
+	*num_rows = n;
+	*num_cols = temp;
+	char ***matrix = (char ***)malloc((*num_rows)*sizeof(char **));
+	int k = 0; // pos in buffer
+	for (int i = 0; i < *num_rows; i++) {
+		matrix[i] = (char **)malloc((*num_cols)*sizeof(char *));
+		int j = 0;
+		char *start = *buffer + k;
+		while ((*buffer)[k] != '\n') {
+			if ((*buffer)[k] == ',') {
+				(*buffer)[k] = '\0';
+				matrix[i][j] = start;
+				j++;
+				start = *buffer + k + 1;
+			}
+			k++;
+		}
+		(*buffer)[k] = '\0';
+		matrix[i][j] = start;
+		k++;
+		for (;++j < *num_cols;)
+			matrix[i][j] = strdup("");
+	}
+	return matrix;
 }
 
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
