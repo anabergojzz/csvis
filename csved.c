@@ -792,19 +792,17 @@ void write_to_cells(char *buffer, int arg) {
 		}
 		num_rows += add_y;
 	}
-	for (int i = 0; i < rows; i++) {
-		if (i == 0) {
-			if ((add_x = ch[2] + cols - num_cols) < 0) add_x = 0;
-			if (add_x > 0) { /* If not enough cols */
-				for (int i = 0; i < num_rows; i++) {
-					matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
-					for (int j = num_cols; j < num_cols + add_x; j++) {
-						matrix[i][j] = strdup("");
-					}
-				}
-				num_cols += add_x;
+	if ((add_x = ch[2] + cols - num_cols) < 0) add_x = 0;
+	if (add_x > 0) { /* If not enough cols */
+		for (int i = 0; i < num_rows; i++) {
+			matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+			for (int j = num_cols; j < num_cols + add_x; j++) {
+				matrix[i][j] = strdup("");
 			}
 		}
+		num_cols += add_x;
+	}
+	for (int i = 0; i < rows; i++) {
 		undo_mat[i] = (char**)malloc(cols * sizeof(char*));
 		paste_mat[i] = (char**)malloc(cols * sizeof(char*));
 		for (int j = 0; j < cols; j++) {
