@@ -20,7 +20,7 @@
 #define MOVE_Y 5
 
 /* enums */
-enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
+enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip, PipeReadInverse};
 enum {WriteTo, WriteTranspose, WriteFifo, WriteFifoTranspose, WriteExisting};
 enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell, Undo, Redo};
 
@@ -103,7 +103,7 @@ void push(node_t ** head, struct undo_data *data, int data_count);
 void move_n();
 void write_selection(int fd);
 char **parse_command(char * cmd, const int arg);
-void write_to_cells(char *buffer);
+void write_to_cells(char *buffer, int arg);
 void free_matrix(char ****matrix, int num_rows, int num_cols);
 char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
 
@@ -144,6 +144,7 @@ static Key keys[] = {
 	{'|', write_to_pipe, {PipeThrough}},
 	{'\x0F', write_to_pipe, {PipeAwk}}, //Ctrl-O awk
 	{'<', write_to_pipe, {PipeRead}},
+	{'\x1F', write_to_pipe, {PipeReadInverse}}, //Ctrl-_
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
 	{'Y', write_to_pipe, {PipeToClip}},
@@ -769,13 +770,18 @@ void write_selection(int fd) {
 	}
 }
 
-void write_to_cells(char *buffer) {
-	int num_cols_2, num_rows_2;
-	char ***temp = write_to_matrix(&buffer, &num_rows_2, &num_cols_2);
-	char ***paste_mat = (char***)malloc(num_rows_2 * sizeof(char**));
-	char ***undo_mat = (char***)malloc(num_rows_2 * sizeof(char**));
+void write_to_cells(char *buffer, int arg) {
+	int cols, rows;
+	char ***temp = write_to_matrix(&buffer, &rows, &cols);
+	if (arg == PipeReadInverse) {
+		int temp = rows;
+		rows = cols;
+		cols = temp;
+	}
+	char ***paste_mat = (char***)malloc(rows * sizeof(char**));
+	char ***undo_mat = (char***)malloc(rows * sizeof(char**));
 	int add_y, add_x = 0;
-	if ((add_y = ch[0] + num_rows_2 - num_rows) < 0) add_y = 0;
+	if ((add_y = ch[0] + rows - num_rows) < 0) add_y = 0;
 	if (add_y > 0) { /* If not enough rows */
 		matrix = (char ***)realloc(matrix, (num_rows + add_y)*sizeof(char **));
 		for (int i = num_rows; i < num_rows + add_y; i++) {
@@ -786,9 +792,9 @@ void write_to_cells(char *buffer) {
 		}
 		num_rows += add_y;
 	}
-	for (int i = 0; i < num_rows_2; i++) {
+	for (int i = 0; i < rows; i++) {
 		if (i == 0) {
-			if ((add_x = ch[2] + num_cols_2 - num_cols) < 0) add_x = 0;
+			if ((add_x = ch[2] + cols - num_cols) < 0) add_x = 0;
 			if (add_x > 0) { /* If not enough cols */
 				for (int i = 0; i < num_rows; i++) {
 					matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
@@ -799,13 +805,15 @@ void write_to_cells(char *buffer) {
 				num_cols += add_x;
 			}
 		}
-		undo_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-		paste_mat[i] = (char**)malloc(num_cols_2 * sizeof(char*));
-		for (int j = 0; j < num_cols_2; j++) {
-			if (temp[i][j] != NULL) {
+		undo_mat[i] = (char**)malloc(cols * sizeof(char*));
+		paste_mat[i] = (char**)malloc(cols * sizeof(char*));
+		for (int j = 0; j < cols; j++) {
+			char *inverse = temp[i][j];
+			if (arg == PipeReadInverse) inverse = temp[j][i];
+			if (inverse != NULL) {
 				undo_mat[i][j] = matrix[ch[0] + i][ch[2] + j];
-				paste_mat[i][j] = strdup(temp[i][j]);
-				matrix[ch[0] + i][ch[2] + j] = strdup(temp[i][j]);
+				paste_mat[i][j] = strdup(inverse);
+				matrix[ch[0] + i][ch[2] + j] = strdup(inverse);
 			}
 			else {
 				undo_mat[i][j] = NULL;
@@ -815,8 +823,8 @@ void write_to_cells(char *buffer) {
 	}
 	struct undo_data data[] = {
 		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x},
-		{Delete, undo_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
-		{Paste, paste_mat, NULL, num_rows_2, num_cols_2, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
+		{Delete, undo_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
+		{Paste, paste_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&head, data, 3);
 }
@@ -985,7 +993,7 @@ void write_to_pipe(const Arg *arg) {
 		cmd = get_str("", 0, '|');
 	else if (arg->i == PipeTo)
 		cmd = get_str("", 0, '>');
-	else if (arg->i == PipeRead)
+	else if (arg->i == PipeRead || arg->i == PipeReadInverse)
 		cmd = get_str("", 0, '<');
 	else if (arg->i == PipeAwk) {
 		char *temp = get_str("", 0, '|');
@@ -1009,13 +1017,13 @@ void write_to_pipe(const Arg *arg) {
 		return;
 	}
 
-	if (arg->i != PipeRead && arg->i != PipeReadClip && mode == 'n') {
+	if (arg->i != PipeRead && arg->i != PipeReadInverse && arg->i != PipeReadClip && mode == 'n') {
 		ch[0] = 0;
 		ch[1] = num_rows;
 		ch[2] = 0;
 		ch[3] = num_cols;
 	}
-	else if (arg->i == PipeRead || arg->i == PipeReadClip) {
+	else if (arg->i == PipeRead || arg->i == PipeReadInverse || arg->i == PipeReadClip) {
 		ch[0] = y;
 		ch[2] = x;
 	}
@@ -1036,7 +1044,7 @@ void write_to_pipe(const Arg *arg) {
 			getch();
 		}
 		else {
-			write_to_cells(output_buffer);
+			write_to_cells(output_buffer, arg->i);
 		}
 		free(output_buffer);
 	}
