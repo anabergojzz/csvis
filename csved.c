@@ -93,7 +93,7 @@ void write_to_pipe(const Arg *arg);
 void yank_cells();
 void wipe_cells();
 void undo(const Arg *arg);
-void paste_cells();
+void paste_cells(const Arg *arg);
 void deleting();
 void str_change();
 void quit();
@@ -148,6 +148,7 @@ static Key keys[] = {
 	{'y', yank_cells, {0}},
 	{'Y', write_to_pipe, {PipeToClip}},
 	{'p', paste_cells, {0}},
+	{'\x10', paste_cells, {1}}, //Ctrl-P
 	{'P', write_to_pipe, {PipeReadClip}},
 	{'u', undo, {Undo}},
 	{'\x12', undo, {Redo}}, //Ctrl-R
@@ -1238,11 +1239,17 @@ void undo(const Arg *arg) {
 	}
 }
 
-void paste_cells() {
+void paste_cells(const Arg *arg) {
 	if (mat_reg == NULL) return;
+	int rows = reg_rows;
+	int cols = reg_cols;
+	if (arg->i == 1) {
+		rows = reg_cols;
+		cols = reg_rows;
+	}
 
 	int add_y, add_x = 0;
-	if ((add_y = y + reg_rows - num_rows) < 0) add_y = 0;
+	if ((add_y = y + rows - num_rows) < 0) add_y = 0;
 	if (add_y > 0) { /* If not enough rows */
 		matrix = (char ***)realloc(matrix, (num_rows + add_y)*sizeof(char **));
 		for (int i = num_rows; i < num_rows + add_y; i++) {
@@ -1253,7 +1260,7 @@ void paste_cells() {
 		}
 		num_rows += add_y;
 	}
-	if ((add_x = x + reg_cols - num_cols) < 0) add_x = 0;
+	if ((add_x = x + cols - num_cols) < 0) add_x = 0;
 	if (add_x > 0) { /* If not enough cols */
 		for (int i = 0; i < num_rows; i++) {
 			matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
@@ -1263,23 +1270,25 @@ void paste_cells() {
 		}
 		num_cols += add_x;
 	}
-	char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
-	char *** paste_mat = (char***)malloc(reg_rows * sizeof(char**));
-	for (int i=0; i<reg_rows; i++) {
-		undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
-		paste_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
+	char *** undo_mat = (char***)malloc(rows * sizeof(char**));
+	char *** paste_mat = (char***)malloc(rows * sizeof(char**));
+	for (int i=0; i<rows; i++) {
+		undo_mat[i] = (char**)malloc(cols * sizeof(char*));
+		paste_mat[i] = (char**)malloc(cols * sizeof(char*));
 	}
-	for (int i = 0; i < reg_rows; i++) {
-		for (int j = 0; j < reg_cols; j++) {
+	for (int i = 0; i < rows; i++) {
+		for (int j = 0; j < cols; j++) {
 			undo_mat[i][j] = matrix[y + i][x + j];
-			paste_mat[i][j] = strdup(mat_reg[i][j]);
-			matrix[y + i][x + j] = strdup(mat_reg[i][j]);
+			char *inverse = mat_reg[i][j];
+			if (arg->i == 1) inverse = mat_reg[j][i];
+			paste_mat[i][j] = strdup(inverse);
+			matrix[y + i][x + j] = strdup(inverse);
 		}
 	}
 	struct undo_data data[] = {
 		{Insert, NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x},
-		{Delete, undo_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x},
-		{Paste, paste_mat, NULL, reg_rows, reg_cols, y, x, s_y, s_x, y, x}
+		{Delete, undo_mat, NULL, rows, cols, y, x, s_y, s_x, y, x},
+		{Paste, paste_mat, NULL, rows, cols, y, x, s_y, s_x, y, x}
 	};
 	push(&head, data, 3);
 }
