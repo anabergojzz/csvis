@@ -615,51 +615,38 @@ void visual() {
 }
 
 char** split_string(const char* str, const char delimiter, int* num_tokens, char keep_last) {
-    int count = 1;
     const char *tmp = str;
-    char **result = NULL;
-    char *token;
-    char delim[2];
-    delim[0] = delimiter;
-    delim[1] = '\0';
-
-    while (*tmp) { // count for malloc
-        if (*tmp == delimiter) {
-            count++;
-        }
-        tmp++;
-    }
-
-    result = (char **) malloc((count + 2) * sizeof(char *));
+	int size = 32;
+    char **result = (char **) malloc(size * sizeof(char *));
 
     int i = 0;
-    tmp = str;
     while (*tmp) {
+		if (i > size - 1) {
+			size *= 2;
+			result = (char **)realloc(result, size * sizeof(char *));
+		}
         const char *start = tmp;
+		int n = 1;
         while (*tmp && *tmp != delimiter) {
             tmp++;
+			n++;
         }
 
-        if (start == tmp) { // if delimiter at the beginning
-            result[i] = strdup("");
-        } else {
-            result[i] = (char *) malloc((tmp - start + 1) * sizeof(char));
-            strncpy(result[i], start, tmp - start);
-            result[i][tmp - start] = '\0';
-        }
+		tmp++;
+		result[i] = malloc(n * sizeof(char));
+		memcpy(result[i], start, n - 1);
+		*(result[i] + n - 1) = '\0';
         i++;
-        if (*tmp) {
-            tmp++;
-        }
     }
 	if (keep_last == 1) {
-		if (*(tmp - 1) == delimiter) { // if delimiter at the end
+		if (*(tmp - 1) == delimiter) {
 			result[i] = strdup("");
 			i++;
 		}
 	}
     result[i] = NULL;
     *num_tokens = i;
+	result = realloc(result, i * sizeof(char *));
 
     return result;
 }
