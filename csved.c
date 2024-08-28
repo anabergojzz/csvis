@@ -12,6 +12,7 @@
 
 #define CELL_WIDTH 10
 #define PIPE_BUF 4096
+#define READALL_CHUNK 262144
 #define SHELL "/bin/sh"
 #define FIFO "/tmp/pyfifo"
 #define XCLIP_COPY "vis-clipboard --copy"
@@ -87,7 +88,6 @@ char* get_str(char* str, char loc, const char cmd);
 void visual_start();
 void visual_end();
 void visual();
-char** split_string(const char* str, const char delimiter, int* num_tokens, char keep_last);
 void write_csv(const Arg *arg);
 void write_to_pipe(const Arg *arg);
 void yank_cells();
@@ -612,43 +612,6 @@ void visual() {
 			move_y(&move);
 		}
 	}
-}
-
-char** split_string(const char* str, const char delimiter, int* num_tokens, char keep_last) {
-    const char *tmp = str;
-	int size = 32;
-    char **result = (char **) malloc(size * sizeof(char *));
-
-    int i = 0;
-    while (*tmp) {
-		if (i > size - 1) {
-			size *= 2;
-			result = (char **)realloc(result, size * sizeof(char *));
-		}
-        const char *start = tmp;
-		int n = 1;
-        while (*tmp && *tmp != delimiter) {
-            tmp++;
-			n++;
-        }
-
-		tmp++;
-		result[i] = malloc(n * sizeof(char));
-		memcpy(result[i], start, n - 1);
-		*(result[i] + n - 1) = '\0';
-        i++;
-    }
-	if (keep_last == 1) {
-		if (*(tmp - 1) == delimiter) {
-			result[i] = strdup("");
-			i++;
-		}
-	}
-    result[i] = NULL;
-    *num_tokens = i;
-	result = realloc(result, i * sizeof(char *));
-
-    return result;
 }
 
 void write_csv(const Arg *arg) {
@@ -1413,51 +1376,95 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
 }
 
 char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
-	int buff_rows, buff_cols = 20;
-	char ***matrix = (char ***) malloc(buff_rows*sizeof(char **));
-	char *line_buf = NULL;
-	size_t line_buf_size = 0;
-	ssize_t line_size = 0;
-	*num_rows = 0;
-	*num_cols = 0;
-	int num_cols_max = 0;
 
-	if (file == NULL) {
-		matrix[0] = (char **) malloc(buff_cols * sizeof(char *));
-		matrix[0][0] = strdup("");
-		*num_cols = 1;
-		*num_rows = 1;
-		return matrix;
-	}
+    if (file == NULL) {
+        exit(-1);
+    }
 
-	line_size = getline(&line_buf, &line_buf_size, file);
-	while (line_size >= 0) {
-        if (*num_rows >= buff_rows - 2) {
-            buff_rows += 50;
-            matrix = (char***)realloc(matrix, buff_rows * sizeof(char**));
-        }
-		line_buf[strcspn(line_buf, "\n")] = '\0';
-		matrix[*num_rows] = split_string(line_buf, ',', num_cols, 1);
-		if (*num_cols > num_cols_max) {
-			for (int i = 0; i < *num_rows; i++) {
-				matrix[i] = (char **)realloc(matrix[i], (*num_cols)*sizeof(char *));
-				for (int j = num_cols_max; j < *num_cols; j++)
-					matrix[i][j] = strdup("");
+    char *data = malloc((READALL_CHUNK + 1) * sizeof(char));
+    size_t nread;
+    int row = 0, col = 0;
+	int col_s = 32, row_s = 32;
+	char *rem = NULL;
+	size_t n = 0;
+    int remlen = 0;
+    int f = 0;
+
+    char ***matrix = malloc(row_s * sizeof(char **));
+	matrix[row] = malloc(col_s * sizeof(char *));
+    while (1) {
+        if (n != 0) {
+			if (n > remlen) {
+				remlen = n;
+				data = realloc(data, READALL_CHUNK + 1 + n);
 			}
-			num_cols_max = *num_cols;
-		}
-		else if (*num_cols < num_cols_max) {
-			matrix[*num_rows] = (char **)realloc(matrix[*num_rows], num_cols_max*sizeof(char *));
-			for (int j = *num_cols; j < num_cols_max; j++)
-				matrix[*num_rows][j] = strdup("");
-		}
-		(*num_rows)++;
-		line_size = getline(&line_buf, &line_buf_size, file);
-	}
+			memmove(data, rem, n);
+        }
+        nread = fread(data + n, 1, READALL_CHUNK, file);
+        if (nread == 0)
+            break;
+        data[n + nread] = '\0';
 
-	*num_cols = num_cols_max;
-	free(line_buf);
-	return matrix;
+		char *k = data;
+		char *start = k;
+		n = 0;
+        while (*k) {
+			n++;
+            if (*k == ',') {
+				if (col >= col_s) {
+					col_s *= 2;
+					matrix[row] = realloc(matrix[row], col_s * sizeof(char *));
+				}
+				*k = '\0';
+				matrix[row][col] = malloc(n * sizeof(char));
+				memcpy(matrix[row][col], start, n);
+				n = 0;
+                col++;
+				start = k + 1;
+            }
+			else if (*k == '\n') {
+				*k = '\0';
+				matrix[row][col] = malloc(n * sizeof(char));
+				memcpy(matrix[row][col], start, n);
+				n = 0;
+				col++;
+                if (col > f) { // If row more columns than previous add cols to rows before
+					for (int i = 0; i < row; i++) {
+						matrix[i] = realloc(matrix[i], col*sizeof(char *));
+						for (int j = f; j < col; j++)
+							matrix[i][j] = strdup("");
+					}
+                    f = col;
+				}
+				while (col < f) { // If row less columns than previous add cols to num_cols
+					matrix[row][col++] = strdup("");
+				}
+                col = 0;
+				matrix[row] = realloc(matrix[row], f * sizeof(char *));
+				row++;
+				if (row >= row_s) {
+					row_s *= 2;
+					matrix = realloc(matrix, row_s * sizeof(char **));
+				}
+				matrix[row] = malloc(col_s * sizeof(char *));
+				start = k + 1;
+            }
+			k++;
+        }
+		if (start < k) {
+			if (rem != NULL)
+				free(rem);
+			rem = strdup(start);
+		}
+
+        *num_rows = row;
+        *num_cols = f;
+    }
+	matrix = realloc(matrix, *num_rows * sizeof(char **));
+	free(rem);
+    free(data);
+
+    return matrix;
 }
 
 void free_matrix(char ****matrix, int num_rows, int num_cols) {
