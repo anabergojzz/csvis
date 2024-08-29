@@ -254,6 +254,7 @@ void move_x(const Arg *arg) {
 
 void move_n() {
 	char *temp = get_str("", 0, ':');
+	if (temp == NULL) return;
     int length = strlen(temp);
 	to_num_y = 0;
 	to_num_x = x;
@@ -464,9 +465,15 @@ char* get_str(char* str, char loc, const char cmd) {
 			}
 			break;
 		}
-		else if (key == '\x03' && cmd == 0) {
-			mode = 'n';
-			break;
+		else if (key == '\x03') {
+			if (cmd == 0) {
+				mode = 'n';
+				break;
+			}
+			else {
+				free(buffer);
+				return NULL;
+			}
 		}
 		else if (key == KEY_LEFT) {
 			if (i > 0) {
@@ -618,11 +625,15 @@ void write_csv(const Arg *arg) {
 	char flip;
 	char *filename;
 
-	if (arg->i == WriteTo || arg->i == WriteTranspose)
+	if (arg->i == WriteTo || arg->i == WriteTranspose) {
 		filename = get_str("", 0, ':');
+		if (filename == NULL) return;
+	}
 	else if (arg->i == WriteExisting) {
-		if (fname == NULL)
+		if (fname == NULL) {
 			filename = get_str("", 0, ':');
+			if (filename == NULL) return;
+		}
 		else {
 			filename = (char *)malloc(strlen(fname) + 1);
 			strcpy(filename, fname);
@@ -937,14 +948,21 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
 
 void write_to_pipe(const Arg *arg) {
 	char* cmd;
-	if (arg->i == PipeThrough)
+	if (arg->i == PipeThrough) {
 		cmd = get_str("", 0, '|');
-	else if (arg->i == PipeTo)
+		if (cmd == NULL) return;
+	}
+	else if (arg->i == PipeTo) {
 		cmd = get_str("", 0, '>');
-	else if (arg->i == PipeRead || arg->i == PipeReadInverse)
+		if (cmd == NULL) return;
+	}
+	else if (arg->i == PipeRead || arg->i == PipeReadInverse) {
 		cmd = get_str("", 0, '<');
+		if (cmd == NULL) return;
+	}
 	else if (arg->i == PipeAwk) {
 		char *temp = get_str("", 0, '|');
+		if (temp == NULL) return;
 		char *preposition = "awk -F, -vOFS=, '";
 		cmd = malloc(strlen(temp) + strlen(preposition) + 2);
 		strcpy(cmd, preposition);
