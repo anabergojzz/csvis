@@ -511,16 +511,14 @@ char* get_str(char* str, char loc, const char cmd) {
 				while ((buffer[i] & 0xC0) == 0x80);
             }
         }
-		else if (key == KEY_RESIZE);
+		else if (key >= 256 || key <= 31); // other control and nonprintable characters
 		else {
 			memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
-			if (key < 256) {
-				buffer[i] = (char)key;
-				if ((buffer[i] & 0xC0) != 0x80) i_utf8++;
-				if ((buffer[i] & 0xC0) == 0xC0) k = 1;
-				i++;
-				str_size++;
-			}
+			buffer[i] = (char)key;
+			if ((buffer[i] & 0xC0) != 0x80) i_utf8++;
+			if ((buffer[i] & 0xC0) == 0xC0) k = 1;
+			i++;
+			str_size++;
         }
     }
 
