@@ -522,6 +522,8 @@ char* get_str(char* str, char loc, const char cmd) {
         }
     }
 
+
+	buffer = (char*)realloc(buffer, (str_size + 1) * sizeof(char));
 	return buffer;
 }
 
@@ -1291,7 +1293,7 @@ void deleting() {
 void str_change(const Arg *arg) {
 	if (mode == 'v') visual_end();
 	mode = 'i';
-	char* temp;
+	char* str;
 	int rows = 0, cols = 0;
 	while (mode == 'i' || mode == 'j') {
 		if (y == num_rows) {
@@ -1311,15 +1313,14 @@ void str_change(const Arg *arg) {
 			cols = 1;
 		}
 		if (arg->i == 0)
-			temp = get_str("", 0, 0);
+			str = get_str("", 0, 0);
 		else if (arg->i == 1)
-			temp = get_str(matrix[y][x], 0, 0);
+			str = get_str(matrix[y][x], 0, 0);
 		else if (arg->i == 2)
-			temp = get_str(matrix[y][x], 1, 0);
+			str = get_str(matrix[y][x], 1, 0);
 		char * undo_cell = matrix[y][x];
-		char * paste_cell = strdup(temp);
-		matrix[y][x] = strdup(temp);
-		free(temp);
+		char * paste_cell = strdup(str);
+		matrix[y][x] = str;
 
 		struct undo_data data[] = {
 			{Insert, NULL, NULL, rows, cols, y, x, s_y, s_x, y, x},
