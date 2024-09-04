@@ -748,11 +748,12 @@ void write_selection(int fd) {
 
 void write_to_cells(char *buffer, int arg) {
 	int cols, rows;
+	char *inverse = NULL;;
 	char ***temp = write_to_matrix(&buffer, &rows, &cols);
 	if (arg == PipeReadInverse) {
-		int temp = rows;
+		int temp_rows = rows;
 		rows = cols;
-		cols = temp;
+		cols = temp_rows;
 	}
 	char ***paste_mat = (char***)malloc(rows * sizeof(char**));
 	char ***undo_mat = (char***)malloc(rows * sizeof(char**));
@@ -782,11 +783,11 @@ void write_to_cells(char *buffer, int arg) {
 		undo_mat[i] = (char**)malloc(cols * sizeof(char*));
 		paste_mat[i] = (char**)malloc(cols * sizeof(char*));
 		for (int j = 0; j < cols; j++) {
-			char *inverse = temp[i][j];
 			if (arg == PipeReadInverse) inverse = temp[j][i];
+			else inverse = temp[i][j];
 			if (inverse != NULL) {
 				undo_mat[i][j] = matrix[ch[0] + i][ch[2] + j];
-				paste_mat[i][j] = strdup(inverse);
+				paste_mat[i][j] = inverse;
 				matrix[ch[0] + i][ch[2] + j] = strdup(inverse);
 			}
 			else {
@@ -801,6 +802,14 @@ void write_to_cells(char *buffer, int arg) {
 		{Paste, paste_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&head, data, 3);
+	// Free temp
+	if (arg == PipeReadInverse) {
+		int temp_rows = rows;
+		rows = cols;
+		cols = temp_rows;
+	}
+	for (int i = 0; i < rows; i++) free(temp[i]);
+	free(temp);
 }
 
 int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
