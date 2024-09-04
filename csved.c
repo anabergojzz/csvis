@@ -411,6 +411,7 @@ void delete_col() {
 
 char* get_str(char* str, char loc, const char cmd) {
 	ssize_t str_size = strlen(str);
+	ssize_t str_size_utf8 = utf8_strlen(str);
     ssize_t bufsize = str_size + 10; // Initial buffer size
     char* buffer = (char*) malloc(bufsize * sizeof(char));
 	strcpy(buffer, str);
@@ -418,7 +419,7 @@ char* get_str(char* str, char loc, const char cmd) {
 	int i_utf8 = 0;
 	if (loc == 1) {
 		i = str_size;
-		i_utf8 += utf8_strlen(str);
+		i_utf8 += str_size_utf8;
 	}
 	int cx_add, cy_add = 0;
 
@@ -491,11 +492,20 @@ char* get_str(char* str, char loc, const char cmd) {
 				i_utf8++;
 			}
 		}
+		else if (key == KEY_HOME) {
+		 	   i = 0;
+		 	   i_utf8 = 0;
+		}
+		else if (key == KEY_END) {
+		 	   i = str_size;
+		 	   i_utf8 = str_size_utf8;
+		}
         else if (key == KEY_BACKSPACE) {
 			if (i > 0) {
 				i_utf8--;
 				while ((buffer[--i] & 0xC0) == 0x80) {
 					str_size--;
+					str_size_utf8--;
 					memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
 				}
 				str_size--;
@@ -509,13 +519,18 @@ char* get_str(char* str, char loc, const char cmd) {
 					memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
 				}
 				while ((buffer[i] & 0xC0) == 0x80);
+				str_size_utf8--;
             }
         }
 		else if (key >= 256 || key <= 31); // other control and nonprintable characters
 		else {
 			memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
 			buffer[i] = (char)key;
-			if ((buffer[i] & 0xC0) != 0x80) i_utf8++;
+            if ((buffer[i] & 0xC0) != 0x80) {
+                    i_utf8++;
+                    str_size_utf8++;
+            }
+
 			if ((buffer[i] & 0xC0) == 0xC0) k = 1;
 			i++;
 			str_size++;
