@@ -25,7 +25,7 @@ enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip, PipeRead
 enum {WriteTo, WriteTranspose, WriteFifo, WriteFifoTranspose, WriteExisting};
 enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell, Undo, Redo};
 
-char ***matrix;
+char ***matrix = NULL;
 char ***mat_reg = NULL;
 int reg_rows, reg_cols = 0;
 int num_rows, num_cols;
@@ -38,7 +38,7 @@ int s_y0, s_x0 = 0;
 int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
-char *fname;
+char *fname = NULL;
 int to_num_y;
 int to_num_x;
 
@@ -637,8 +637,8 @@ void visual() {
 }
 
 void write_csv(const Arg *arg) {
-	char flip;
-	char *filename;
+	char flip = 0;
+	char *filename = NULL;
 
 	if (arg->i == WriteTo || arg->i == WriteTranspose) {
 		filename = get_str("", 0, ':');
@@ -925,7 +925,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
 			char buf[PIPE_BUF];
             nread = read(pout[0], buf, sizeof(buf));
 			if (*output_buffer_size + nread + 1 > buffer_capacity) {
-				buffer_capacity = buffer_capacity ? buffer_capacity * 2 : nread * 2;
+				buffer_capacity = buffer_capacity ? buffer_capacity * 2 : (nread * 2) + 1;
 				*output_buffer = realloc(*output_buffer, buffer_capacity);
 			}
             if (nread > 0) {
@@ -1036,21 +1036,21 @@ void write_to_pipe(const Arg *arg) {
 		else {
 			write_to_cells(output_buffer, arg->i);
 		}
-		free(output_buffer);
 	}
+	if (output_buffer != NULL) free(output_buffer);
 	visual_end();
 }
 
 void yank_cells() {
 	free_matrix(&mat_reg, reg_rows, reg_cols);
-	reg_rows = (ch[1]-ch[0]);
-	reg_cols = (ch[3]-ch[2]);
+	reg_rows = ch[1] - ch[0];
+	reg_cols = ch[3] - ch[2];
 	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
-	for (int i=0; i<reg_rows; i++)
+	for (int i = 0; i < reg_rows; i++)
 		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
-	for (int i=ch[0]; i<ch[1]; i++) {
-		for (int j=ch[2]; j<ch[3]; j++) {
-			mat_reg[i-ch[0]][j-ch[2]] = strdup(matrix[i][j]);
+	for (int i = ch[0]; i < ch[1]; i++) {
+		for (int j = ch[2]; j < ch[3]; j++) {
+			mat_reg[i - ch[0]][j - ch[2]] = strdup(matrix[i][j]);
 		}
 	}
 	visual_end();
@@ -1364,6 +1364,7 @@ void str_change(const Arg *arg) {
 void quit() {
 	endwin();
 	free_matrix(&matrix, num_rows, num_cols);
+	free_matrix(&mat_reg, reg_rows, reg_cols);
 	unlink(FIFO);
 	exit(0);
 }
