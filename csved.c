@@ -414,6 +414,7 @@ char* get_str(char* str, char loc, const char cmd) {
 
 	int key;
 	char k = 0; // to track multibyte utf8 chars
+	int trimmed = 0;
 
     while (1) {
         if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
@@ -442,11 +443,22 @@ char* get_str(char* str, char loc, const char cmd) {
 				s_y += s;
 				if (scr_y <= rows) scr_y -= s; // if last row on screen
 				c_y -= s;
+
+				if (c_y < 0) { // if insert start position above window
+					trimmed = cols - c_x + (-c_y - 1)*cols; // trimmed text
+					cy_add += c_y;
+					c_y = 0;
+					scr_y = 0;
+					cx_add += c_x;
+					c_x = 0;
+				}
+				else trimmed = 0;
 			}
+			else trimmed = 0;
 			draw();
 			if (s > 0) s_y = s_y0;
 			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
-			mvaddstr(c_y, c_x, buffer);
+			mvaddstr(c_y, c_x, buffer + trimmed);
 			addch(' ');
 			wmove(stdscr, c_y + cy_add, c_x + cx_add);
 		}
