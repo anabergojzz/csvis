@@ -417,21 +417,17 @@ char* get_str(char* str, char loc, const char cmd) {
 
     while (1) {
         if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
-            bufsize += 10;
+            bufsize *= 2;
             buffer = (char*)realloc(buffer, bufsize * sizeof(char));
         }
 		if (k > 0) k--;
 		else {
 			when_resize();
-			draw();
 			if (cmd != 0) {
 				c_x = 1;
 				c_y = rows - 1;
 				mvaddch(c_y, c_x-1, cmd);
 			}
-			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
-			mvaddstr(c_y, c_x, buffer);
-			addch(' ');
 			if ((cols - c_x) > i_utf8) {
 				cx_add = i_utf8;
 				cy_add = 0;
@@ -440,6 +436,18 @@ char* get_str(char* str, char loc, const char cmd) {
 				cx_add = (i_utf8 - (cols - c_x))%cols - c_x;
 				cy_add = 1 + (i_utf8 - (cols - c_x))/cols;
 			}
+			int s = c_y + cy_add - rows + 1;
+			if (s > 0) { // if bottom of screen reached
+				s_y0 = s_y;
+				s_y += s;
+				if (scr_y <= rows) scr_y -= s; // if last row on screen
+				c_y -= s;
+			}
+			draw();
+			if (s > 0) s_y = s_y0;
+			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
+			mvaddstr(c_y, c_x, buffer);
+			addch(' ');
 			wmove(stdscr, c_y + cy_add, c_x + cx_add);
 		}
         key = getch();
