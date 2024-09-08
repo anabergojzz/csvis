@@ -174,17 +174,8 @@ size_t utf8_strlen(const char *str) {
 
 void draw() {
 	clear();
-	int draw_cols, draw_rows;
-	if (scr_x < num_cols)
-		draw_cols = scr_x;
-	else
-		draw_cols = num_cols;
-	if (scr_y < num_rows)
-		draw_rows = scr_y;
-	else
-		draw_rows = num_rows;
-	for (int i = 0; i < draw_rows; i++) {
-		for (int j = 0; j < draw_cols; j++) {
+	for (int i = 0; i < scr_y; i++) {
+		for (int j = 0; j < scr_x; j++) {
 			if (ch[0] <= s_y + i && s_y + i < ch[1] && ch[2] <= s_x + j && s_x + j < ch[3]) {
 				attron(A_STANDOUT);
 			}
@@ -295,23 +286,21 @@ void move_n() {
 void when_resize() {
 	getmaxyx(stdscr, rows, cols);
 	scr_x = cols/CELL_WIDTH;
+	if (scr_x > num_cols) scr_x = num_cols;
 	scr_y = rows;
-	if (y <= s_y)
+	if (scr_y > num_rows) scr_y = num_rows;
+	if (y <= s_y) // if y above screen
 		s_y = y;
-	if (y > s_y + scr_y - 1)
+	else if (y >= s_y + scr_y) // if y below screen
 		s_y = y - (scr_y - 1);
-	if (scr_y - (num_rows - s_y) > 0)
+	if (scr_y - (num_rows - s_y) > 0) // correct s_y when resizing
 		s_y -= scr_y - (num_rows - s_y);
-	if (s_y < 0)
-		s_y = 0;
-	if (x <= s_x)
+	if (x <= s_x) // if x left of screen
 		s_x = x;
-	if (x > s_x + scr_x - 1)
+	else if (x >= s_x + scr_x) // if x right of screen
 		s_x = x - (scr_x - 1);
-	if (scr_x - (num_cols - s_x) > 0)
+	if (scr_x - (num_cols - s_x) > 0) // correct s_x when resizing
 		s_x -= scr_x - (num_cols - s_x);
-	if (s_x < 0)
-		s_x = 0;
 	c_x = (x - s_x)*CELL_WIDTH;
 	c_y = y - s_y;
 }
