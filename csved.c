@@ -522,7 +522,7 @@ char* get_str(char* str, char loc, const char cmd) {
             }
         }
         else if (key == KEY_DC) {
-			if (i <= str_size) {
+			if (i < str_size) {
 				do {
 					str_size--;
 					memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
