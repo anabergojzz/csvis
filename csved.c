@@ -98,7 +98,6 @@ void deleting();
 void str_change();
 void quit();
 void keypress(int key);
-char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols);
 void push(node_t ** head, struct undo_data *data, int data_count);
 void move_n();
 void write_selection(int fd);
@@ -156,6 +155,64 @@ static Key keys[] = {
 	{':', move_n, {0}},
 	{'D', deleting, {0}}
 };
+
+int readall(FILE *in, char **dataptr, size_t *sizeptr) {
+    char  *data = NULL, *temp;
+    size_t size = 0;
+    size_t used = 0;
+    size_t n;
+
+    /* None of the parameters can be NULL. */
+    if (in == NULL || dataptr == NULL || sizeptr == NULL)
+        exit(-1);
+
+    /* A read error already occurred? */
+    if (ferror(in))
+		exit(-1);
+
+    while (1) {
+
+        if (used + READALL_CHUNK + 1 > size) {
+            size = used + READALL_CHUNK + 1;
+
+            /* Overflow check. Some ANSI C compilers
+               may optimize this away, though. */
+            if (size <= used) {
+                free(data);
+				exit(-1);
+            }
+
+            temp = realloc(data, size);
+            if (temp == NULL) {
+                free(data);
+				exit(-1);
+            }
+            data = temp;
+        }
+
+        n = fread(data + used, 1, READALL_CHUNK, in);
+        if (n == 0)
+            break;
+
+        used += n;
+    }
+
+    if (ferror(in)) {
+        free(data);
+		exit(-1);
+    }
+
+    temp = realloc(data, used + 1);
+    if (temp == NULL) {
+        free(data);
+		exit(-1);
+    }
+    data = temp;
+    data[used] = '\0';
+
+    *dataptr = data;
+    *sizeptr = used;
+}
 
 size_t utf8_strlen(const char *str) {
     mbstate_t state = {0};
@@ -1372,8 +1429,8 @@ void str_change(const Arg *arg) {
 
 void quit() {
 	endwin();
-	free_matrix(&matrix, num_rows, num_cols);
-	free_matrix(&mat_reg, reg_rows, reg_cols);
+	//free_matrix(&matrix, num_rows, num_cols);
+	//free_matrix(&mat_reg, reg_rows, reg_cols);
 	unlink(FIFO);
 	exit(0);
 }
@@ -1387,128 +1444,61 @@ void keypress(int key) {
 }
 
 char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
-	ssize_t l = strlen(*buffer);
-	int n = 0, f = 0, temp = 0;
-	for (int i = 0; i < l; i++) {
-		if ((*buffer)[i] == '\n') {
-			f++;
-			if (f > temp)
-				temp = f;
-			f = 0;
-			n++;
-		}
-		else if ((*buffer)[i] == ',')
-			f++;
-	}
-	*num_rows = n;
-	*num_cols = temp;
-	char ***matrix = (char ***)malloc((*num_rows)*sizeof(char **));
-	int k = 0; // pos in buffer
-	for (int i = 0; i < *num_rows; i++) {
-		matrix[i] = (char **)malloc((*num_cols)*sizeof(char *));
-		int j = 0;
-		char *start = *buffer + k;
-		while ((*buffer)[k] != '\n') {
-			if ((*buffer)[k] == ',') {
-				(*buffer)[k] = '\0';
-				matrix[i][j] = start;
-				j++;
-				start = *buffer + k + 1;
-			}
-			k++;
-		}
-		(*buffer)[k] = '\0';
-		matrix[i][j] = start;
-		k++;
-		for (;++j < *num_cols;)
-			matrix[i][j] = NULL;
-	}
-	return matrix;
-}
-
-char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
-
-    if (file == NULL) {
-        exit(-1);
-    }
-
-    char *data = malloc((READALL_CHUNK + 1) * sizeof(char));
-    size_t nread;
     int row = 0, col = 0;
 	int col_s = 32, row_s = 32;
 	size_t n = 0;
-    int remlen = 0;
     int f = 0;
-	char *k = NULL;
-	char *start = NULL;
 
     char ***matrix = malloc(row_s * sizeof(char **));
 	matrix[row] = malloc(col_s * sizeof(char *));
-    while (1) {
-        if (n) {
-			memmove(data, start, n);
-			if (n > remlen) {
-				remlen = n;
-				data = realloc(data, READALL_CHUNK + 1 + n);
+	char *k = *buffer;
+	char *start = k;
+	while (*k) {
+		n++;
+		if (*k == ',') {
+			if (col >= col_s) {
+				col_s *= 2;
+				matrix[row] = realloc(matrix[row], col_s * sizeof(char *));
 			}
-        }
-        nread = fread(data + n, 1, READALL_CHUNK, file);
-        data[n + nread] = '\0';
-        if (nread == 0)
-            break;
-
-		k = data;
-		start = k;
-		n = 0;
-        while (*k) {
-			n++;
-            if (*k == ',') {
-				if (col >= col_s) {
-					col_s *= 2;
-					matrix[row] = realloc(matrix[row], col_s * sizeof(char *));
+			*k = '\0'; 
+			matrix[row][col] = start;
+			n = 0;
+			col++;
+			start = k + 1;
+		}
+		else if (*k == '\n') {
+			*k = '\0';
+			matrix[row][col] = start;
+			n = 0;
+			col++;
+			if (col > f) { // If row more columns than previous add cols to rows before
+				for (int i = 0; i < row; i++) {
+					matrix[i] = realloc(matrix[i], col*sizeof(char *));
+					for (int j = f; j < col; j++)
+						matrix[i][j] = strdup("");
 				}
-				*k = '\0';
-				matrix[row][col] = malloc(n * sizeof(char));
-				memcpy(matrix[row][col], start, n);
-				n = 0;
-                col++;
-				start = k + 1;
-            }
-			else if (*k == '\n') {
-				*k = '\0';
-				matrix[row][col] = malloc(n * sizeof(char));
-				memcpy(matrix[row][col], start, n);
-				n = 0;
-				col++;
-                if (col > f) { // If row more columns than previous add cols to rows before
-					for (int i = 0; i < row; i++) {
-						matrix[i] = realloc(matrix[i], col*sizeof(char *));
-						for (int j = f; j < col; j++)
-							matrix[i][j] = strdup("");
-					}
-                    f = col;
-				}
-				while (col < f) { // If row less columns than previous add cols to num_cols
-					matrix[row][col++] = strdup("");
-				}
-                col = 0;
-				matrix[row] = realloc(matrix[row], f * sizeof(char *));
-				row++;
-				if (row >= row_s) {
-					row_s *= 2;
-					matrix = realloc(matrix, row_s * sizeof(char **));
-				}
-				start = k + 1;
-				matrix[row] = malloc(col_s * sizeof(char *));
-            }
-			k++;
-        }
-    }
+				f = col;
+			}
+			while (col < f) { // If row less columns than previous add cols to num_cols
+				matrix[row][col++] = strdup("");
+			}
+			col = 0;
+			matrix[row] = realloc(matrix[row], f * sizeof(char *));
+			row++;
+			if (row >= row_s) {
+				row_s *= 2;
+				matrix = realloc(matrix, row_s * sizeof(char **));
+			}
+			start = k + 1;
+			matrix[row] = malloc(col_s * sizeof(char *));
+		}
+		k++;
+	}
 
 	if (n == 0 && col == 0) free(matrix[row]);
 	else {
 		if (n) {
-			matrix[row][col] = strdup(data);
+			matrix[row][col] = strdup(start);
 			col++;
 		}
         if (col > f) {
@@ -1529,7 +1519,6 @@ char ***read_to_matrix(FILE *file, int *num_rows, int *num_cols) {
     *num_cols = f;
 
 	matrix = realloc(matrix, *num_rows * sizeof(char **));
-    free(data);
 
     return matrix;
 }
@@ -1549,7 +1538,10 @@ int main(int argc, char *argv[]) {
 		fname = argv[1];
 	else fname = NULL;
     FILE *file = fopen(fname, "r");
-	matrix = read_to_matrix(file, &num_rows, &num_cols);
+	char *buffer = NULL;
+	size_t sizeptr;
+	readall(file, &buffer, &sizeptr);
+	matrix = write_to_matrix(&buffer, &num_rows, &num_cols);
 	if (file != NULL)
 		fclose(file);
 
