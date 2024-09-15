@@ -1152,14 +1152,7 @@ void wipe_cells() {
 }
 
 void push(node_t ** head, struct undo_data *data, int data_count) {
-	if (*head == NULL) {
-		*head = (node_t *) malloc(sizeof(node_t));
-		(*head)->next = NULL;
-		(*head)->prev = NULL;
-	}
-    node_t * new_node;
-    new_node = (node_t *) malloc(sizeof(node_t));
-
+    node_t * new_node = (node_t *) malloc(sizeof(node_t));
 	new_node->data = (struct undo_data *)malloc(data_count * sizeof(struct undo_data));;
     for (int i = 0; i < data_count; i++) {
         new_node->data[i] = data[i];
@@ -1416,6 +1409,32 @@ void str_change(const Arg *arg) {
 
 void quit() {
 	endwin();
+	node_t *temp = NULL;
+	while (head->prev != NULL) {
+		temp = head->prev;
+		head = temp;
+	}
+	int brk = 0;
+	while (1) {
+		if (head->next == NULL) {
+			temp = head;
+			brk = 1;
+		}
+		else temp = head->next;
+		for (int i = 0; i < temp->data_count; i++) {
+			if (temp->data[i].mat != NULL) {
+				free_matrix(&(temp->data[i].mat), temp->data[i].rows, temp->data[i].cols);
+			}
+			if (temp->data[i].cell != NULL) {
+				if (temp->data[i].operation == PasteCell || temp->data[i].operation == Paste)
+					free(temp->data[i].cell);
+			}
+		}
+		free(temp->data);
+		head->next = temp->next;
+		free(temp);
+		if (brk == 1) break;
+	}
 	free_matrix(&matrix, num_rows, num_cols);
 	free_matrix(&mat_reg, reg_rows, reg_cols);
 	unlink(FIFO);
@@ -1526,6 +1545,14 @@ int main(int argc, char *argv[]) {
 	size_t sizeptr;
 	readall(file, &buffer, &sizeptr);
 	matrix = write_to_matrix(&buffer, &num_rows, &num_cols);
+	head = (node_t *) malloc(sizeof(node_t));
+	struct undo_data data[] = {{Paste, NULL, buffer, num_rows, num_cols, 0, 0, 0, 0, 0, 0}};
+	head->data = (struct undo_data *)malloc(sizeof(struct undo_data));;
+	head->data[0] = data[0];
+    head->data_count = 1;
+	head->next = NULL;
+	head->prev = NULL;
+
 	if (file != NULL)
 		fclose(file);
 
