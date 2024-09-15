@@ -854,7 +854,7 @@ void write_to_cells(char *buffer, int arg) {
 			if (inverse != NULL) {
 				undo_mat[i][j] = matrix[ch[0] + i][ch[2] + j];
 				paste_mat[i][j] = inverse;
-				matrix[ch[0] + i][ch[2] + j] = strdup(inverse);
+				matrix[ch[0] + i][ch[2] + j] = inverse;
 			}
 			else {
 				undo_mat[i][j] = NULL;
@@ -865,7 +865,7 @@ void write_to_cells(char *buffer, int arg) {
 	struct undo_data data[] = {
 		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x},
 		{Delete, undo_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
-		{Paste, paste_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
+		{Paste, paste_mat, buffer, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&head, data, 3);
 	// Free temp
@@ -1103,7 +1103,6 @@ void write_to_pipe(const Arg *arg) {
 			write_to_cells(output_buffer, arg->i);
 		}
 	}
-	if (output_buffer != NULL) free(output_buffer);
 	visual_end();
 }
 
@@ -1177,7 +1176,8 @@ void push(node_t ** head, struct undo_data *data, int data_count) {
 				free_matrix(&(temp->data[i].mat), temp->data[i].rows, temp->data[i].cols);
 			}
 			if (temp->data[i].cell != NULL) {
-				free(temp->data[i].cell);
+				if (temp->data[i].operation == PasteCell || temp->data[i].operation == Paste)
+					free(temp->data[i].cell);
 			}
 		}
 		free(temp->data);
@@ -1211,7 +1211,6 @@ void undo(const Arg *arg) {
 				for (int i = 0; i < head->data[l].rows; i++) {
 					for (int j = 0; j < head->data[l].cols; j++) {
 						if (head->data[l].mat[i][j] != NULL) {
-							free(matrix[head->data[l].loc_y + i][head->data[l].loc_x + j]);
 							matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = strdup("");
 						}
 					}
@@ -1221,28 +1220,20 @@ void undo(const Arg *arg) {
 				for (int i = 0; i < head->data[l].rows; i++) {
 					for (int j = 0; j < head->data[l].cols; j++) {
 						if (head->data[l].mat[i][j] != NULL) {
-							free(matrix[head->data[l].loc_y + i][head->data[l].loc_x + j]);
-							matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = strdup(head->data[l].mat[i][j]);
+							matrix[head->data[l].loc_y + i][head->data[l].loc_x + j] = head->data[l].mat[i][j];
 						}
 					}
 				}
 			}
 			else if (op == PasteCell) {
-				free(matrix[head->data[l].loc_y][head->data[l].loc_x]);
-				matrix[head->data[l].loc_y][head->data[l].loc_x] = strdup(head->data[l].cell);
+				matrix[head->data[l].loc_y][head->data[l].loc_x] = head->data[l].cell;
 			}
 			else if (op == DeleteCell) {
-				free(matrix[head->data[l].loc_y][head->data[l].loc_x]);
 				matrix[head->data[l].loc_y][head->data[l].loc_x] = strdup("");
 			}
 			else if (op == Cut) {
 				if (head->data[l].rows > 0) {
 					int num = head->data[l].rows;
-					for (int j = 0; j < num; j++) {
-						for (int i = 0; i < num_cols; i++)
-							free(matrix[head->data[l].loc_y + j][i]);
-						free(matrix[head->data[l].loc_y + j]);
-					}
 					for (int i = head->data[l].loc_y; i < num_rows - num; i++)
 						matrix[i] = matrix[i + num];
 					matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
@@ -1251,8 +1242,6 @@ void undo(const Arg *arg) {
 				if (head->data[l].cols > 0) {
 					int num = head->data[l].cols;
 					for (int j = 0; j < num_rows; j++) {
-						for (int i = 0; i < num; i++)
-							free(matrix[j][head->data[l].loc_x + i]);
 						for (int i = head->data[l].loc_x; i < num_cols - num; i++)
 							matrix[j][i] = matrix[j][i + num];
 						matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
@@ -1407,7 +1396,7 @@ void str_change(const Arg *arg) {
 		else if (arg->i == 2)
 			str = get_str(matrix[y][x], 1, 0);
 		char * undo_cell = matrix[y][x];
-		char * paste_cell = strdup(str);
+		char * paste_cell = str;
 		matrix[y][x] = str;
 
 		struct undo_data data[] = {
@@ -1427,8 +1416,8 @@ void str_change(const Arg *arg) {
 
 void quit() {
 	endwin();
-	//free_matrix(&matrix, num_rows, num_cols);
-	//free_matrix(&mat_reg, reg_rows, reg_cols);
+	free_matrix(&matrix, num_rows, num_cols);
+	free_matrix(&mat_reg, reg_rows, reg_cols);
 	unlink(FIFO);
 	exit(0);
 }
@@ -1523,9 +1512,6 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
 
 void free_matrix(char ****matrix, int num_rows, int num_cols) {
 	for (int i = 0; i < num_rows; i++) {
-		for (int j = 0; j < num_cols && (*matrix)[i][j] != NULL; j++) {
-			free((*matrix)[i][j]);
-		}
 		free((*matrix)[i]);
 	}
 	free(*matrix);
