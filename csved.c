@@ -1166,36 +1166,34 @@ void push(node_t ** head, struct undo_data *data, int data_count) {
         new_node->data[i] = data[i];
     }
     new_node->data_count = data_count;
-	new_node->next = *head;
-	new_node->prev = NULL;
+	new_node->prev = *head;
+	new_node->next = NULL;
 
 	// free previous nodes if in the middle of history
-	while ((*head)->prev != NULL) {
-		node_t * temp = (*head)->prev;
+	while ((*head)->next != NULL) {
+		node_t * temp = (*head)->next;
 		for (int i = 0; i < temp->data_count; i++) {
 			if (temp->data[i].mat != NULL) {
 				free_matrix(&(temp->data[i].mat), temp->data[i].rows, temp->data[i].cols);
-				temp->data[i].mat = NULL;
 			}
 			if (temp->data[i].cell != NULL) {
 				free(temp->data[i].cell);
-				temp->data[i].cell = NULL;
 			}
 		}
 		free(temp->data);
-		(*head)->prev = (*head)->prev->prev;
+		(*head)->next = temp->next;
 		free(temp);
 	}
 
-	(*head)->prev = new_node;
+	(*head)->next = new_node;
 	*head = new_node;
 }
 
 void undo(const Arg *arg) {
 	if (head != NULL) {
-		if (arg->i == Redo && head->prev == NULL) return;
-		else if (arg->i == Undo && head->next == NULL) return;
-		if (arg->i == Redo) head = head->prev;
+		if (arg->i == Redo && head->next == NULL) return;
+		else if (arg->i == Undo && head->prev == NULL) return;
+		if (arg->i == Redo) head = head->next;
 		for (int m = 0; m < head->data_count; m++) {
 			int l;
 			if (arg->i == Undo) l = head->data_count - 1 - m;
@@ -1299,7 +1297,7 @@ void undo(const Arg *arg) {
 			s_y = head->data[l].s_y;
 			s_x = head->data[l].s_x;
 		}
-		if (arg->i == Undo) head = head->next;
+		if (arg->i == Undo) head = head->prev;
 	}
 }
 
