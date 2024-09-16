@@ -27,6 +27,8 @@ enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell, Undo, Redo};
 
 char ***matrix = NULL;
 char ***mat_reg = NULL;
+char *reg_buffer = NULL;
+size_t reg_size = 0;
 int reg_rows, reg_cols = 0;
 int num_rows, num_cols;
 int rows, cols;
@@ -1116,17 +1118,44 @@ void write_to_pipe(const Arg *arg) {
 }
 
 void yank_cells() {
-	free_matrix(&mat_reg, reg_rows, reg_cols);
-	reg_rows = ch[1] - ch[0];
-	reg_cols = ch[3] - ch[2];
-	mat_reg = (char***)malloc(reg_rows * sizeof(char**));
-	for (int i = 0; i < reg_rows; i++)
-		mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
-	for (int i = ch[0]; i < ch[1]; i++) {
-		for (int j = ch[2]; j < ch[3]; j++) {
-			mat_reg[i - ch[0]][j - ch[2]] = strdup(matrix[i][j]);
-		}
-	}
+    if (mat_reg) {
+		free_matrix(&mat_reg, reg_rows, reg_cols);
+        mat_reg = NULL;
+    }
+
+    reg_rows = ch[1] - ch[0];
+    reg_cols = ch[3] - ch[2];
+
+    if (reg_buffer) {
+        free(reg_buffer);
+        reg_buffer = NULL;
+        reg_size = 0;
+    }
+
+    for (int i = ch[0]; i < ch[1]; i++) {
+        for (int j = ch[2]; j < ch[3]; j++) {
+            reg_size += strlen(matrix[i][j]) + 1;
+        }
+    }
+
+    reg_buffer = (char *)malloc(reg_size * sizeof(char));
+    if (!reg_buffer) {
+        perror("Memory allocation for reg_buffer failed");
+        exit(-1);
+    }
+    mat_reg = (char ***)malloc(reg_rows * sizeof(char **));
+    for (int i = 0; i < reg_rows; i++) {
+        mat_reg[i] = (char **)malloc(reg_cols * sizeof(char *));
+    }
+
+    char *current_ptr = reg_buffer;
+    for (int i = ch[0]; i < ch[1]; i++) {
+        for (int j = ch[2]; j < ch[3]; j++) {
+            strcpy(current_ptr, matrix[i][j]);
+            mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+            current_ptr += strlen(matrix[i][j]) + 1;
+        }
+    }
 	visual_end();
 }
 
@@ -1293,7 +1322,12 @@ void undo(const Arg *arg) {
 }
 
 void paste_cells(const Arg *arg) {
+	char *buffer = NULL;
 	if (mat_reg == NULL) return;
+	else {
+		buffer = malloc(reg_size*sizeof(char));
+		memcpy(buffer, reg_buffer, reg_size);
+	}
 	int rows = reg_rows;
 	int cols = reg_cols;
 	if (arg->i == 1) {
@@ -1334,16 +1368,17 @@ void paste_cells(const Arg *arg) {
 			undo_mat[i][j] = matrix[y + i][x + j];
 			char *inverse = mat_reg[i][j];
 			if (arg->i == 1) inverse = mat_reg[j][i];
-			paste_mat[i][j] = strdup(inverse);
-			matrix[y + i][x + j] = strdup(inverse);
+			paste_mat[i][j] = inverse;
+			matrix[y + i][x + j] = inverse;
 		}
 	}
 	struct undo_data data[] = {
 		{Insert, NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x},
 		{Delete, undo_mat, NULL, rows, cols, y, x, s_y, s_x, y, x},
-		{Paste, paste_mat, NULL, rows, cols, y, x, s_y, s_x, y, x}
+		{Paste, paste_mat, reg_buffer, rows, cols, y, x, s_y, s_x, y, x}
 	};
 	push(&head, data, 3);
+	reg_buffer = buffer;
 }
 
 void deleting() {
@@ -1446,6 +1481,7 @@ void quit() {
 	}
 	free_matrix(&matrix, num_rows, num_cols);
 	free_matrix(&mat_reg, reg_rows, reg_cols);
+	free(reg_buffer);
 	unlink(FIFO);
 	exit(0);
 }
