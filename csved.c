@@ -157,13 +157,20 @@ static Key keys[] = {
 };
 
 int readall(FILE *in, char **dataptr, size_t *sizeptr) {
-    char  *data = NULL, *temp;
+    char *data = NULL, *temp;
     size_t size = 0;
     size_t used = 0;
     size_t n;
 
+	/* If empty of no file? */
+	if (in == NULL) {
+		*dataptr = strdup("\n");
+		*sizeptr = 1;
+		return 0;
+	}
+
     /* None of the parameters can be NULL. */
-    if (in == NULL || dataptr == NULL || sizeptr == NULL)
+    if (dataptr == NULL || sizeptr == NULL)
         exit(-1);
 
     /* A read error already occurred? */
@@ -484,7 +491,6 @@ char* get_str(char* str, char loc, const char cmd) {
 			if (cmd != 0) {
 				c_x = 1;
 				c_y = rows - 1;
-				mvaddch(c_y, c_x-1, cmd);
 			}
 			if ((cols - c_x) > i_utf8) {
 				cx_add = i_utf8;
@@ -513,6 +519,9 @@ char* get_str(char* str, char loc, const char cmd) {
 			}
 			else trimmed = 0;
 			draw();
+			if (cmd != 0) {
+				mvaddch(c_y, c_x-1, cmd);
+			}
 			if (s > 0) s_y = s_y0;
 			mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
 			mvaddstr(c_y, c_x, buffer + trimmed);
