@@ -107,6 +107,7 @@ char **parse_command(char * cmd, const int arg);
 void write_to_cells(char *buffer, int arg);
 void free_matrix(char ****matrix, int num_rows, int num_cols);
 char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
+void reg_wipe();
 
 static Key keys[] = {
     {'q', quit, {0}},
@@ -399,26 +400,25 @@ void insert_row(const Arg *arg) {
 }
 
 void delete_row() {
-    int num = ch[1] - ch[0];
-    if (num_rows > num) {
-        free_matrix(&mat_reg, reg_rows, reg_cols);
-        mat_reg = (char***)malloc(num * sizeof(char**));
-        reg_rows = num;
-        reg_cols = num_cols;
-        char ***undo_mat = (char ***)malloc(num*sizeof(char**));
-        for (int i = 0; i < num; i++) {
-            undo_mat[i] = matrix[ch[0] + i];
-            mat_reg[i] = (char **)malloc(num_cols * sizeof(char *));
-            for (int j = 0; j < num_cols; j++)
-                mat_reg[i][j] = strdup(matrix[ch[0] + i][j]);
+    reg_wipe();
+    if (num_rows > reg_rows) {
+        char ***undo_mat = (char ***)malloc(reg_rows * sizeof(char **));
+        char *current_ptr = reg_buffer;
+        for (int i = ch[0]; i < ch[1]; i++) {
+            undo_mat[i - ch[0]] = matrix[i];
+            for (int j = ch[2]; j < ch[3]; j++) {
+                if (matrix[i][j] == NULL) matrix[i][j] = "";
+                strcpy(current_ptr, matrix[i][j]);
+                mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+                current_ptr += strlen(matrix[i][j]) + 1;
+            }
         }
-        for (int i = ch[0]; i < num_rows - num; i++)
-            matrix[i] = matrix[i + num];
-        matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
-        num_rows -= num;
+        for (int i = ch[0]; i < num_rows - reg_rows; i++)
+            matrix[i] = matrix[i + reg_rows];
+        num_rows -= reg_rows;
         struct undo_data data[] = {
-            {Delete, undo_mat, NULL, num, num_cols, ch[0], x, s_y, s_x, ch[0], 0},
-            {Cut, NULL, NULL, num, 0, ch[0], x, s_y, s_x, ch[0], x}
+            {Delete, undo_mat, NULL, reg_rows, reg_cols, ch[0], x, s_y, s_x, ch[0], ch[2]},
+            {Cut, NULL, NULL, reg_rows, 0, ch[0], x, s_y, s_x, ch[0], x}
         };
         push(&head, data, 2);
         y = ch[0];
@@ -430,28 +430,29 @@ void delete_row() {
 }
 
 void delete_col() {
-    int num = ch[3] - ch[2];
-    char ***undo_mat = (char ***)malloc(num_rows*sizeof(char **));
-    free_matrix(&mat_reg, reg_rows, reg_cols);
-    mat_reg = (char***)malloc(num_rows * sizeof(char**));
-    reg_rows = num_rows;
-    reg_cols = num;
-    if (num_cols > num) {
-        for (int j = 0; j < num_rows; j++) {
-            undo_mat[j] = (char **)malloc(num * sizeof(char *));
-            mat_reg[j] = (char**)malloc(num * sizeof(char*));
-            for (int i = 0; i < num; i++) {
-                undo_mat[j][i] = matrix[j][ch[2] + i];
-                mat_reg[j][i] = strdup(matrix[j][ch[2] + i]);
-            }
-            for (int i = ch[2]; i < num_cols - num; i++)
-                matrix[j][i] = matrix[j][i + num];
-            matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
+    reg_wipe();
+    if (num_cols > reg_cols) {
+        char ***undo_mat = (char ***)malloc(reg_rows * sizeof(char**));
+        for (int i = 0; i < reg_rows; i++) {
+            undo_mat[i] = (char **)malloc(reg_cols * sizeof(char*));
         }
-        num_cols -= num;
+        char *current_ptr = reg_buffer;
+        for (int i = ch[0]; i < ch[1]; i++) {
+            for (int j = ch[2]; j < ch[3]; j++) {
+                undo_mat[i - ch[0]][j - ch[2]] = matrix[i][j];
+                if (matrix[i][j] == NULL) matrix[i][j] = "";
+                strcpy(current_ptr, matrix[i][j]);
+                mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+                current_ptr += strlen(matrix[i][j]) + 1;
+                matrix[i][j] = NULL;
+            }
+            for (int j = ch[2]; j < num_cols - reg_cols; j++)
+                matrix[i][j] = matrix[i][j + reg_cols];
+        }
+        num_cols -= reg_cols;
         struct undo_data data[] = {
-            {Delete, undo_mat, NULL, num_rows, num, y, ch[2], s_y, s_x, 0, ch[2]},
-            {Cut, NULL, NULL, 0, num, y, ch[2], s_y, s_x, y, ch[2]}
+            {Delete, undo_mat, NULL, reg_rows, reg_cols, y, ch[2], s_y, s_x, ch[0], ch[2]},
+            {Cut, NULL, NULL, 0, reg_cols, y, ch[2], s_y, s_x, y, ch[2]}
         };
         push(&head, data, 2);
         x = ch[2];
@@ -1123,37 +1124,41 @@ void write_to_pipe(const Arg *arg) {
     visual_end();
 }
 
-void yank_cells() {
+void reg_wipe() {
     if (mat_reg) {
         free_matrix(&mat_reg, reg_rows, reg_cols);
         mat_reg = NULL;
     }
-
-    reg_rows = ch[1] - ch[0];
-    reg_cols = ch[3] - ch[2];
 
     if (reg_buffer) {
         free(reg_buffer);
         reg_buffer = NULL;
         reg_size = 0;
     }
-
+    reg_rows = ch[1] - ch[0];
+    reg_cols = ch[3] - ch[2];
     for (int i = ch[0]; i < ch[1]; i++) {
         for (int j = ch[2]; j < ch[3]; j++) {
-            reg_size += strlen(matrix[i][j]) + 1;
+            if (matrix[i][j] != NULL)
+                reg_size += strlen(matrix[i][j]) + 1;
+            else
+                reg_size += 1;
         }
     }
-
     reg_buffer = (char *)malloc(reg_size * sizeof(char));
     if (!reg_buffer) {
-        perror("Memory allocation for reg_buffer failed");
-        exit(-1);
+        printw("Memory allocation for reg_buffer failed.");
+        getch();
+        return;
     }
     mat_reg = (char ***)malloc(reg_rows * sizeof(char **));
     for (int i = 0; i < reg_rows; i++) {
         mat_reg[i] = (char **)malloc(reg_cols * sizeof(char *));
     }
+}
 
+void yank_cells() {
+    reg_wipe();
     char *current_ptr = reg_buffer;
     for (int i = ch[0]; i < ch[1]; i++) {
         for (int j = ch[2]; j < ch[3]; j++) {
@@ -1167,24 +1172,19 @@ void yank_cells() {
 
 void wipe_cells() {
     if (mode == 'v') {
-        int range_rows = (ch[1]-ch[0]);
-        int range_cols = (ch[3]-ch[2]);
+        reg_wipe();
 
-        free_matrix(&mat_reg, reg_rows, reg_cols);
-        reg_rows = range_rows;
-        reg_cols = range_cols;
-        mat_reg = (char***)malloc(reg_rows * sizeof(char**));
+        char *** undo_mat = (char***)malloc(reg_rows * sizeof(char**));
         for (int i=0; i<reg_rows; i++) {
-            mat_reg[i] = (char**)malloc(reg_cols * sizeof(char*));
+            undo_mat[i] = (char**)malloc(reg_cols * sizeof(char*));
         }
-        char *** undo_mat = (char***)malloc(range_rows * sizeof(char**));
-        for (int i=0; i<range_rows; i++) {
-            undo_mat[i] = (char**)malloc(range_cols * sizeof(char*));
-        }
-        for (int i=ch[0]; i<ch[1]; i++) {
-            for (int j=ch[2]; j<ch[3]; j++) {
+        char *current_ptr = reg_buffer;
+        for (int i = ch[0]; i < ch[1]; i++) {
+            for (int j = ch[2]; j < ch[3]; j++) {
                 undo_mat[i-ch[0]][j-ch[2]] = matrix[i][j];
-                mat_reg[i-ch[0]][j-ch[2]] = strdup(matrix[i][j]);
+                strcpy(current_ptr, matrix[i][j]);
+                mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+                current_ptr += strlen(matrix[i][j]) + 1;
                 matrix[i][j] = NULL;
             }
         }
@@ -1398,6 +1398,8 @@ void deleting() {
         int key;
         key = getch();
         if (key == 'l' || key == 'h') {
+            ch[0] = 0;
+            ch[1] = num_rows;
             ch[2] = x;
             ch[3] = x + 1;
             delete_col();
@@ -1405,6 +1407,8 @@ void deleting() {
         else if (key == 'j' || key == 'k') {
             ch[0] = y;
             ch[1] = y + 1;
+            ch[2] = 0;
+            ch[3] = num_cols;
             delete_row();
         }
     }
