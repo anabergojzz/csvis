@@ -108,6 +108,7 @@ void write_to_cells(char *buffer, int arg);
 void free_matrix(char ****matrix, int num_rows, int num_cols);
 char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
 void reg_wipe();
+void statusbar(char *string);
 
 static Key keys[] = {
     {'q', quit, {0}},
@@ -159,6 +160,12 @@ static Key keys[] = {
     {'D', deleting, {0}}
 };
 
+void statusbar(char *string) {
+    mvprintw(rows - 1, 0, " ");
+    mvprintw(rows - 1, 1, string);
+    getch();
+}
+
 int readall(FILE *in, char **dataptr, size_t *sizeptr) {
     char *data = NULL, *temp;
     size_t size = 0;
@@ -174,11 +181,11 @@ int readall(FILE *in, char **dataptr, size_t *sizeptr) {
 
     /* None of the parameters can be NULL. */
     if (dataptr == NULL || sizeptr == NULL)
-        exit(-1);
+        exit(EXIT_FAILURE);
 
     /* A read error already occurred? */
     if (ferror(in))
-        exit(-1);
+        exit(EXIT_FAILURE);
 
     while (1) {
 
@@ -189,13 +196,13 @@ int readall(FILE *in, char **dataptr, size_t *sizeptr) {
                may optimize this away, though. */
             if (size <= used) {
                 free(data);
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
 
             temp = realloc(data, size);
             if (temp == NULL) {
                 free(data);
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
             data = temp;
         }
@@ -209,13 +216,13 @@ int readall(FILE *in, char **dataptr, size_t *sizeptr) {
 
     if (ferror(in)) {
         free(data);
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     temp = realloc(data, used + 1);
     if (temp == NULL) {
         free(data);
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     data = temp;
     data[used] = '\0';
@@ -738,10 +745,9 @@ void write_csv(const Arg *arg) {
         int fd = open(filename, O_WRONLY | O_NONBLOCK);
         if (fd == -1) {
             if (errno == ENXIO) {
-                mvaddstr(rows-1, 0, " Nobody listens. ");
-                getch();
+                statusbar("Nobody listens.");
             } else {
-                perror("open");
+                statusbar("Error opening named pipe.");
             }
             close(fd);
             return;
@@ -749,13 +755,12 @@ void write_csv(const Arg *arg) {
         close(fd);
     }
     if (strlen(filename) == 0) {
-        addstr(" Empty filename. ");
-        getch();
+        statusbar("Empty filename.");
     }
     else {
         FILE *file = fopen(filename, "w");
         if (!file) {
-            perror("Error opening file for writing");
+            statusbar("Error opening file for writing");
         }
 
         if (mode == 'n') {
@@ -922,7 +927,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
         close(pout[1]);
         close(perr[0]);
         close(perr[1]);
-        perror("Failed to fork");
+        statusbar("Failed to fork.");
         return -1;
     } else if (pid == 0) {  // Child process
         close(pin[1]);
@@ -935,9 +940,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
         close(pout[1]);
         close(perr[1]);
 
-        execlp(SHELL, SHELL, "-c", cmd, (char*)NULL);
+        execlp(SHELL, SHELL, "-c", cmd, (char *)NULL);
         // if execlp witout success
-        perror("Exec failure");
         exit(EXIT_FAILURE);
     }
 
@@ -954,6 +958,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
     int row = ch[0], col = ch[2];
     size_t pos = 0, pos_str = 0;
     ssize_t buffer_capacity = 0;
+    char buferror[4096];
+    size_t poserror = 0;
 
     while (pin[1] != -1 || pout[0] != -1 || perr[0] != -1) {
 
@@ -993,7 +999,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
                     memmove(buffer, buffer + nwritten, buffer_len);
                 }
                 else {
-                    perror("error writing to pipe.");
+                    statusbar("Error writing to pipe.");
                     close(pin[1]);
                     pin[1] = -1;
                     break;
@@ -1021,7 +1027,7 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
                 close(pout[0]);
                 pout[0] = -1;
             } else if (errno != EINTR && errno != EWOULDBLOCK) {
-                perror("Error reading from stdout");
+                statusbar("Error reading from stdout.");
                 close(pout[0]);
                 pout[0] = -1;
                 break;
@@ -1032,12 +1038,13 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
             char buf[PIPE_BUF];
             nread = read(perr[0], buf, sizeof(buf));
             if (nread > 0) {
-                fwrite(buf, 1, nread, stderr);
+                memcpy(buferror + poserror, buf, nread);
+                poserror += nread;
             } else if (nread == 0) {
                 close(perr[0]);
                 perr[0] = -1;
             } else if (errno != EINTR && errno != EWOULDBLOCK) {
-                perror("Error reading from stderr");
+                statusbar("Error reading from stderr.");
                 close(perr[0]);
                 perr[0] = -1;
                 break;
@@ -1048,8 +1055,9 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
     waitpid(pid, &status, 0);
 
     if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "Command failed with exit status %d\n", WEXITSTATUS(status));
-        getch();
+        //fprintf(stderr, "Command failed with exit status %d\n", WEXITSTATUS(status));
+        //getch();
+        statusbar(buferror);
         return -1;
     }
 }
@@ -1147,8 +1155,7 @@ void reg_wipe() {
     }
     reg_buffer = (char *)malloc(reg_size * sizeof(char));
     if (!reg_buffer) {
-        printw("Memory allocation for reg_buffer failed.");
-        getch();
+        statusbar("Memory allocation for reg_buffer failed.");
         return;
     }
     mat_reg = (char ***)malloc(reg_rows * sizeof(char **));
@@ -1611,11 +1618,6 @@ int main(int argc, char *argv[]) {
     if (file != NULL)
         fclose(file);
 
-    if (mkfifo(FIFO, 0666) == -1) {
-        if (errno != EEXIST)
-            perror("mkfifo");
-    }
-
     setlocale(LC_ALL, "");
     initscr();
     cbreak();
@@ -1623,6 +1625,11 @@ int main(int argc, char *argv[]) {
     noecho();
     keypad(stdscr, TRUE); // enable use of special keys as KEY_LEFT
     int key;
+
+    if (mkfifo(FIFO, 0666) == -1) {
+        if (errno != EEXIST)
+            statusbar("Error with mkfifo, pipe to named pipe will not be possible.");
+    }
 
     while (1) {
         when_resize();
