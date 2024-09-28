@@ -383,7 +383,12 @@ void when_resize() {
 void insert_col(const Arg *arg) {
     x += arg->i;
     for (int i = 0; i < num_rows; i++) {
-        matrix[i] = (char **)realloc(matrix[i], (num_cols + 1) * sizeof(char *));
+        char **newp = (char **)realloc(matrix[i], (num_cols + 1) * sizeof(char *));
+        if (newp == NULL) {
+            statusbar("Cannot reallocate memory.");
+            return;
+        }
+        matrix[i] = newp;
         for (int j = num_cols; j > x; j--)
             matrix[i][j] = matrix[i][j - 1];
         matrix[i][x] = NULL;
@@ -395,7 +400,12 @@ void insert_col(const Arg *arg) {
 
 void insert_row(const Arg *arg) {
     y += arg->i;
-    matrix = (char ***)realloc(matrix, (num_rows + 1) * sizeof(char *));
+    char ***newp = (char ***)realloc(matrix, (num_rows + 1) * sizeof(char *));
+    if (newp == NULL) {
+        statusbar("Cannot reallocate memory.");
+        return;
+    }
+    matrix = newp;
     for (int i = num_rows; i > y; i--)
         matrix[i] = matrix[i - 1];
     matrix[y] = (char **)malloc(num_cols * sizeof(char *));
@@ -492,7 +502,12 @@ char* get_str(char* str, char loc, const char cmd) {
     while (1) {
         if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
             bufsize *= 2;
-            buffer = (char*)realloc(buffer, bufsize * sizeof(char));
+            char *newp = (char *)realloc(buffer, bufsize * sizeof(char));
+            if (newp == NULL) {
+                statusbar("Cannot reallocate memory.");
+                return buffer;
+            }
+            buffer = newp;
         }
         if (k > 0) k--;
         else {
@@ -623,6 +638,12 @@ char* get_str(char* str, char loc, const char cmd) {
 
 
     buffer = (char*)realloc(buffer, (str_size + 1) * sizeof(char));
+    char *newp = (char *)realloc(buffer, (str_size + 1) * sizeof(char));
+    if (newp == NULL) {
+        statusbar("Cannot reallocate memory.");
+        return buffer;
+    }
+    buffer = newp;
     return buffer;
 }
 
@@ -847,7 +868,12 @@ void write_to_cells(char *buffer, int arg) {
     int add_y, add_x = 0;
     if ((add_y = ch[0] + rows - num_rows) < 0) add_y = 0;
     if (add_y > 0) { /* If not enough rows */
-        matrix = (char ***)realloc(matrix, (num_rows + add_y)*sizeof(char **));
+        char ***newp = (char ***)realloc(matrix, (num_rows + add_y)*sizeof(char **));
+        if (newp == NULL) {
+            statusbar("Cannot reallocate memory.");
+            return;
+        }
+        matrix = newp;
         for (int i = num_rows; i < num_rows + add_y; i++) {
             matrix[i] = (char **)malloc(num_cols * sizeof(char *));
             for (int j = 0; j < num_cols; j++) {
@@ -859,7 +885,12 @@ void write_to_cells(char *buffer, int arg) {
     if ((add_x = ch[2] + cols - num_cols) < 0) add_x = 0;
     if (add_x > 0) { /* If not enough cols */
         for (int i = 0; i < num_rows; i++) {
-            matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+            char **newp = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+            if (newp == NULL) {
+                statusbar("Cannot reallocate memory.");
+                return;
+            }
+            matrix[i] = newp;
             for (int j = num_cols; j < num_cols + add_x; j++) {
                 matrix[i][j] = NULL;
             }
@@ -1016,7 +1047,15 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
             nread = read(pout[0], buf, sizeof(buf));
             if (*output_buffer_size + nread + 1 > buffer_capacity) {
                 buffer_capacity = buffer_capacity ? buffer_capacity * 2 : (nread * 2) + 1;
-                *output_buffer = realloc(*output_buffer, buffer_capacity);
+                char *newp = (char *)realloc(*output_buffer, buffer_capacity);
+                if (newp == NULL) {
+                    statusbar("Cannot reallocate memory.");
+                    close(pout[0]);
+                    close(pin[1]);
+                    close(perr[0]);
+                    return -1;
+                }
+                *output_buffer = newp;
             }
             if (nread > 0) {
                 memcpy(*output_buffer + *output_buffer_size, buf, nread);
@@ -1280,7 +1319,12 @@ void undo(const Arg *arg) {
                     int num = head->data[l].rows;
                     for (int i = head->data[l].loc_y; i < num_rows - num; i++)
                         matrix[i] = matrix[i + num];
-                    matrix = realloc(matrix, (num_rows - num)*sizeof(char**));
+                    char ***newp = (char ***)realloc(matrix, (num_rows - num)*sizeof(char **));
+                    if (newp == NULL) {
+                        statusbar("Cannot reallocate memory.");
+                        return;
+                    }
+                    matrix = newp;
                     num_rows -= num;
                 }
                 if (head->data[l].cols > 0) {
@@ -1288,7 +1332,12 @@ void undo(const Arg *arg) {
                     for (int j = 0; j < num_rows; j++) {
                         for (int i = head->data[l].loc_x; i < num_cols - num; i++)
                             matrix[j][i] = matrix[j][i + num];
-                        matrix[j] = realloc(matrix[j], (num_cols - num)*sizeof(char *));
+                        char **newp = (char **)realloc(matrix[j], (num_cols - num)*sizeof(char *));
+                        if (newp == NULL) {
+                            statusbar("Cannot reallocate memory.");
+                            return;
+                        }
+                        matrix[j] = newp;
                     }
                     num_cols -= num;
                 }
@@ -1296,7 +1345,12 @@ void undo(const Arg *arg) {
             else if (op == Insert) {
                 if (head->data[l].cols > 0) {
                     for (int i = 0; i < num_rows; i++) {
-                        matrix[i] = (char **)realloc(matrix[i], (num_cols + head->data[l].cols) * sizeof(char *));
+                        char **newp = (char **)realloc(matrix[i], (num_cols + head->data[l].cols) * sizeof(char *));
+                        if (newp == NULL) {
+                            statusbar("Cannot reallocate memory.");
+                            return;
+                        }
+                        matrix[i] = newp;
                         for (int j = num_cols + head->data[l].cols - 1; j >= head->data[l].loc_x + head->data[l].cols; j--) {
                             matrix[i][j] = matrix[i][j - head->data[l].cols];
                         }
@@ -1306,7 +1360,12 @@ void undo(const Arg *arg) {
                     num_cols += head->data[l].cols;
                 }
                 if (head->data[l].rows > 0) {
-                    matrix = (char ***)realloc(matrix, (num_rows + head->data[l].rows) * sizeof(char **));
+                    char ***newp = (char ***)realloc(matrix, (num_rows + head->data[l].rows) * sizeof(char **));
+                    if (newp == NULL) {
+                        statusbar("Cannot reallocate memory.");
+                        return;
+                    }
+                    matrix = newp;
                     for (int i = num_rows + head->data[l].rows - 1; i >= head->data[l].loc_y + head->data[l].rows; i--) {
                         matrix[i] = matrix[i - head->data[l].rows];
                     }
@@ -1351,7 +1410,12 @@ void paste_cells(const Arg *arg) {
     int add_y, add_x = 0;
     if ((add_y = y + rows - num_rows) < 0) add_y = 0;
     if (add_y > 0) { /* If not enough rows */
-        matrix = (char ***)realloc(matrix, (num_rows + add_y)*sizeof(char **));
+        char ***newp = (char ***)realloc(matrix, (num_rows + add_y)*sizeof(char **));
+        if (newp == NULL) {
+            statusbar("Cannot reallocate memory.");
+            return;
+        }
+        matrix = newp;
         for (int i = num_rows; i < num_rows + add_y; i++) {
             matrix[i] = (char **)malloc(num_cols * sizeof(char *));
             for (int j = 0; j < num_cols; j++) {
@@ -1363,7 +1427,12 @@ void paste_cells(const Arg *arg) {
     if ((add_x = x + cols - num_cols) < 0) add_x = 0;
     if (add_x > 0) { /* If not enough cols */
         for (int i = 0; i < num_rows; i++) {
-            matrix[i] = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+            char **newp = (char **)realloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+            if (newp == NULL) {
+                statusbar("Cannot reallocate memory.");
+                return;
+            }
+            matrix[i] = newp;
             for (int j = num_cols; j < num_cols + add_x; j++) {
                 matrix[i][j] = NULL;
             }
@@ -1438,7 +1507,12 @@ void str_change(const Arg *arg) {
         else if (x == num_cols) {
             num_cols++;
             for (int i = 0; i < num_rows; i++) {
-                matrix[i] = (char **)realloc(matrix[i], num_cols * sizeof(char *));
+                char **newp = (char **)realloc(matrix[i], num_cols * sizeof(char *));
+                if (newp == NULL) {
+                    statusbar("Cannot reallocate memory.");
+                    return;
+                }
+                matrix[i] = newp;
                 matrix[i][x] = NULL;
             }
             cols = 1;
@@ -1526,7 +1600,12 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
         if (*k == ',') {
             if (col >= col_s) {
                 col_s *= 2;
-                matrix[row] = realloc(matrix[row], col_s * sizeof(char *));
+                char **newp = (char **)realloc(matrix[row], col_s * sizeof(char *));
+                if (newp == NULL) {
+                    statusbar("Cannot reallocate memory.");
+                    return matrix;
+                }
+                matrix[row] = newp;
             }
             *k = '\0'; 
             matrix[row][col] = start;
@@ -1541,7 +1620,12 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
             col++;
             if (col > f) { // If row more columns than previous add cols to rows before
                 for (int i = 0; i < row; i++) {
-                    matrix[i] = realloc(matrix[i], col*sizeof(char *));
+                    char **newp = (char **)realloc(matrix[i], col*sizeof(char *));
+                    if (newp == NULL) {
+                        statusbar("Cannot reallocate memory.");
+                        return matrix;
+                    }
+                    matrix[i] = newp;
                     for (int j = f; j < col; j++)
                         matrix[i][j] = NULL;
                 }
@@ -1551,11 +1635,21 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
                 matrix[row][col++] = NULL;
             }
             col = 0;
-            matrix[row] = realloc(matrix[row], f * sizeof(char *));
+            char **newp = (char **)realloc(matrix[row], f * sizeof(char *));
+            if (newp == NULL) {
+                statusbar("Cannot reallocate memory.");
+                return matrix;
+            }
+            matrix[row] = newp;
             row++;
             if (row >= row_s) {
                 row_s *= 2;
-                matrix = realloc(matrix, row_s * sizeof(char **));
+                char ***newp = (char ***)realloc(matrix, row_s * sizeof(char **));
+                if (newp == NULL) {
+                    statusbar("Cannot reallocate memory.");
+                    return matrix;
+                }
+                matrix = newp;
             }
             start = k + 1;
             matrix[row] = malloc(col_s * sizeof(char *));
@@ -1571,7 +1665,12 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
         }
         if (col > f) {
             for (int i = 0; i < row; i++) {
-                matrix[i] = realloc(matrix[i], col * sizeof(char *));
+                char **newp = (char **)realloc(matrix[i], col * sizeof(char *));
+                if (newp == NULL) {
+                    statusbar("Cannot reallocate memory.");
+                    return matrix;
+                }
+                matrix[i] = newp;
                 for (int j = f; j < col; j++)
                     matrix[i][j] = NULL;
             }
@@ -1586,7 +1685,12 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
     *num_rows = row;
     *num_cols = f;
 
-    matrix = realloc(matrix, *num_rows * sizeof(char **));
+    char ***newp = (char ***)realloc(matrix, *num_rows * sizeof(char **));
+    if (newp == NULL) {
+        statusbar("Cannot reallocate memory.");
+        return matrix;
+    }
+    matrix = newp;
 
     return matrix;
 }
