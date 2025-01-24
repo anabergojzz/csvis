@@ -1702,6 +1702,21 @@ void free_matrix(char ****matrix, int num_rows, int num_cols) {
     free(*matrix);
 }
 
+void initialise_history_chain() {
+    head = (node_t *) malloc(sizeof(node_t));
+    head->next = NULL;
+    head->prev = NULL;
+}
+
+void init_ui() {
+    setlocale(LC_ALL, "");
+    initscr();
+    cbreak();
+    raw();
+    noecho();
+    keypad(stdscr, TRUE); // enable use of special keys as KEY_LEFT
+}
+
 int main(int argc, char *argv[]) {
     if (argc > 1)
         fname = argv[1];
@@ -1711,23 +1726,12 @@ int main(int argc, char *argv[]) {
     size_t sizeptr;
     readall(file, &buffer, &sizeptr);
     matrix = write_to_matrix(&buffer, &num_rows, &num_cols);
-    head = (node_t *) malloc(sizeof(node_t));
-    struct undo_data data[] = {{Paste, NULL, buffer, num_rows, num_cols, 0, 0, 0, 0, 0, 0}};
-    head->data = (struct undo_data *)malloc(sizeof(struct undo_data));;
-    head->data[0] = data[0];
-    head->data_count = 1;
-    head->next = NULL;
-    head->prev = NULL;
+    initialise_history_chain();
 
     if (file != NULL)
         fclose(file);
 
-    setlocale(LC_ALL, "");
-    initscr();
-    cbreak();
-    raw();
-    noecho();
-    keypad(stdscr, TRUE); // enable use of special keys as KEY_LEFT
+    init_ui();
     int key;
 
     if (mkfifo(FIFO, 0666) == -1) {
