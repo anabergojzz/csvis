@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
@@ -246,6 +248,25 @@ size_t utf8_strlen(const char *str) {
     return len;
 }
 
+void format_wide_string(wchar_t *buffer, size_t max_width) {
+    size_t len = 0;
+    size_t i = 0;
+
+    while (buffer[i] != L'\0' && len < max_width) {
+        int char_width = wcwidth(buffer[i]);
+        if (char_width < 0) char_width = 0;
+        if (len + char_width > max_width) break;
+        len += char_width;
+        i++;
+    }
+
+    while (len < max_width) {
+        len++;
+        buffer[i++] = L' ';
+    }
+    buffer[i] = L'\0';
+}
+
 void draw() {
     clear();
     for (int i = 0; i < scr_y; i++) {
@@ -254,18 +275,13 @@ void draw() {
                 attron(A_STANDOUT);
             }
             else attroff(A_STANDOUT);
-            char* cell_value = matrix[i + s_y][j + s_x];
+            char *cell_value = matrix[i + s_y][j + s_x];
             if (cell_value == NULL) cell_value = "";
-            int utf8_w = 0;
-            int k = 0;
-            for (; k < CELL_WIDTH*4; k++) {
-                if (utf8_w == CELL_WIDTH - 1 || cell_value[k] == '\0') {
-                    break;
-                }
-                if ((cell_value[k] & 0xC0) != 0xC0) utf8_w++;
-            }
-            k = CELL_WIDTH - 1 + k - utf8_w;
-            mvprintw(i, j * CELL_WIDTH, "%-*.*s", k, k, cell_value);
+            wchar_t buffer[CELL_WIDTH];
+            mbstowcs(buffer, cell_value, CELL_WIDTH - 1);
+            buffer[CELL_WIDTH - 1] = L'\0';
+            format_wide_string(buffer, CELL_WIDTH - 1);
+            mvaddwstr(i, j * CELL_WIDTH, buffer);
         }
     }
     wmove(stdscr, c_y, c_x);
