@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <wchar.h>
 
 #define CELL_WIDTH 10
 #define PIPE_BUF 4096
@@ -248,6 +249,19 @@ size_t utf8_strlen(const char *str) {
     return len;
 }
 
+int wcswidth_total(const wchar_t* wstr) {
+    int total_width = 0;
+    for (size_t i = 0; wstr[i] != L'\0'; i++) {
+        int width = wcwidth(wstr[i]);
+        if (width == -1) {
+            // Neveljaven znak
+            return -1;
+        }
+        total_width += width;
+    }
+    return total_width;
+}
+
 void format_wide_string(wchar_t *buffer, size_t max_width) {
     size_t len = 0;
     size_t i = 0;
@@ -374,6 +388,7 @@ void move_n() {
     }
 }
 
+/* Calculate screen size, screen position and cursor position */
 void when_resize() {
     getmaxyx(stdscr, rows, cols);
     scr_x = cols/CELL_WIDTH;
@@ -384,7 +399,7 @@ void when_resize() {
         s_y = y;
     else if (y >= s_y + scr_y) // if y below screen
         s_y = y - (scr_y - 1);
-    if (scr_y - (num_rows - s_y) > 0) // correct s_y when resizing
+    if (scr_y - (num_rows - s_y) > 0) // correct s_y when increasing window size to expand to whole window size
         s_y -= scr_y - (num_rows - s_y);
     if (x <= s_x) // if x left of screen
         s_x = x;
@@ -498,169 +513,145 @@ void delete_col() {
 
 char* get_str(char* str, char loc, const char cmd) {
     if (str == NULL) str = "";
-    ssize_t str_size = strlen(str);
-    ssize_t str_size_utf8 = utf8_strlen(str);
-    ssize_t bufsize = str_size + 10; // Initial buffer size
-    char* buffer = (char*) malloc(bufsize * sizeof(char));
-    memcpy(buffer, str, str_size + 1);
-    int i = 0;
-    int i_utf8 = 0;
+    size_t str_size = mbstowcs(NULL, str, 0);
+    size_t bufsize = str_size + 32; // Initial buffer size
+    wchar_t* buffer = (wchar_t *)malloc(bufsize * sizeof(wchar_t));
+    mbstowcs(buffer, str, str_size + 1);
+    int i = 0; // Position in buffer
+    int ic = 0; // Position on screen
     if (loc == 1) {
         i = str_size;
-        i_utf8 += str_size_utf8;
+        ic = wcswidth_total(buffer);
     }
     int cx_add, cy_add = 0;
 
-    int key;
-    char k = 0; // to track multibyte utf8 chars
-    int trimmed = 0;
+    wint_t key;
+    int cy_hidden = 0;
 
     while (1) {
-        if (str_size >= bufsize - 4) { // If buffer is nearly full, increase its size
+        if (str_size + 1 >= bufsize) { // If buffer is nearly full, increase its size
             bufsize *= 2;
-            char *newp = (char *)realloc(buffer, bufsize * sizeof(char));
+            wchar_t *newp = (wchar_t *)realloc(buffer, bufsize * sizeof(wchar_t));
             if (newp == NULL) {
+                free(buffer);
                 statusbar("Cannot reallocate memory.");
-                return buffer;
+                return NULL;
             }
             buffer = newp;
         }
-        if (k > 0) k--;
-        else {
-            when_resize();
-            if (cmd != 0) {
-                c_x = 1;
-                c_y = rows - 1;
-            }
-            if ((cols - c_x) > i_utf8) {
-                cx_add = i_utf8;
-                cy_add = 0;
-            }
-            else {
-                cx_add = (i_utf8 - (cols - c_x))%cols - c_x;
-                cy_add = 1 + (i_utf8 - (cols - c_x))/cols;
-            }
-            int s = c_y + cy_add - rows + 1;
-            if (s > 0) { // if bottom of screen reached
-                s_y0 = s_y;
-                s_y += s;
-                if (scr_y <= rows) scr_y -= s; // if last row on screen
-                c_y -= s;
 
-                if (c_y < 0) { // if insert start position above window
-                    trimmed = cols - c_x + (-c_y - 1)*cols; // trimmed text
-                    cy_add += c_y;
-                    c_y = 0;
-                    scr_y = 0;
-                    cx_add += c_x;
-                    c_x = 0;
+        when_resize();
+        if (cmd != 0) {
+            c_x = 1;
+            c_y = rows - 1;
+        }
+        if ((cols - c_x) > ic) {
+            cx_add = ic;
+            cy_add = 0;
+        }
+        else {
+            cx_add = (ic - (cols - c_x))%cols - c_x;
+            cy_add = 1 + (ic - (cols - c_x))/cols;
+        }
+        int s = c_y + cy_add - rows + 1;
+        if (s > 0) { // if bottom of screen reached
+            s_y0 = s_y;
+            s_y += s;
+            if (scr_y <= rows) scr_y -= s; // if last row on screen
+            c_y -= s;
+
+            if (c_y < 0) { // if insert start position above window
+                cy_hidden = cols - c_x + (-c_y - 1)*cols; // text hidden above top row
+                cy_add += c_y;
+                c_y = 0;
+                scr_y = 0;
+                cx_add += c_x;
+                c_x = 0;
+            }
+            else cy_hidden = 0;
+        }
+        else cy_hidden = 0;
+        if (s > 0) s_y = s_y0;
+        if (cmd != 0) {
+            mvaddch(c_y, c_x-1, cmd);
+        }
+        draw();
+        mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
+        mvaddwstr(c_y, c_x, buffer);
+        addch(' ');
+        wmove(stdscr, c_y + cy_add, c_x + cx_add);
+
+        int ret = get_wch(&key);
+        if (ret == OK) {
+            if (key == '\n') {
+                if (cmd == 0) {
+                    mode = 'i';
                 }
-                else trimmed = 0;
-            }
-            else trimmed = 0;
-            draw();
-            if (cmd != 0) {
-                mvaddch(c_y, c_x-1, cmd);
-            }
-            if (s > 0) s_y = s_y0;
-            mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
-            mvaddstr(c_y, c_x, buffer + trimmed);
-            addch(' ');
-            wmove(stdscr, c_y + cy_add, c_x + cx_add);
-        }
-        key = getch();
-        if (key == '\n') {
-            if (cmd == 0) {
-                mode = 'i';
-            }
-            break;
-        }
-        if (key == '\t') {
-            if (cmd == 0) {
-                mode = 'j';
-            }
-            break;
-        }
-        else if (key == '\x03') {
-            if (cmd == 0) {
-                mode = 'n';
                 break;
             }
-            else {
-                free(buffer);
-                return NULL;
-            }
-        }
-        else if (key == KEY_LEFT) {
-            if (i > 0) {
-                while ((buffer[--i] & 0xC0) == 0x80) {
-                    continue;
+            if (key == '\t') {
+                if (cmd == 0) {
+                    mode = 'j';
                 }
-                i_utf8--;
+                break;
             }
-        }
-        else if (key == KEY_RIGHT) {
-            if (i < str_size) {
-                while ((buffer[++i] & 0xC0) == 0x80) {
-                    continue;
+            else if (key == '\x03') {
+                if (cmd == 0) {
+                    mode = 'n';
+                    break;
                 }
-                i_utf8++;
+                else {
+                    free(buffer);
+                    return NULL;
+                }
+            }
+            else if (key >= 32) {
+                wmemmove(buffer + i + 1, buffer + i, str_size - i + 1);
+                buffer[i++] = (wchar_t)key;
+                ic += wcwidth((wchar_t)key);
+                str_size++;
             }
         }
-        else if (key == KEY_HOME) {
-                i = 0;
-                i_utf8 = 0;
-        }
-        else if (key == KEY_END) {
-                i = str_size;
-                i_utf8 = str_size_utf8;
-        }
-        else if (key == KEY_BACKSPACE) {
-            if (i > 0) {
-                i_utf8--;
-                while ((buffer[--i] & 0xC0) == 0x80) {
+        else if (ret == KEY_CODE_YES) {
+            if (key == KEY_LEFT) {
+                if (i > 0) {
+                    ic -= wcwidth(buffer[--i]);
+                }
+            }
+            else if (key == KEY_RIGHT) {
+                if (i < str_size) {
+                    ic += wcwidth(buffer[i++]);
+                }
+            }
+            else if (key == KEY_HOME) {
+                    i = ic = 0;
+            }
+            else if (key == KEY_END) {
+                    i = str_size;
+                    ic = wcswidth_total(buffer);
+            }
+            else if (key == KEY_BACKSPACE) {
+                if (i > 0) {
+                    ic -= wcwidth(buffer[--i]);
+                    wmemmove(buffer + i, buffer + i + 1, str_size - i);
                     str_size--;
-                    str_size_utf8--;
-                    memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
                 }
-                str_size--;
-                memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
             }
-        }
-        else if (key == KEY_DC) {
-            if (i < str_size) {
-                do {
+            else if (key == KEY_DC) {
+                if (i < str_size) {
+                    wmemmove(buffer + i, buffer + i + 1, str_size - i);
                     str_size--;
-                    memmove(buffer + i, buffer + i + 1, strlen(buffer) - i + 1);
                 }
-                while ((buffer[i] & 0xC0) == 0x80);
-                str_size_utf8--;
             }
-        }
-        else if (key >= 256 || key <= 31); // other control and nonprintable characters
-        else {
-            memmove(buffer + i + 1, buffer + i, strlen(buffer) - i + 1);
-            buffer[i] = (char)key;
-            if ((buffer[i] & 0xC0) != 0x80) {
-                    i_utf8++;
-                    str_size_utf8++;
-            }
-
-            if ((buffer[i] & 0xC0) == 0xC0) k = 1;
-            i++;
-            str_size++;
         }
     }
 
+    size_t mb_len = wcstombs(NULL, buffer, 0) + 1;
+    char* rbuffer = (char*)malloc(mb_len);
+    wcstombs(rbuffer, buffer, mb_len);
+    free(buffer);
 
-    buffer = (char*)realloc(buffer, (str_size + 1) * sizeof(char));
-    char *newp = (char *)realloc(buffer, (str_size + 1) * sizeof(char));
-    if (newp == NULL) {
-        statusbar("Cannot reallocate memory.");
-        return buffer;
-    }
-    buffer = newp;
-    return buffer;
+    return rbuffer;
 }
 
 void visual_start() {
