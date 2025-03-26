@@ -1,0 +1,36 @@
+#!/home/andrej/src/curses_csv_viewer/csv/modules/bin/python3
+#!/usr/bin/python3
+import os
+import sys
+import code
+import time
+import matplotlib.pyplot as plt
+
+pipe_name = '/tmp/pyfifo'
+try:
+    os.chdir(sys.argv[1])
+except IndexError:
+    os.chdir("/home/andrej/tmp")
+
+if not os.path.exists(pipe_name):
+    print("Imenovana cev še ni bila ustvarjena.")
+    exit()
+
+fig = plt.figure()
+
+interactive = code.InteractiveConsole(locals=locals())
+
+expectBlockEnd = False
+with open(pipe_name, 'r') as cev:
+    while True:
+        nova_vrstica = cev.readline()
+        if nova_vrstica:
+            if expectBlockEnd == True and nova_vrstica[0].isspace() == False:
+                interactive.push('\n')
+            if interactive.push(nova_vrstica.strip('\n')):
+                expectBlockEnd = True
+                continue
+            else:
+                expectBlockEnd = False
+        else:
+            time.sleep(0.1)
