@@ -49,14 +49,13 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
 
 ## Bugs
-- error when yank -> undo -> paste
 - errors when inserting wide characters at the end of line
 - inserting text when screen is full
 
 ---
 
 ## TODO
-- [ ] Change delimiter
+- [ ] change delimiter
 - [ ] leave file structure (without adding separators) if changing only fields that exist (!= NULL)
 - [ ] vi movements page down, up, H, M, L, zz, zt, zb
 - [ ] add commands (:q, :w)
@@ -71,6 +70,8 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 - [ ] how to mark chosen area (yank 5.4,2.10)
 - [ ] generalise send to named pipe
 - [ ] do not overwrite if original file has changed while editing
+- [ ] support for quotations
+- [ ] generalise transposed functions
 
 ## Contribute
 Please contact me for suggestions, advice, report issues,...

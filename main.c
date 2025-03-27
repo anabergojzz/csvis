@@ -527,6 +527,7 @@ char* get_str(char* str, char loc, const char cmd) {
 
     wint_t key;
     int cy_hidden = 0;
+    s_y0 = s_y;
 
     while (1) {
         if (str_size + 1 >= bufsize) { // If buffer is nearly full, increase its size
@@ -555,7 +556,6 @@ char* get_str(char* str, char loc, const char cmd) {
         }
         int s = c_y + cy_add - rows + 1;
         if (s > 0) { // if bottom of screen reached
-            s_y0 = s_y;
             s_y += s;
             if (scr_y <= rows) scr_y -= s; // if last row on screen
             c_y -= s;
@@ -571,7 +571,6 @@ char* get_str(char* str, char loc, const char cmd) {
             else cy_hidden = 0;
         }
         else cy_hidden = 0;
-        if (s > 0) s_y = s_y0;
         if (cmd != 0) {
             mvaddch(c_y, c_x-1, cmd);
         }
@@ -650,6 +649,7 @@ char* get_str(char* str, char loc, const char cmd) {
     char* rbuffer = (char*)malloc(mb_len);
     wcstombs(rbuffer, buffer, mb_len);
     free(buffer);
+    s_y = s_y0; // revert to screen position before insertion
 
     return rbuffer;
 }
@@ -1405,7 +1405,6 @@ void paste_cells(const Arg *arg) {
     if (mat_reg == NULL) return;
     else {
         buffer = malloc(reg_size*sizeof(char));
-        memcpy(buffer, reg_buffer, reg_size);
     }
     int rows = reg_rows;
     int cols = reg_cols;
@@ -1446,28 +1445,30 @@ void paste_cells(const Arg *arg) {
         }
         num_cols += add_x;
     }
-    char *** undo_mat = (char***)malloc(rows * sizeof(char**));
-    char *** paste_mat = (char***)malloc(rows * sizeof(char**));
+    char ***undo_mat = (char***)malloc(rows * sizeof(char**));
+    char ***paste_mat = (char***)malloc(rows * sizeof(char**));
     for (int i=0; i<rows; i++) {
         undo_mat[i] = (char**)malloc(cols * sizeof(char*));
         paste_mat[i] = (char**)malloc(cols * sizeof(char*));
     }
+    char *current_ptr = buffer;
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             undo_mat[i][j] = matrix[y + i][x + j];
             char *inverse = mat_reg[i][j];
             if (arg->i == 1) inverse = mat_reg[j][i];
-            paste_mat[i][j] = inverse;
-            matrix[y + i][x + j] = inverse;
+            strcpy(current_ptr, inverse);
+            paste_mat[i][j] = current_ptr;
+            matrix[y + i][x + j] = current_ptr;
+            current_ptr += strlen(inverse) + 1;
         }
     }
     struct undo_data data[] = {
         {Insert, NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x},
         {Delete, undo_mat, NULL, rows, cols, y, x, s_y, s_x, y, x},
-        {Paste, paste_mat, reg_buffer, rows, cols, y, x, s_y, s_x, y, x}
+        {Paste, paste_mat, buffer, rows, cols, y, x, s_y, s_x, y, x}
     };
     push(&head, data, 3);
-    reg_buffer = buffer;
 }
 
 void deleting() {
@@ -1709,12 +1710,6 @@ void free_matrix(char ****matrix, int num_rows, int num_cols) {
     free(*matrix);
 }
 
-void initialise_history_chain() {
-    head = (node_t *) malloc(sizeof(node_t));
-    head->next = NULL;
-    head->prev = NULL;
-}
-
 void init_ui() {
     setlocale(LC_ALL, "");
     initscr();
@@ -1733,7 +1728,13 @@ int main(int argc, char *argv[]) {
     size_t sizeptr;
     readall(file, &buffer, &sizeptr);
     matrix = write_to_matrix(&buffer, &num_rows, &num_cols);
-    initialise_history_chain();
+    head = (node_t *) malloc(sizeof(node_t));
+    head->next = NULL;
+    head->prev = NULL;
+    struct undo_data data[] = {{Paste, NULL, buffer, num_rows, num_cols, 0, 0, 0, 0, 0, 0}};
+    head->data = (struct undo_data *)malloc(sizeof(struct undo_data));
+    head->data[0] = data[0];
+    head->data_count = 1;
 
     if (file != NULL)
         fclose(file);
