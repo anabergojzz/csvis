@@ -49,10 +49,7 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
 
 ## Bugs
-- errors when inserting wide characters at the end of line
 - inserting text when screen is full
-
----
 
 ## TODO
 - [ ] change delimiter

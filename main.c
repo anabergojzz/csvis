@@ -1215,9 +1215,13 @@ void yank_cells() {
     char *current_ptr = reg_buffer;
     for (int i = ch[0]; i < ch[1]; i++) {
         for (int j = ch[2]; j < ch[3]; j++) {
-            strcpy(current_ptr, matrix[i][j]);
-            mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
-            current_ptr += strlen(matrix[i][j]) + 1;
+            char *temp = matrix[i][j];
+            if (temp != NULL) {
+                strcpy(current_ptr, matrix[i][j]);
+                mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+                current_ptr += strlen(matrix[i][j]) + 1;
+            }
+            else mat_reg[i - ch[0]][j - ch[2]] = NULL;
         }
     }
     visual_end();
@@ -1457,10 +1461,16 @@ void paste_cells(const Arg *arg) {
             undo_mat[i][j] = matrix[y + i][x + j];
             char *inverse = mat_reg[i][j];
             if (arg->i == 1) inverse = mat_reg[j][i];
-            strcpy(current_ptr, inverse);
-            paste_mat[i][j] = current_ptr;
-            matrix[y + i][x + j] = current_ptr;
-            current_ptr += strlen(inverse) + 1;
+            if (inverse != NULL) {
+                strcpy(current_ptr, inverse);
+                paste_mat[i][j] = current_ptr;
+                matrix[y + i][x + j] = current_ptr;
+                current_ptr += strlen(inverse) + 1;
+            }
+            else {
+                paste_mat[i][j] = NULL;
+                matrix[y + i][x + j] = NULL;
+            }
         }
     }
     struct undo_data data[] = {
