@@ -48,9 +48,6 @@ e > a=[1,2,3]                 # Write to named pipe (e.g. python repl - pyrepl s
 Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
 
-## Bugs
-- inserting text when screen is full
-
 ## TODO
 - [ ] change delimiter
 - [ ] leave file structure (without adding separators) if changing only fields that exist (!= NULL)

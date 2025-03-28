@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+#define _XOPEN_SOURCE 700
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -526,7 +526,7 @@ char* get_str(char* str, char loc, const char cmd) {
     int cx_add, cy_add = 0;
 
     wint_t key;
-    int cy_hidden = 0;
+    int hidden_text = 0;
     s_y0 = s_y;
 
     while (1) {
@@ -561,23 +561,30 @@ char* get_str(char* str, char loc, const char cmd) {
             c_y -= s;
 
             if (c_y < 0) { // if insert start position above window
-                cy_hidden = cols - c_x + (-c_y - 1)*cols; // text hidden above top row
+                hidden_text = cols - c_x + (-c_y - 1)*cols; // text hidden above top row
+                int total_width = 0;
+                for (int i = 0; i < hidden_text && buffer[i] != L'\0'; i++) {
+                    int char_width = wcwidth(buffer[i]);
+                    if (char_width > 0)
+                        total_width += char_width;
+                }
+                hidden_text = hidden_text - (total_width - hidden_text);
                 cy_add += c_y;
                 c_y = 0;
                 scr_y = 0;
                 cx_add += c_x;
                 c_x = 0;
             }
-            else cy_hidden = 0;
+            else hidden_text = 0;
         }
-        else cy_hidden = 0;
+        else hidden_text = 0;
         if (cmd != 0) {
             mvaddch(c_y, c_x-1, cmd);
         }
         draw();
         mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
-        mvaddwstr(c_y, c_x, buffer);
-        addch(' ');
+        mvaddwstr(c_y, c_x, buffer + hidden_text);
+        //addch(' ');
         wmove(stdscr, c_y + cy_add, c_x + cx_add);
 
         int ret = get_wch(&key);
