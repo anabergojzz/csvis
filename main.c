@@ -1525,6 +1525,12 @@ void str_change(const Arg *arg) {
     while (mode == 'i' || mode == 'j') {
         if (y == num_rows) {
             num_rows++;
+            char ***new_matrix = (char ***)realloc(matrix, num_rows * sizeof(char **));
+            if (new_matrix == NULL) {
+                statusbar("Cannot reallocate memory for rows.");
+                return;
+            }
+            matrix = new_matrix;
             matrix[y] = (char **)malloc(num_cols * sizeof(char *));
             for (int j = 0; j < num_cols; j++) {
                 matrix[y][j] = NULL;
