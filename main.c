@@ -578,13 +578,16 @@ char* get_str(char* str, char loc, const char cmd) {
             else hidden_text = 0;
         }
         else hidden_text = 0;
+        draw();
         if (cmd != 0) {
             mvaddch(c_y, c_x-1, cmd);
         }
-        draw();
         mvprintw(c_y, c_x, "%*s", CELL_WIDTH, ""); // clear cell
         mvaddwstr(c_y, c_x, buffer + hidden_text);
-        //addch(' ');
+        int c_yend, c_xend;
+        getyx(stdscr, c_yend, c_xend);
+        if (!(c_yend == rows-1 && c_xend == cols-1))
+            addch(' ');
         wmove(stdscr, c_y + cy_add, c_x + cx_add);
 
         int ret = get_wch(&key);
