@@ -1469,8 +1469,7 @@ void paste_cells(const Arg *arg) {
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             undo_mat[i][j] = matrix[y + i][x + j];
-            char *inverse = mat_reg[i][j];
-            if (arg->i == 1) inverse = mat_reg[j][i];
+            char *inverse = (arg->i == 1) ? mat_reg[j][i] : mat_reg[i][j];
             if (inverse != NULL) {
                 strcpy(current_ptr, inverse);
                 paste_mat[i][j] = current_ptr;
