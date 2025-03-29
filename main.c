@@ -111,7 +111,7 @@ void write_to_cells(char *buffer, int arg);
 void free_matrix(char ****matrix, int num_rows, int num_cols);
 char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
 void reg_wipe();
-void statusbar(char *string);
+int statusbar(char *string);
 
 static Key keys[] = {
     {'q', quit, {0}},
@@ -163,10 +163,11 @@ static Key keys[] = {
     {'D', deleting, {0}}
 };
 
-void statusbar(char *string) {
+int statusbar(char *string) {
     mvprintw(rows - 1, 0, " ");
+    wclrtoeol(stdscr);
     mvprintw(rows - 1, 1, string);
-    getch();
+    return getch();
 }
 
 int readall(FILE *in, char **dataptr, size_t *sizeptr) {
@@ -175,14 +176,14 @@ int readall(FILE *in, char **dataptr, size_t *sizeptr) {
     size_t used = 0;
     size_t n;
 
-    /* If empty of no file? */
+    /* If empty or no file */
     if (in == NULL) {
         *dataptr = strdup("\n");
         *sizeptr = 1;
         return 0;
     }
 
-    /* None of the parameters can be NULL. */
+    /* None of the parameters can be NULL */
     if (dataptr == NULL || sizeptr == NULL)
         exit(EXIT_FAILURE);
 
@@ -765,11 +766,28 @@ void write_csv(const Arg *arg) {
     if (arg->i == WriteTo || arg->i == WriteTranspose) {
         filename = get_str("", 0, ':');
         if (filename == NULL) return;
+        if (filename != fname) {
+            FILE *test_existing = fopen(filename, "r");
+            if (test_existing != NULL) {
+                fclose(test_existing);
+                int status = statusbar("File already exists! Overwrite? [y][n]");
+                if (status != 'y') return;
+            }
+        }
     }
     else if (arg->i == WriteExisting) {
         if (fname == NULL) {
             filename = get_str("", 0, ':');
             if (filename == NULL) return;
+            else {
+                FILE *test_existing = fopen(filename, "r");
+                if (test_existing != NULL) {
+                    fclose(test_existing);
+                    int status = statusbar("File already exists! Overwrite? [y][n]");
+                    if (status != 'y') return;
+                }
+                fname = filename;
+            }
         }
         else {
             filename = (char *)malloc(strlen(fname) + 1);
@@ -850,6 +868,8 @@ void write_csv(const Arg *arg) {
 
     free(filename);
     visual_end();
+    if (arg->i == WriteTo || arg->i == WriteTranspose || arg->i == WriteExisting)
+        statusbar("Saved!");
 }
 
 void write_selection(int fd) {
