@@ -793,6 +793,7 @@ void write_csv(const Arg *arg) {
                 int status = statusbar("File already exists! Overwrite? [y][n]");
                 if (status != 'y') return;
             }
+            if (fname == NULL) fname = strdup(filename);
         }
     }
     else if (arg->i == WriteExisting) {
@@ -806,7 +807,7 @@ void write_csv(const Arg *arg) {
                     int status = statusbar("File already exists! Overwrite? [y][n]");
                     if (status != 'y') return;
                 }
-                fname = filename;
+                fname = strdup(filename);
             }
         }
         else {
@@ -1646,6 +1647,7 @@ void quit() {
     free_matrix(&matrix, num_rows, num_cols);
     free_matrix(&mat_reg, reg_rows, reg_cols);
     free(reg_buffer);
+    free(fname);
     unlink(FIFO);
     exit(0);
 }
@@ -1785,8 +1787,7 @@ void init_ui() {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc > 1)
-        fname = argv[1];
+    if (argc > 1) fname = argv[1];
     else fname = NULL;
     FILE *file = fopen(fname, "r");
     char *buffer = NULL;
