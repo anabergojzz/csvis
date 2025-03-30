@@ -793,7 +793,11 @@ void write_csv(const Arg *arg) {
                 int status = statusbar("File already exists! Overwrite? [y][n]");
                 if (status != 'y') return;
             }
-            if (fname == NULL) fname = strdup(filename);
+            if (fname == NULL) {
+                fname = strdup(filename);
+                printf("\e]0;%s - csvis\a", fname);
+                fflush(stdout);
+            }
         }
     }
     else if (arg->i == WriteExisting) {
@@ -808,6 +812,8 @@ void write_csv(const Arg *arg) {
                     if (status != 'y') return;
                 }
                 fname = strdup(filename);
+                printf("\e]0;%s - csvis\a", fname);
+                fflush(stdout);
             }
         }
         else {
@@ -1649,6 +1655,8 @@ void quit() {
     free(reg_buffer);
     free(fname);
     unlink(FIFO);
+    printf("\e]0;\a");
+    fflush(stdout);
     exit(0);
 }
 
@@ -1787,8 +1795,16 @@ void init_ui() {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc > 1) fname = argv[1];
-    else fname = NULL;
+    if (argc > 1) {
+        fname = strdup(argv[1]);
+        printf("\e]0;%s - csvis\a", fname);
+        fflush(stdout);
+    }
+    else {
+        fname = NULL;
+        printf("\e]0;[No name] - csvis\a");
+        fflush(stdout);
+    }
     FILE *file = fopen(fname, "r");
     char *buffer = NULL;
     size_t sizeptr;
