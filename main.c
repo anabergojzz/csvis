@@ -518,16 +518,15 @@ char* get_str(char* str, char loc, const char cmd) {
     size_t bufsize = str_size + 32; // Initial buffer size
     wchar_t* buffer = (wchar_t *)malloc(bufsize * sizeof(wchar_t));
     mbstowcs(buffer, str, str_size + 1);
-    int i = 0; // Position in buffer
-    int ic = 0; // Position on screen
-    if (loc == 1) {
-        i = str_size;
-        ic = wcswidth_total(buffer);
-    }
-    int cx_add, cy_add = 0;
+    size_t i = 0; // Position in buffer
+    if (loc == 1) i = str_size;
+    int cx_add, cy_add;
+    size_t c_xtemp;
 
     wint_t key;
     int hidden_text = 0;
+    size_t line_widths_size = 8;
+    int *line_widths = (int *)malloc(line_widths_size * sizeof(int));
     s_y0 = s_y;
 
     while (1) {
@@ -547,33 +546,55 @@ char* get_str(char* str, char loc, const char cmd) {
             c_x = 1;
             c_y = rows - 1;
         }
-        if ((cols - c_x) > ic) {
-            cx_add = ic;
-            cy_add = 0;
-        }
-        else {
-            cx_add = (ic - (cols - c_x))%cols - c_x;
-            cy_add = 1 + (ic - (cols - c_x))/cols;
+        int l = 0; /* number of characters in each line */
+        c_xtemp = c_x;
+        cx_add = 0, cy_add = 0;
+        for (size_t j = 0; j < i; j++) {
+            int width = wcwidth(buffer[j]);
+            if (width == -1) {
+                statusbar("Invalid character encountered.");
+                return NULL;
+            }
+            if (cx_add + width == cols - c_xtemp) {
+                line_widths[cy_add] = l + 1;
+                l = 0;
+                cy_add++;
+                cx_add = 0;
+                c_xtemp = 0;
+            }
+            else if (cx_add + width >= cols - c_xtemp) {
+                line_widths[cy_add] = l;
+                l = 1;
+                cy_add++;
+                cx_add = width;
+                c_xtemp = 0;
+            }
+            else {
+                cx_add += width;
+                l++;
+            }
+            if (cy_add >= line_widths_size) {
+                line_widths_size *= 2;
+                int *new = (int *)realloc(line_widths, line_widths_size*sizeof(int));
+                if (new == NULL) {
+                    statusbar("Cannot reallocate memory.");
+                    return NULL;
+                }
+                line_widths = new;
+            }
         }
         int s = c_y + cy_add - rows + 1;
         if (s > 0) { // if bottom of screen reached
             s_y += s;
             if (scr_y <= rows) scr_y -= s; // if last row on screen
             c_y -= s;
-
             if (c_y < 0) { // if insert start position above window
-                hidden_text = cols - c_x + (-c_y - 1)*cols; // text hidden above top row
-                int total_width = 0;
-                for (int i = 0; i < hidden_text && buffer[i] != L'\0'; i++) {
-                    int char_width = wcwidth(buffer[i]);
-                    if (char_width > 0)
-                        total_width += char_width;
-                }
-                hidden_text = hidden_text - (total_width - hidden_text);
+                hidden_text = 0;
+                for (int i = 0; i < -c_y; i++)
+                    hidden_text += line_widths[i];
                 cy_add += c_y;
-                c_y = 0;
                 scr_y = 0;
-                cx_add += c_x;
+                c_y = 0;
                 c_x = 0;
             }
             else hidden_text = 0;
@@ -618,31 +639,29 @@ char* get_str(char* str, char loc, const char cmd) {
             else if (key >= 32) {
                 wmemmove(buffer + i + 1, buffer + i, str_size - i + 1);
                 buffer[i++] = (wchar_t)key;
-                ic += wcwidth((wchar_t)key);
                 str_size++;
             }
         }
         else if (ret == KEY_CODE_YES) {
             if (key == KEY_LEFT) {
                 if (i > 0) {
-                    ic -= wcwidth(buffer[--i]);
+                    i--;
                 }
             }
             else if (key == KEY_RIGHT) {
                 if (i < str_size) {
-                    ic += wcwidth(buffer[i++]);
+                    i++;
                 }
             }
             else if (key == KEY_HOME) {
-                    i = ic = 0;
+                    i = 0;
             }
             else if (key == KEY_END) {
                     i = str_size;
-                    ic = wcswidth_total(buffer);
             }
             else if (key == KEY_BACKSPACE) {
                 if (i > 0) {
-                    ic -= wcwidth(buffer[--i]);
+                    i--;
                     wmemmove(buffer + i, buffer + i + 1, str_size - i);
                     str_size--;
                 }
@@ -660,6 +679,7 @@ char* get_str(char* str, char loc, const char cmd) {
     char* rbuffer = (char*)malloc(mb_len);
     wcstombs(rbuffer, buffer, mb_len);
     free(buffer);
+    free(line_widths);
     s_y = s_y0; // revert to screen position before insertion
 
     return rbuffer;
