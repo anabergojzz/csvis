@@ -1296,9 +1296,12 @@ void wipe_cells() {
         for (int i = ch[0]; i < ch[1]; i++) {
             for (int j = ch[2]; j < ch[3]; j++) {
                 undo_mat[i-ch[0]][j-ch[2]] = matrix[i][j];
-                strcpy(current_ptr, matrix[i][j]);
-                mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
-                current_ptr += strlen(matrix[i][j]) + 1;
+                if (matrix[i][j] != NULL) {
+                    strcpy(current_ptr, matrix[i][j]);
+                    mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+                    current_ptr += strlen(matrix[i][j]) + 1;
+                }
+                else mat_reg[i - ch[0]][j - ch[2]] = NULL;
                 matrix[i][j] = NULL;
             }
         }
