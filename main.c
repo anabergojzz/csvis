@@ -20,6 +20,7 @@
 #define FIFO "/tmp/pyfifo"
 #define XCLIP_COPY "vis-clipboard --copy"
 #define XCLIP_PASTE "vis-clipboard --paste"
+
 #define MOVE_X 3
 #define MOVE_Y 5
 
@@ -922,6 +923,7 @@ void write_to_cells(char *buffer, int arg) {
     int cols, rows;
     char *inverse = NULL;;
     char ***temp = write_to_matrix(&buffer, &rows, &cols);
+    if (temp == NULL) return;
     if (arg == PipeReadInverse) {
         int temp_rows = rows;
         rows = cols;
@@ -1055,6 +1057,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
     ssize_t buffer_capacity = 0;
     char buferror[4096];
     size_t poserror = 0;
+    int attempts = 0;
+    const int max_attempts = 4000;
 
     while (pin[1] != -1 || pout[0] != -1 || perr[0] != -1) {
 
@@ -1094,10 +1098,8 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
                     memmove(buffer, buffer + nwritten, buffer_len);
                 }
                 else {
-                    statusbar("Error writing to pipe.");
                     close(pin[1]);
                     pin[1] = -1;
-                    break;
                 }
             }
             if (row >= ch[1] && buffer_len == 0) {
@@ -1129,6 +1131,11 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
                 (*output_buffer_size)++;
                 close(pout[0]);
                 pout[0] = -1;
+            } else if (errno == EAGAIN) {
+                if (waitpid(pid, NULL, WNOHANG) == pid) {
+                    close(pout[0]);
+                    pout[0] = -1;
+                }
             } else if (errno != EINTR && errno != EWOULDBLOCK) {
                 statusbar("Error reading from stdout.");
                 close(pout[0]);
@@ -1151,6 +1158,11 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
                 close(perr[0]);
                 perr[0] = -1;
                 break;
+            } else if (errno == EAGAIN) {
+                if (++attempts > max_attempts) {
+                    close(perr[0]);
+                    perr[0] = -1;
+                }
             }
         }
     }
@@ -1158,8 +1170,6 @@ int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd) {
     waitpid(pid, &status, 0);
 
     if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-        //fprintf(stderr, "Command failed with exit status %d\n", WEXITSTATUS(status));
-        //getch();
         statusbar(buferror);
         return -1;
     }
@@ -1771,6 +1781,7 @@ char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols) {
     *num_rows = row;
     *num_cols = f;
 
+    if (*num_rows == 0|| *num_cols == 0) return NULL;
     char ***newp = (char ***)realloc(matrix, *num_rows * sizeof(char **));
     if (newp == NULL) {
         statusbar("Cannot reallocate memory.");
