@@ -18,8 +18,8 @@
 #define READALL_CHUNK 262144
 #define SHELL "/bin/sh"
 #define FIFO "/tmp/pyfifo"
-#define XCLIP_COPY "vis-clipboard --copy"
-#define XCLIP_PASTE "vis-clipboard --paste"
+#define XCLIP_COPY "xclip -selection clipboard -i"
+#define XCLIP_PASTE "xclip -selection clipboard -o"
 
 #define MOVE_X 3
 #define MOVE_Y 5

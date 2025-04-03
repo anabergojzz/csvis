@@ -2,8 +2,10 @@
 
 Simple terminal program to quickly visualise CSV files in tabular form.  
 Uses vi-style motions and modal editing (Normal/Visual/Insert modes).
-It is inspired by text editor [`Vis`](https://github.com/martanne/vis).  
-For additional functionality you can pipe selected fields to/from/through external programs.
+
+For additional functionality you can pipe selected data to/from/through
+external programs, for example to sort data, insert sequence of numbers or
+do more complex calculations using awk.
 
 ## Build
 ```sh
@@ -19,13 +21,14 @@ make
 | `g`, `G`, `0`, `$`                | Move to first/last column/row              |
 | `i`, `a`, `c`                     | Insert/append/change text                  |
 | `<Enter>`, `<Tab>`                | In insert mode proceed to next column/row  |
-| `<Ctrl-C>`                        | Quit insert/visual mode                    |
+| `<Ctrl-C>`                        | Quit insert/visual mode, cancel            |
 | `v`                               | Toogle visual mode                         |
 | `V-l`, `V-j`                      | Select entire column/row                   |
 | `I`, `A`, `O`, `o`                | Insert/append column/row                   |
 | `d`                               | Delete selection                           |
 | `D`                               | Extract if entire row/column selected      |
 | `y`, `p`                          | Yank, paste                                |
+| `Y`, `P`                          | Yank, paste clipboard (using xclip)        |
 | `>`, `\|`, `<`                    | Pipe operations                            |
 | `e`, `E`                          | Write to named pipe, write transposed      |
 | `:n.m`                            | Jump to column n, row m                    |
@@ -49,23 +52,17 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
 
 ## TODO
-- [ ] change delimiter
-- [ ] leave file structure (without adding separators) if changing only fields that exist (!= NULL)
-- [ ] vi movements page down, up, H, M, L, zz, zt, zb
+- [ ] option to change delimiter
+- [ ] vi commands ., H, M, L, zz, zt, zb
 - [ ] add commands (:q, :w)
-- [ ] struct for display state (scr_x, v_y, y)
 - [ ] search
 - [ ] research options for calculations
 - [ ] mouse support
 - [ ] multi select?
-- [ ] show full width of cells
 - [ ] enumerate
-- [ ] "." to repeat
 - [ ] how to mark chosen area (yank 5.4,2.10)
 - [ ] generalise send to named pipe
-- [ ] do not overwrite if original file has changed while editing
 - [ ] support for quotations
-- [ ] generalise transposed functions
 
 ## Contribute
 Please contact me for suggestions, advice, report issues,...
