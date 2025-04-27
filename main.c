@@ -85,7 +85,7 @@ void write_selection(int fd);
 void write_to_cells(char *buffer, int arg);
 int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd);
 void write_to_pipe(const Arg *arg);
-void reg_wipe();
+void reg_init();
 void yank_cells();
 void wipe_cells();
 void paste_cells(const Arg *arg);
@@ -503,7 +503,7 @@ insert_col(const Arg *arg)
 void
 delete_row()
 	{
-	reg_wipe();
+	reg_init();
 	if (num_rows > reg_rows)
 		{
 		char ***undo_mat = xmalloc(reg_rows * sizeof(char **));
@@ -538,7 +538,7 @@ delete_row()
 void
 delete_col()
 	{
-	reg_wipe();
+	reg_init();
 	if (num_cols > reg_cols)
 		{
 		char ***undo_mat = xmalloc(reg_rows * sizeof(char**));
@@ -1349,7 +1349,7 @@ write_to_pipe(const Arg *arg)
 	}
 
 void
-reg_wipe()
+reg_init()
 	{
 	if (mat_reg)
 		{
@@ -1384,7 +1384,7 @@ reg_wipe()
 void
 yank_cells()
 	{
-	reg_wipe();
+	reg_init();
 	char *current_ptr = reg_buffer;
 	for (int i = ch[0]; i < ch[1]; i++)
 		{
@@ -1408,7 +1408,7 @@ wipe_cells()
 	{
 	if (mode == 'v')
 		{
-		reg_wipe();
+		reg_init();
 
 		char *** undo_mat = xmalloc(reg_rows * sizeof(char**));
 		for (int i=0; i<reg_rows; i++)
@@ -1442,7 +1442,10 @@ paste_cells(const Arg *arg)
 	char *buffer = NULL;
 	if (mat_reg == NULL) return;
 	else
+		{
 		buffer = xmalloc(reg_size*sizeof(char));
+		memcpy(buffer, reg_buffer, reg_size);
+		}
 	int rows = reg_rows;
 	int cols = reg_cols;
 	if (arg->i == 1)
@@ -1683,6 +1686,9 @@ undo(const Arg *arg)
 				if (head->data[l].rows > 0)
 					{
 					int num = head->data[l].rows;
+					for (int i = 0; i < num; i++) {
+						free(matrix[head->data[l].loc_y + i]);
+					}
 					for (int i = head->data[l].loc_y; i < num_rows - num; i++)
 						matrix[i] = matrix[i + num];
 					matrix = xrealloc(matrix, (num_rows - num)*sizeof(char **));
@@ -1916,11 +1922,15 @@ init_ui()
 int
 main(int argc, char *argv[])
 	{
+	FILE *file = NULL;
+	char *buffer = NULL;
+	size_t sizeptr;
 	if (argc > 1)
 		{
 		fname = xstrdup(argv[1]);
 		printf("\e]0;%s - csvis\a", fname);
 		fflush(stdout);
+		file = fopen(fname, "r");
 		}
 	else
 		{
@@ -1928,9 +1938,6 @@ main(int argc, char *argv[])
 		printf("\e]0;[No name] - csvis\a");
 		fflush(stdout);
 		}
-	FILE *file = fopen(fname, "r");
-	char *buffer = NULL;
-	size_t sizeptr;
 	readall(file, &buffer, &sizeptr);
 	matrix = write_to_matrix(&buffer, &num_rows, &num_cols);
 	head = malloc(sizeof(node_t));
