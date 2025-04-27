@@ -32,12 +32,11 @@ make
 | `>`, `\|`, `<`                    | Pipe operations                            |
 | `e`, `E`                          | Write to named pipe, write transposed      |
 | `:n.m`                            | Jump to column n, row m                    |
-| `s`, `S`, `<Ctrl-S>`              | Save as, save transposed as, save          |
+| `s`, `<Ctrl-S>`                   | Save as, save                              |
 | `u`, `<Ctrl-R>`                   | Undo, redo                                 |
-| `q`                               | quit                                       |
+| `q`                               | Quit                                       |
 | `<Ctrl-O>`                        | Pipe to awk                                |
-| `<Ctrl-_>`                        | Read from pipe transposed                  |
-| `<Ctrl-P>`                        | Paste transposed                           |
+| `r`                               | Toogle reverse for paste, save, pipe       |
     
 ## Examples for piping selection
 ```
