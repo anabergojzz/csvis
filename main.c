@@ -67,48 +67,47 @@ typedef struct node {
 } node_t;
 node_t *head = NULL;
 
-void *xmalloc(size_t size);
-void *xrealloc(void *ptr, size_t size);
-char *xstrdup(const char *s);
+void *xmalloc(size_t);
+void *xrealloc(void *, size_t);
+char *xstrdup(const char *);
 void reverse_toogle();
-int statusbar(char *string);
-int readall(FILE *in, char **dataptr, size_t *sizeptr);
-size_t utf8_strlen(const char *str);
-int wcswidth_total(const wchar_t* wstr);
-void format_wide_string(wchar_t *buffer, size_t max_width);
-void draw();
-void move_y(const Arg *arg);
-void move_x(const Arg *arg);
+int statusbar(char *);
+int readall(FILE *, char **, size_t *);
+size_t utf8_strlen(const char *);
+int wcswidth_total(const wchar_t *);
+void format_wide_string(wchar_t *, size_t);
+void draw(void);
+void move_y(const Arg *);
+void move_x(const Arg *);
 void move_n();
-void when_resize();
-void insert_row(const Arg *arg);
-void insert_col(const Arg *arg);
+void when_resize(void);
+void insert_row(const Arg *);
+void insert_col(const Arg *);
 void delete_row();
 void delete_col();
-char* get_str(char* str, char loc, const char cmd);
+char *get_str(char *, char, const char);
 void visual_start();
 void visual_end();
 void visual();
-void write_csv(const Arg *arg);
-void write_to_cells(char *buffer, int arg);
-int pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd);
-void write_to_pipe(const Arg *arg);
-void reg_init();
+void write_csv(const Arg *);
+void write_to_cells(char *, int);
+int pipe_through(char **, ssize_t *, char *);
+void write_to_pipe(const Arg *);
+void reg_init(void);
 void yank_cells();
 void wipe_cells();
-void paste_cells(const Arg *arg);
+void paste_cells(const Arg *);
 void deleting();
 void str_change();
-void push(node_t ** head, struct undo_data *data, int data_count);
-void undo(const Arg *arg);
-void die();
+void push(node_t **, struct undo_data *, int);
+void undo(const Arg *);
+void die(void);
 void quit();
-void keypress(int key);
-char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
-void free_matrix(char ****matrix, int num_rows, int num_cols);
-void init_ui();
+void keypress(int);
+char ***write_to_matrix(char **, int *, int *);
+void free_matrix(char ****, int, int);
+void init_ui(void);
 void usage(void);
-int main(int argc, char *argv[]);
 
 /* globals */
 char ***matrix = NULL;
@@ -192,8 +191,8 @@ xmalloc(size_t size)
 	return ptr;
 	}
 
-void
-*xrealloc(void *ptr, size_t size)
+void *
+xrealloc(void *ptr, size_t size)
 	{
 	void *new_ptr = realloc(ptr, size);
 	if (new_ptr == NULL)
@@ -309,7 +308,7 @@ utf8_strlen(const char *str)
 	}
 
 int
-wcswidth_total(const wchar_t* wstr)
+wcswidth_total(const wchar_t *wstr)
 	{
 	int total_width = 0;
 	for (size_t i = 0; wstr[i] != L'\0'; i++)
@@ -347,7 +346,7 @@ format_wide_string(wchar_t *buffer, size_t max_width)
 	}
 
 void
-draw()
+draw(void)
 	{
 	clear();
 	for (int i = 0; i < scr_y; i++)
@@ -461,7 +460,7 @@ move_n()
 	}
 
 void
-when_resize()
+when_resize(void)
 	{
 	getmaxyx(stdscr, rows, cols);
 	scr_x = cols/CELL_WIDTH;
@@ -587,8 +586,8 @@ delete_col()
 		}
 	}
 
-char*
-get_str(char* str, char loc, const char cmd)
+char *
+get_str(char *str, char loc, const char cmd)
 	{
 	if (str == NULL) str = "";
 	size_t str_size = mbstowcs(NULL, str, 0);
@@ -977,8 +976,8 @@ write_to_cells(char *buffer, int arg)
 		rows = cols;
 		cols = temp_rows;
 		}
-	char ***paste_mat = xmalloc(rows * sizeof(char**));
-	char ***undo_mat = xmalloc(rows * sizeof(char**));
+	char ***paste_mat = xmalloc(rows * sizeof(char **));
+	char ***undo_mat = xmalloc(rows * sizeof(char **));
 	int add_y, add_x = 0;
 	if ((add_y = ch[0] + rows - num_rows) < 0) add_y = 0;
 	if (add_y > 0) /* If not enough rows */
@@ -1005,8 +1004,8 @@ write_to_cells(char *buffer, int arg)
 		}
 	for (int i = 0; i < rows; i++)
 		{
-		undo_mat[i] = xmalloc(cols * sizeof(char*));
-		paste_mat[i] = xmalloc(cols * sizeof(char*));
+		undo_mat[i] = xmalloc(cols * sizeof(char *));
+		paste_mat[i] = xmalloc(cols * sizeof(char *));
 		for (int j = 0; j < cols; j++)
 			{
 			if (reverse_flag == 1) inverse = temp[j][i];
@@ -1258,7 +1257,7 @@ pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd)
 void
 write_to_pipe(const Arg *arg)
 	{
-	char* cmd;
+	char *cmd;
 	if (arg->i == PipeThrough)
 		{
 		cmd = get_str("", 0, '|');
@@ -1339,7 +1338,7 @@ write_to_pipe(const Arg *arg)
 	}
 
 void
-reg_init()
+reg_init(void)
 	{
 	if (mat_reg)
 		{
@@ -1400,9 +1399,9 @@ wipe_cells()
 		{
 		reg_init();
 
-		char *** undo_mat = xmalloc(reg_rows * sizeof(char**));
+		char ***undo_mat = xmalloc(reg_rows * sizeof(char **));
 		for (int i=0; i<reg_rows; i++)
-			undo_mat[i] = xmalloc(reg_cols * sizeof(char*));
+			undo_mat[i] = xmalloc(reg_cols * sizeof(char *));
 		char *current_ptr = reg_buffer;
 		for (int i = ch[0]; i < ch[1]; i++)
 			{
@@ -1433,7 +1432,7 @@ paste_cells(const Arg *arg)
 	if (mat_reg == NULL) return;
 	else
 		{
-		buffer = xmalloc(reg_size*sizeof(char));
+		buffer = xmalloc(reg_size * sizeof(char));
 		memcpy(buffer, reg_buffer, reg_size);
 		}
 	int rows = reg_rows;
@@ -1448,7 +1447,7 @@ paste_cells(const Arg *arg)
 	if ((add_y = y + rows - num_rows) < 0) add_y = 0;
 	if (add_y > 0) /* If not enough rows */
 		{
-		matrix = xrealloc(matrix, (num_rows + add_y)*sizeof(char **));
+		matrix = xrealloc(matrix, (num_rows + add_y) * sizeof(char **));
 		for (int i = num_rows; i < num_rows + add_y; i++)
 			{
 			matrix[i] = xmalloc(num_cols * sizeof(char *));
@@ -1468,12 +1467,12 @@ paste_cells(const Arg *arg)
 			}
 		num_cols += add_x;
 		}
-	char ***undo_mat = xmalloc(rows * sizeof(char**));
-	char ***paste_mat = xmalloc(rows * sizeof(char**));
+	char ***undo_mat = xmalloc(rows * sizeof(char **));
+	char ***paste_mat = xmalloc(rows * sizeof(char **));
 	for (int i=0; i<rows; i++)
 		{
-		undo_mat[i] = xmalloc(cols * sizeof(char*));
-		paste_mat[i] = xmalloc(cols * sizeof(char*));
+		undo_mat[i] = xmalloc(cols * sizeof(char *));
+		paste_mat[i] = xmalloc(cols * sizeof(char *));
 		}
 	char *current_ptr = buffer;
 	for (int i = 0; i < rows; i++)
@@ -1543,7 +1542,7 @@ str_change(const Arg *arg)
 	{
 	if (mode == 'v') visual_end();
 	mode = 'i';
-	char* str;
+	char *str;
 	int rows = 0, cols = 0;
 	while (mode == 'i' || mode == 'j')
 		{
@@ -1572,8 +1571,8 @@ str_change(const Arg *arg)
 			str = get_str(matrix[y][x], 0, 0);
 		else if (arg->i == 2)
 			str = get_str(matrix[y][x], 1, 0);
-		char * undo_cell = matrix[y][x];
-		char * paste_cell = str;
+		char *undo_cell = matrix[y][x];
+		char *paste_cell = str;
 		matrix[y][x] = str;
 
 		struct undo_data data[] = {
@@ -1590,9 +1589,9 @@ str_change(const Arg *arg)
 	}
 
 void
-push(node_t ** head, struct undo_data *data, int data_count)
+push(node_t **head, struct undo_data *data, int data_count)
 	{
-	node_t * new_node = xmalloc(sizeof(node_t));
+	node_t *new_node = xmalloc(sizeof(node_t));
 	new_node->data = xmalloc(data_count * sizeof(struct undo_data));;
 	for (int i = 0; i < data_count; i++)
 		new_node->data[i] = data[i];
@@ -1603,7 +1602,7 @@ push(node_t ** head, struct undo_data *data, int data_count)
 	/* free previous nodes if in the middle of history */
 	while ((*head)->next != NULL)
 		{
-		node_t * temp = (*head)->next;
+		node_t *temp = (*head)->next;
 		for (int i = 0; i < temp->data_count; i++)
 			{
 			if (temp->data[i].mat != NULL)
@@ -1682,7 +1681,7 @@ undo(const Arg *arg)
 					}
 					for (int i = head->data[l].loc_y; i < num_rows - num; i++)
 						matrix[i] = matrix[i + num];
-					matrix = xrealloc(matrix, (num_rows - num)*sizeof(char **));
+					matrix = xrealloc(matrix, (num_rows - num) * sizeof(char **));
 					num_rows -= num;
 					}
 				if (head->data[l].cols > 0)
@@ -1692,7 +1691,7 @@ undo(const Arg *arg)
 						{
 						for (int i = head->data[l].loc_x; i < num_cols - num; i++)
 							matrix[j][i] = matrix[j][i + num];
-						matrix[j] = xrealloc(matrix[j], (num_cols - num)*sizeof(char *));
+						matrix[j] = xrealloc(matrix[j], (num_cols - num) * sizeof(char *));
 						}
 					num_cols -= num;
 					}
@@ -1741,7 +1740,7 @@ undo(const Arg *arg)
 	}
 
 void
-die()
+die(void)
 	{
 	endwin();
 	node_t *temp = NULL;
@@ -1840,7 +1839,7 @@ write_to_matrix(char **buffer, int *num_rows, int *num_cols)
 				{
 				for (int i = 0; i < row; i++)
 					{
-					matrix[i] = xrealloc(matrix[i], col*sizeof(char *));
+					matrix[i] = xrealloc(matrix[i], col * sizeof(char *));
 					for (int j = f; j < col; j++)
 						matrix[i][j] = NULL;
 					}
@@ -1900,7 +1899,7 @@ free_matrix(char ****matrix, int num_rows, int num_cols)
 	}
 
 void
-init_ui()
+init_ui(void)
 	{
 	setlocale(LC_ALL, "");
 	initscr();
