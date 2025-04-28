@@ -51,7 +51,6 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
 
 ## TODO
-- [ ] option to change delimiter
 - [ ] vi commands ., H, M, L, zz, zt, zb
 - [ ] add commands (:q, :w)
 - [ ] search

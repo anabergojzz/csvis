@@ -15,6 +15,9 @@
 #include <signal.h>
 #include <wchar.h>
 
+char *argv0;
+#include "arg.h"
+
 #define CELL_WIDTH 10
 #define PIPE_BUF 4096
 #define READALL_CHUNK 262144
@@ -24,6 +27,8 @@
 #define XCLIP_PASTE "xclip -selection clipboard -o"
 #define MOVE_X 3
 #define MOVE_Y 5
+#define FIRST "awk -F, -vOFS=, '"
+#define LAST "'"
 
 /* enums */
 enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
@@ -102,6 +107,7 @@ void keypress(int key);
 char ***write_to_matrix(char **buffer, int *num_rows, int *num_cols);
 void free_matrix(char ****matrix, int num_rows, int num_cols);
 void init_ui();
+void usage(void);
 int main(int argc, char *argv[]);
 
 /* globals */
@@ -124,6 +130,7 @@ char *fname = NULL;
 int to_num_y;
 int to_num_x;
 int reverse_flag = 0;
+char fs = ',';
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -944,7 +951,7 @@ write_csv(const Arg *arg)
 				else if (j == ch[2] && first != "")
 					fprintf(file, first);
 				else
-					fprintf(file, ",");
+					fprintf(file, "%c", fs);
 				}
 			}
 		fclose(file);
@@ -1130,7 +1137,7 @@ pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd)
 						pos += len;
 						pos_str = 0;
 						if (col < ch[3] - 1)
-							buffer[pos++] = ',';
+							buffer[pos++] = fs;
 						else
 							buffer[pos++] = '\n';
 						}
@@ -1271,11 +1278,11 @@ write_to_pipe(const Arg *arg)
 		{
 		char *temp = get_str("", 0, '|');
 		if (temp == NULL) return;
-		char *preposition = "awk -F, -vOFS=, '";
+		char *preposition = FIRST;
 		cmd = xmalloc(strlen(temp) + strlen(preposition) + 2);
 		strcpy(cmd, preposition);
 		strcpy(cmd + strlen(preposition), temp);
-		strcpy(cmd + strlen(preposition) + strlen(temp), "'");
+		strcpy(cmd + strlen(preposition) + strlen(temp), LAST);
 		free(temp);
 		}
 	else if (arg->i == PipeToClip)
@@ -1795,8 +1802,8 @@ keypress(int key)
 		}
 	}
 
-char
-***write_to_matrix(char **buffer, int *num_rows, int *num_cols)
+char ***
+write_to_matrix(char **buffer, int *num_rows, int *num_cols)
 	{
 	int row = 0, col = 0;
 	int col_s = 32, row_s = 32;
@@ -1810,7 +1817,7 @@ char
 	while (*k)
 		{
 		n++;
-		if (*k == ',')
+		if (*k == fs)
 			{
 			if (col >= col_s)
 				{
@@ -1903,15 +1910,31 @@ init_ui()
 	keypad(stdscr, TRUE);
 	}
 
+void
+usage(void)
+{
+	fprintf(stderr, "Uporaba: %s [-f separator] [file]\n", argv0);
+	exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char *argv[])
 	{
 	FILE *file = NULL;
 	char *buffer = NULL;
 	size_t sizeptr;
-	if (argc > 1)
+	ARGBEGIN
 		{
-		fname = xstrdup(argv[1]);
+		case 'f':
+			fs = EARGF(usage())[0];
+			break;
+		default:
+			usage();
+		}
+	ARGEND;
+	if (argc > 0)
+		{
+		fname = xstrdup(argv[0]);
 		printf("\e]0;%s - csvis\a", fname);
 		fflush(stdout);
 		file = fopen(fname, "r");
