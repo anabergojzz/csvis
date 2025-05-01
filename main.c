@@ -132,6 +132,7 @@ int to_num_x;
 int reverse_flag = 0;
 int all_flag = 0;
 int paste_flag = 0;
+int delete_flag = 0;
 char fs = ',';
 
 static Key keys[] = {
@@ -556,6 +557,7 @@ delete_row()
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		mode = 'n';
 		}
+	paste_flag = 3;
 	}
 
 void
@@ -594,6 +596,7 @@ delete_col()
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		mode = 'n';
 		}
+	paste_flag = 4;
 	}
 
 char *
@@ -1463,6 +1466,9 @@ void
 paste_cells(const Arg *arg)
 	{
 	y_0 = y; x_0 = x;
+	int loc_y = num_rows;
+	int loc_x = num_cols;
+	int add_y, add_x = 0;
 	char *buffer = NULL;
 	if (mat_reg == NULL) return;
 	else
@@ -1478,34 +1484,49 @@ paste_cells(const Arg *arg)
 		cols = reg_rows;
 		if (paste_flag == 1) y = 0;
 		else if (paste_flag == 2) x = 0;
+		else if (paste_flag == 3)
+			{ y = 0; loc_x = x; }
+		else if (paste_flag == 4)
+			{ x = 0; loc_y = y; }
 		}
 	else
 		{
 		if (paste_flag == 1) x = 0;
 		else if (paste_flag == 2) y = 0;
+		else if (paste_flag == 3)
+			{ x = 0; loc_y = y; }
+		else if (paste_flag == 4)
+			{ y = 0; loc_x = x; }
 		}
 
-	int add_y, add_x = 0;
 	if ((add_y = y + rows - num_rows) < 0) add_y = 0;
+	if (paste_flag == 3 && reverse_flag == 0) add_y = rows;
+	if (paste_flag == 4 && reverse_flag == 1) add_y = rows;
 	if (add_y > 0) /* If not enough rows */
 		{
 		matrix = xrealloc(matrix, (num_rows + add_y) * sizeof(char **));
-		for (int i = num_rows; i < num_rows + add_y; i++)
+		for (int i = num_rows + add_y - 1; i >= loc_y + add_y; i--)
+			matrix[i] = matrix[i - add_y];
+		for (int i = 0; i < add_y; i++)
 			{
-			matrix[i] = xmalloc(num_cols * sizeof(char *));
+			matrix[loc_y + i] = xmalloc(num_cols * sizeof(char *));
 			for (int j = 0; j < num_cols; j++)
-				matrix[i][j] = NULL;
+				matrix[loc_y + i][j] = NULL;
 			}
 		num_rows += add_y;
 		}
 	if ((add_x = x + cols - num_cols) < 0) add_x = 0;
+	if (paste_flag == 4 && reverse_flag == 0) add_x = cols;
+	if (paste_flag == 3 && reverse_flag == 1) add_x = cols;
 	if (add_x > 0) /* If not enough cols */
 		{
 		for (int i = 0; i < num_rows; i++)
 			{
-			matrix[i] = xrealloc(matrix[i], (num_cols + add_x)*sizeof(char *));
-			for (int j = num_cols; j < num_cols + add_x; j++)
-				matrix[i][j] = NULL;
+			matrix[i] = xrealloc(matrix[i], (num_cols + add_x) * sizeof(char *));
+			for (int j = num_cols + add_x - 1; j >= loc_x + add_x; j--)
+				matrix[i][j] = matrix[i][j - add_x];
+			for (int j = 0; j < add_x; j++)
+				matrix[i][loc_x + j] = NULL;
 			}
 		num_cols += add_x;
 		}
@@ -1538,7 +1559,7 @@ paste_cells(const Arg *arg)
 			}
 		}
 	struct undo data[] = {
-		{Insert, NULL, NULL, add_y, add_x, y_0, x_0, s_y, s_x, num_rows-add_y, num_cols-add_x},
+		{Insert, NULL, NULL, add_y, add_x, y_0, x_0, s_y, s_x, loc_y, loc_x},
 		{Delete, undo_mat, NULL, rows, cols, y_0, x_0, s_y, s_x, y, x},
 		{Paste, paste_mat, buffer, rows, cols, y_0, x_0, s_y, s_x, y, x}
 	};
