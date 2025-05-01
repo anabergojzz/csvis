@@ -425,6 +425,7 @@ move_n()
 		{
 			fs = temp[2];
 			statusbar("Field separator set!");
+			free(temp);
 			return;
 		}
 	int length = strlen(temp);
@@ -634,6 +635,8 @@ get_str(char *str, char loc, const char cmd)
 			if (width == -1)
 				{
 				statusbar("Invalid character encountered.");
+				free(buffer);
+				free(line_widths);
 				return NULL;
 				}
 			if (cx_add + width == cols - c_xtemp)
@@ -715,6 +718,7 @@ get_str(char *str, char loc, const char cmd)
 				else
 					{
 					free(buffer);
+					free(line_widths);
 					return NULL;
 					}
 				}
@@ -864,7 +868,11 @@ write_csv(const Arg *arg)
 				{
 				fclose(test_existing);
 				int status = statusbar("File already exists! Overwrite? [y][n]");
-				if (status != 'y') return;
+				if (status != 'y')
+					{
+					free(filename);
+					return;
+					}
 				}
 			if (fname == NULL)
 				{
@@ -887,7 +895,11 @@ write_csv(const Arg *arg)
 					{
 					fclose(test_existing);
 					int status = statusbar("File already exists! Overwrite? [y][n]");
-					if (status != 'y') return;
+					if (status != 'y')
+						{
+						free(filename);
+						return;
+						}
 					}
 				fname = xstrdup(filename);
 				printf("\e]0;%s - csvis\a", fname);
