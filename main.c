@@ -925,6 +925,7 @@ write_csv(const Arg *arg)
 			else
 				statusbar("Error opening named pipe.");
 			close(fd);
+			free(filename);
 			return;
 			}
 		close(fd);
