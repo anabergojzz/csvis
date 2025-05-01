@@ -70,7 +70,7 @@ node_t *uhead = NULL;
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
-void reverse_toogle();
+void invert();
 int statusbar(char *);
 int readall(FILE *, char **, size_t *);
 size_t utf8_strlen(const char *);
@@ -174,7 +174,7 @@ static Key keys[] = {
 	{'u', undo, {Undo}},
 	{'\x12', undo, {Redo}}, /* Ctrl-R */
 	{':', move_n, {0}},
-	{'r', reverse_toogle, {0}},
+	{'r', invert, {0}},
 	{'D', deleting, {0}}
 };
 
@@ -220,9 +220,9 @@ xstrdup(const char *s)
 	}
 
 void
-reverse_toogle()
+invert()
 	{
-	reverse_flag = !reverse_flag;
+		reverse_flag = 1;
 	}
 
 int
@@ -1805,6 +1805,8 @@ keypress(int key)
 		if (key == keys[i].key)
 			(*keys[i].func)(&keys[i].arg);
 		}
+	if (key != 'r')
+		reverse_flag = 0;
 	}
 
 char ***
