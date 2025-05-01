@@ -122,6 +122,7 @@ int c_y, c_x = 0;
 int v_y, v_x = 0;
 int s_y, s_x = 0;
 int s_y0, s_x0 = 0;
+int y_0, x_0 = 0;
 int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
@@ -768,6 +769,8 @@ visual_start()
 		s_x0 = s_x;
 		v_y = y;
 		v_x = x;
+		y_0 = y;
+		x_0 = x;
 		ch[0] = y;
 		ch[1] = y + 1;
 		ch[2] = x;
@@ -787,8 +790,8 @@ visual_end()
 	if (mode != 'n')
 		{
 		mode = 'n';
-		y = v_y;
-		x = v_x;
+		y = y_0;
+		x = x_0;
 		s_y = s_y0;
 		s_x = s_x0;
 		}
