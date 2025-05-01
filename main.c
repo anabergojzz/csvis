@@ -130,6 +130,8 @@ char *fname = NULL;
 int to_num_y;
 int to_num_x;
 int reverse_flag = 0;
+int all_flag = 0;
+int paste_flag = 0;
 char fs = ',';
 
 static Key keys[] = {
@@ -781,6 +783,7 @@ visual_start()
 		mode = 'n';
 		ch[0], ch[1], ch[2], ch[3] = 0;
 		}
+	all_flag = 0;
 	}
  
 void
@@ -795,6 +798,7 @@ visual_end()
 		s_y = s_y0;
 		s_x = s_x0;
 		}
+	all_flag = 0;
 	}
 
 void
@@ -807,6 +811,7 @@ visual()
 		{
 		mode = 'n';
 		visual_start();
+		all_flag = 2;
 		v_y = 0;
 		ch[0] = 0;
 		ch[1] = num_rows;
@@ -826,6 +831,7 @@ visual()
 		{
 		mode = 'n';
 		visual_start();
+		all_flag = 1;
 		v_x = 0;
 		ch[0] = y;
 		ch[1] = y + 1;
@@ -1398,6 +1404,9 @@ yank_cells()
 			else mat_reg[i - ch[0]][j - ch[2]] = NULL;
 			}
 		}
+	if (all_flag == 1) paste_flag = 1;
+	else if (all_flag == 2) paste_flag = 2;
+	else paste_flag = 0;
 	visual_end();
 	}
 
@@ -1430,6 +1439,9 @@ wipe_cells()
 		struct undo data[] = {{Delete, undo_mat, NULL, reg_rows, reg_cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}};
 		push(&uhead, data, 1);
 
+		if (all_flag == 1) paste_flag = 1;
+		else if (all_flag == 2) paste_flag = 2;
+		else paste_flag = 0;
 		visual_end();
 		}
 	}
@@ -1437,6 +1449,7 @@ wipe_cells()
 void
 paste_cells(const Arg *arg)
 	{
+	y_0 = y; x_0 = x;
 	char *buffer = NULL;
 	if (mat_reg == NULL) return;
 	else
@@ -1450,6 +1463,13 @@ paste_cells(const Arg *arg)
 		{
 		rows = reg_cols;
 		cols = reg_rows;
+		if (paste_flag == 1) y = 0;
+		else if (paste_flag == 2) x = 0;
+		}
+	else
+		{
+		if (paste_flag == 1) x = 0;
+		else if (paste_flag == 2) y = 0;
 		}
 
 	int add_y, add_x = 0;
@@ -1505,12 +1525,14 @@ paste_cells(const Arg *arg)
 			}
 		}
 	struct undo data[] = {
-		{Insert, NULL, NULL, add_y, add_x, y, x, s_y, s_x, num_rows-add_y, num_cols-add_x},
-		{Delete, undo_mat, NULL, rows, cols, y, x, s_y, s_x, y, x},
-		{Paste, paste_mat, buffer, rows, cols, y, x, s_y, s_x, y, x}
+		{Insert, NULL, NULL, add_y, add_x, y_0, x_0, s_y, s_x, num_rows-add_y, num_cols-add_x},
+		{Delete, undo_mat, NULL, rows, cols, y_0, x_0, s_y, s_x, y, x},
+		{Paste, paste_mat, buffer, rows, cols, y_0, x_0, s_y, s_x, y, x}
 	};
 	push(&uhead, data, 3);
 	reverse_flag = 0;
+	x = x_0;
+	y = y_0;
 	}
 
 void
