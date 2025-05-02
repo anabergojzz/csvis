@@ -79,7 +79,7 @@ void format_wide_string(wchar_t *, size_t);
 void draw(void);
 void move_y(const Arg *);
 void move_x(const Arg *);
-void move_n();
+void commands();
 void when_resize(void);
 void insert_row(const Arg *);
 void insert_col(const Arg *);
@@ -98,7 +98,7 @@ void yank_cells();
 void wipe_cells();
 void paste_cells(const Arg *);
 void deleting();
-void str_change();
+void str_change(const Arg *);
 void push(node_t **, struct undo *, int);
 void undo(const Arg *);
 void die(void);
@@ -177,7 +177,7 @@ static Key keys[] = {
 	{'P', write_to_pipe, {PipeReadClip}},
 	{'u', undo, {Undo}},
 	{'\x12', undo, {Redo}}, /* Ctrl-R */
-	{':', move_n, {0}},
+	{':', commands, {0}},
 	{'r', invert, {0}},
 	{'D', deleting, {0}}
 };
@@ -234,7 +234,7 @@ statusbar(char *string)
 	{
 	mvprintw(rows - 1, 0, " ");
 	wclrtoeol(stdscr);
-	mvprintw(rows - 1, 1, string);
+	mvprintw(rows - 1, 1, "%s", string);
 	return getch();
 	}
 
@@ -292,6 +292,7 @@ readall(FILE *in, char **dataptr, size_t *sizeptr)
 
 	*dataptr = data;
 	*sizeptr = used;
+	return 0;
 	}
 
 size_t
@@ -418,7 +419,7 @@ move_x(const Arg *arg)
 	}
 
 void
-move_n()
+commands()
 	{
 	char *temp = get_str("", 0, ':');
 	if (temp == NULL) return;
@@ -554,7 +555,7 @@ delete_row()
 		y = ch[0];
 		if (y >= num_rows)
 			y = ch[0] - 1;
-		ch[0], ch[1], ch[2], ch[3] = 0;
+		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 		mode = 'n';
 		}
 	paste_flag = 3;
@@ -593,7 +594,7 @@ delete_col()
 		x = ch[2];
 		if (x >= num_cols)
 			x = ch[2] - 1;
-		ch[0], ch[1], ch[2], ch[3] = 0;
+		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 		mode = 'n';
 		}
 	paste_flag = 4;
@@ -705,11 +706,19 @@ get_str(char *str, char loc, const char cmd)
 					mode = 'i';
 				break;
 				}
-			if (key == '\t')
+			else if (key == '\t')
 				{
 				if (cmd == 0)
 					mode = 'j';
 				break;
+				}
+			else if (key == 127)
+				{
+				if (i > 0)
+					{
+					i--;
+					wmemmove(buffer + i, buffer + i + 1, str_size-- - i);
+					}
 				}
 			else if (key == '\x03')
 				{
@@ -788,7 +797,7 @@ visual_start()
 	else
 		{
 		mode = 'n';
-		ch[0], ch[1], ch[2], ch[3] = 0;
+		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 		}
 	all_flag = 0;
 	}
@@ -796,7 +805,7 @@ visual_start()
 void
 visual_end()
 	{
-	ch[0], ch[1], ch[2], ch[3] = 0;
+	ch[0] = ch[1] = ch[2] = ch[3] = 0;
 	if (mode != 'n')
 		{
 		mode = 'n';
@@ -974,12 +983,12 @@ write_csv(const Arg *arg)
 				if (inverse != NULL) fprintf(file, "%s", inverse);
 				if (j == ch[3]-1)
 					{
-					if (end != "" && j != ch[2])
-						fprintf(file, end);
+					if (*end != '\0' && j != ch[2])
+						fprintf(file, "%s", end);
 					fprintf(file, "\n");
 					}
-				else if (j == ch[2] && first != "")
-					fprintf(file, first);
+				else if (j == ch[2] && *first != '\0')
+					fprintf(file, "%s", first);
 				else
 					fprintf(file, "%c", fs);
 				}
@@ -1283,6 +1292,7 @@ pipe_through(char **output_buffer, ssize_t *output_buffer_size, char *cmd)
 		statusbar(buferror);
 		return -1;
 		}
+	return 0;
 	}
 
 void
@@ -1359,7 +1369,7 @@ write_to_pipe(const Arg *arg)
 		if (arg->i == PipeTo)
 			{
 			clear();
-			mvprintw(0, 0, output_buffer);
+			mvprintw(0, 0, "%s", output_buffer);
 			getch();
 			}
 		else
@@ -1951,7 +1961,7 @@ write_to_matrix(char **buffer, int *num_rows, int *num_cols)
 	*num_rows = row;
 	*num_cols = f;
 
-	if (*num_rows == 0|| *num_cols == 0) return NULL;
+	if (*num_rows == 0 || *num_cols == 0) return NULL;
 	matrix = xrealloc(matrix, *num_rows * sizeof(char **));
 
 	return matrix;
