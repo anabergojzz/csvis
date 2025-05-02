@@ -558,6 +558,10 @@ delete_row()
 		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 		mode = 'n';
 		}
+	else if (mode != 'v')
+		{
+		ch[0] = ch[1] = ch[2] = ch[3] = 0;
+		}
 	paste_flag = 3;
 	}
 
@@ -596,6 +600,10 @@ delete_col()
 			x = ch[2] - 1;
 		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 		mode = 'n';
+		}
+	else if (mode != 'v')
+		{
+		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 		}
 	paste_flag = 4;
 	}
