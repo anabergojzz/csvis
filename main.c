@@ -172,9 +172,9 @@ static Key keys[] = {
 	{'<', write_to_pipe, {PipeRead}},
 	{'d', wipe_cells, {0}},
 	{'y', yank_cells, {0}},
-	{'Y', write_to_pipe, {PipeToClip}},
+	{'\x19', write_to_pipe, {PipeToClip}}, /* Ctrl-Y */
 	{'p', paste_cells, {0}},
-	{'P', write_to_pipe, {PipeReadClip}},
+	{'\x10', write_to_pipe, {PipeReadClip}}, /* Ctrl-P */
 	{'u', undo, {Undo}},
 	{'\x12', undo, {Redo}}, /* Ctrl-R */
 	{':', commands, {0}},
@@ -1601,7 +1601,7 @@ deleting()
 		{
 		int key;
 		key = getch();
-		if (key == 'l' || key == 'h')
+		if (key == 'l')
 			{
 			ch[0] = 0;
 			ch[1] = num_rows;
@@ -1609,10 +1609,26 @@ deleting()
 			ch[3] = x + 1;
 			delete_col();
 			}
-		else if (key == 'j' || key == 'k')
+		else if (key == 'h')
+			{
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = x - 1;
+			ch[3] = x;
+			delete_col();
+			}
+		else if (key == 'j')
 			{
 			ch[0] = y;
 			ch[1] = y + 1;
+			ch[2] = 0;
+			ch[3] = num_cols;
+			delete_row();
+			}
+		else if (key == 'k')
+			{
+			ch[0] = y - 1;
+			ch[1] = y;
 			ch[2] = 0;
 			ch[3] = num_cols;
 			delete_row();
