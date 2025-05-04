@@ -1643,6 +1643,18 @@ wipe_cells()
 		else paste_flag = 0;
 		visual_end();
 		}
+	else if (mode == 'n')
+		{
+		int key;
+		key = getch();
+		if (key == 'l' || key == KEY_RIGHT)
+			{
+			char *undo_cell = matrix[y][x];
+			matrix[y][x] = NULL;
+			struct undo data[] = {{DeleteCell, NULL, undo_cell, 0, 0, y, x, s_y, s_x, y, x}};
+			push(&uhead, data, 1);
+			}
+		}
 	}
 
 void
