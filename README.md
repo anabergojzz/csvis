@@ -37,6 +37,7 @@ make
 | `q`                               | Quit                                       |
 | `<Ctrl-O>`                        | Pipe to awk                                |
 | `r`                               | Inverse operation (paste, save, pipe)      |
+| `/`                               | Search forward                             |
     
 ## Examples for piping selection
 ```

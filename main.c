@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <wchar.h>
+#include <regex.h>
 
 char *argv0;
 #include "arg.h"
@@ -70,6 +71,7 @@ node_t *uhead = NULL;
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
+void search(const Arg *);
 void invert();
 int statusbar(char *);
 int readall(FILE *, char **, size_t *);
@@ -134,6 +136,7 @@ int all_flag = 0;
 int paste_flag = 0;
 int delete_flag = 0;
 char fs = ',';
+char *srch = NULL;
 
 static Key keys[] = {
 	{'q', quit, {0}},
@@ -179,6 +182,8 @@ static Key keys[] = {
 	{'\x12', undo, {Redo}}, /* Ctrl-R */
 	{':', commands, {0}},
 	{'r', invert, {0}},
+	{'/', search, {0}},
+	{'n', search, {1}},
 	{'D', deleting, {0}}
 };
 
@@ -221,6 +226,109 @@ xstrdup(const char *s)
 		exit(EXIT_FAILURE);
 		}
 	return p;
+	}
+
+void
+search(const Arg *arg)
+	{
+	char *temp;
+	if (arg->i == 0)
+		{
+		temp = get_str("", 0, '/');
+		if (temp == NULL) return;
+		else
+			{
+			if (srch) free(srch);
+			srch = xstrdup(temp);
+			}
+		}
+	else if (arg->i == 1)
+		{
+		if (srch)
+			temp = xstrdup(srch);
+		else
+			return;
+		}
+	regex_t regex;
+	int reti;
+	char msgbuf[100];
+	reti = regcomp(&regex, temp, 0);
+	if (reti) {
+			statusbar("Could not compile regex");
+			if (temp) free(temp);
+			return;
+	}
+
+	if (mode == 'n')
+		{
+		ch[0] = 0;
+		ch[1] = num_rows;
+		ch[2] = 0;
+		ch[3] = num_cols;
+		}
+	int st_y;
+	int st_x;
+	if (mode == 'v')
+		st_y = ch[0];
+	else
+		{
+		st_x = x + 1;
+		if (st_x < num_cols)
+			{
+			for (int j = x + 1; j < num_cols; j++)
+				{
+				reti = regexec(&regex, matrix[y][j], 0, NULL, 0);
+				if (!reti)
+					{
+					x = j;
+					ch[0] = ch[1] = ch[2] = ch[3] = 0;
+					regfree(&regex);
+					if (temp) free(temp);
+					return;
+					}
+				}
+			}
+		st_y = y + 1;
+		if (st_y >= num_rows)
+			{
+			statusbar("Bottom");
+			ch[0] = ch[1] = ch[2] = ch[3] = 0;
+			regfree(&regex);
+			if (temp) free(temp);
+			return;
+			}
+		}
+	for (int i = st_y; i < ch[1]; i++)
+		{
+		for (int j = ch[2]; j < ch[3]; j++)
+			{
+			reti = regexec(&regex, matrix[i][j], 0, NULL, 0);
+			if (!reti)
+				{
+				y = i;
+				x = j;
+				ch[0] = ch[1] = ch[2] = ch[3] = 0;
+				mode = 'n';
+				regfree(&regex);
+				if (temp) free(temp);
+				return;
+				}
+			}
+		}
+	if (reti == REG_NOMATCH)
+		{
+		statusbar("No match forward");
+		}
+	else
+		{
+		regerror(reti, &regex, msgbuf, sizeof(msgbuf));
+		statusbar(msgbuf);
+		}
+	if (mode == 'n')
+		ch[0] = ch[1] = ch[2] = ch[3] = 0;
+	regfree(&regex);
+	if (temp) free(temp);
+	return;
 	}
 
 void
