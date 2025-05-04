@@ -184,6 +184,8 @@ static Key keys[] = {
 	{'r', invert, {0}},
 	{'/', search, {0}},
 	{'n', search, {1}},
+	{'?', search, {2}},
+	{'N', search, {3}},
 	{'D', deleting, {0}}
 };
 
@@ -232,7 +234,8 @@ void
 search(const Arg *arg)
 	{
 	char *temp;
-	if (arg->i == 0)
+	static int dir = 0;
+	if (arg->i == 0 || arg->i == 2)
 		{
 		temp = get_str("", 0, '/');
 		if (temp == NULL) return;
@@ -241,8 +244,10 @@ search(const Arg *arg)
 			if (srch) free(srch);
 			srch = xstrdup(temp);
 			}
+		if (arg->i == 0) dir = 0;
+		else if (arg->i == 2) dir = 1;
 		}
-	else if (arg->i == 1)
+	else if (arg->i == 1 || arg->i == 3)
 		{
 		if (srch)
 			temp = xstrdup(srch);
@@ -268,50 +273,103 @@ search(const Arg *arg)
 		}
 	int st_y;
 	int st_x;
-	if (mode == 'v')
-		st_y = ch[0];
-	else
+	if (arg->i == 0 || (arg->i == 1 && dir == 0) || (arg->i == 3 && dir == 1))
 		{
-		st_x = x + 1;
-		if (st_x < num_cols)
+		if (mode == 'v')
+			st_y = ch[0];
+		else
 			{
-			for (int j = x + 1; j < num_cols; j++)
+			st_x = x + 1;
+			if (st_x < num_cols)
 				{
-				reti = regexec(&regex, matrix[y][j], 0, NULL, 0);
+				for (int j = st_x; j < num_cols; j++)
+					{
+					reti = regexec(&regex, matrix[y][j], 0, NULL, 0);
+					if (!reti)
+						{
+						x = j;
+						ch[0] = ch[1] = ch[2] = ch[3] = 0;
+						regfree(&regex);
+						if (temp) free(temp);
+						return;
+						}
+					}
+				}
+			st_y = y + 1;
+			if (st_y >= num_rows)
+				{
+				statusbar("No match forward");
+				ch[0] = ch[1] = ch[2] = ch[3] = 0;
+				regfree(&regex);
+				if (temp) free(temp);
+				return;
+				}
+			}
+		for (int i = st_y; i < ch[1]; i++)
+			{
+			for (int j = ch[2]; j < ch[3]; j++)
+				{
+				reti = regexec(&regex, matrix[i][j], 0, NULL, 0);
 				if (!reti)
 					{
+					y = i;
 					x = j;
 					ch[0] = ch[1] = ch[2] = ch[3] = 0;
+					mode = 'n';
 					regfree(&regex);
 					if (temp) free(temp);
 					return;
 					}
 				}
 			}
-		st_y = y + 1;
-		if (st_y >= num_rows)
-			{
-			statusbar("Bottom");
-			ch[0] = ch[1] = ch[2] = ch[3] = 0;
-			regfree(&regex);
-			if (temp) free(temp);
-			return;
-			}
 		}
-	for (int i = st_y; i < ch[1]; i++)
+	if (arg->i == 2 || (arg->i == 3 && dir == 0) || (arg->i == 1 && dir == 1))
 		{
-		for (int j = ch[2]; j < ch[3]; j++)
+		if (mode == 'v')
+			st_y = ch[1];
+		else
 			{
-			reti = regexec(&regex, matrix[i][j], 0, NULL, 0);
-			if (!reti)
+			st_x = x - 1;
+			if (st_x >= 0)
 				{
-				y = i;
-				x = j;
+				for (int j = st_x; j >= 0; j--)
+					{
+					reti = regexec(&regex, matrix[y][j], 0, NULL, 0);
+					if (!reti)
+						{
+						x = j;
+						ch[0] = ch[1] = ch[2] = ch[3] = 0;
+						regfree(&regex);
+						if (temp) free(temp);
+						return;
+						}
+					}
+				}
+			st_y = y - 1;
+			if (st_y < 0)
+				{
+				statusbar("No match forward");
 				ch[0] = ch[1] = ch[2] = ch[3] = 0;
-				mode = 'n';
 				regfree(&regex);
 				if (temp) free(temp);
 				return;
+				}
+			}
+		for (int i = st_y; i >= ch[0]; i--)
+			{
+			for (int j = ch[3]-1; j >= ch[2]; j--)
+				{
+				reti = regexec(&regex, matrix[i][j], 0, NULL, 0);
+				if (!reti)
+					{
+					y = i;
+					x = j;
+					ch[0] = ch[1] = ch[2] = ch[3] = 0;
+					mode = 'n';
+					regfree(&regex);
+					if (temp) free(temp);
+					return;
+					}
 				}
 			}
 		}

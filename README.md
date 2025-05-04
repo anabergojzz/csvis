@@ -37,7 +37,8 @@ make
 | `q`                               | Quit                                       |
 | `<Ctrl-O>`                        | Pipe to awk                                |
 | `r`                               | Inverse operation (paste, save, pipe)      |
-| `/`                               | Search forward                             |
+| `/`, `?`                          | Search forward, backward                   |
+| `n`, `N`                          | Next, previous match                       |
     
 ## Examples for piping selection
 ```
@@ -54,7 +55,6 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 ## TODO
 - [ ] vi commands ., H, M, L, zz, zt, zb
 - [ ] add commands (:q, :w)
-- [ ] search
 - [ ] research options for calculations
 - [ ] mouse support
 - [ ] multi select?
