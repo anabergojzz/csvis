@@ -25,18 +25,18 @@ make
 | `v`                               | Toogle visual mode                         |
 | `V-l`, `V-j`                      | Select entire column/row                   |
 | `I`, `A`, `O`, `o`                | Insert/append column/row                   |
-| `d`                               | Delete selection                           |
-| `D`                               | Extract if entire row/column selected      |
+| `d`                               | Delete(wipe) selection                     |
+| `D`                               | Extract rows/columns                       |
 | `y`, `p`                          | Yank, paste                                |
-| `Y`, `P`                          | Yank, paste clipboard (using xclip)        |
+| `<Ctrl-Y>`, `<Ctrl-P>`            | Yank, paste clipboard (using xclip)        |
 | `>`, `\|`, `<`                    | Pipe operations                            |
-| `e`, `E`                          | Write to named pipe, write transposed      |
+| `e`    `                          | Write to named pipe                        |
 | `:n.m`                            | Jump to column n, row m                    |
 | `s`, `<Ctrl-S>`                   | Save as, save                              |
 | `u`, `<Ctrl-R>`                   | Undo, redo                                 |
 | `q`                               | Quit                                       |
 | `<Ctrl-O>`                        | Pipe to awk                                |
-| `r`                               | Toogle reverse for paste, save, pipe       |
+| `r`                               | Inverse operation (paste, save, pipe)      |
     
 ## Examples for piping selection
 ```

@@ -1600,27 +1600,66 @@ deleting()
 		{
 		int key;
 		key = getch();
-		if (key == 'l')
+		y_0 = y;
+		x_0 = x;
+		if (key == 'l' || key == KEY_RIGHT)
 			{
 			ch[0] = 0;
 			ch[1] = num_rows;
 			ch[2] = x;
 			ch[3] = x + 1;
-			y_0 = y;
 			if (num_cols == 1) delete_row();
 			else delete_col();
 			}
-		else if (key == 'h')
+		else if (key == '$')
+			{
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = x;
+			ch[3] = num_cols;
+			if (x == 0) delete_row();
+			else delete_col();
+			}
+		else if (key == 'w')
+			{
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = x;
+			ch[3] = x + MOVE_X;
+			if (ch[3] > num_cols)
+				ch[3] = num_cols;
+			if (ch[3] - ch[2] == num_cols) delete_row();
+			else delete_col();
+			}
+		else if (key == 'h' || key == KEY_LEFT)
 			{
 			ch[0] = 0;
 			ch[1] = num_rows;
 			ch[2] = x - 1;
 			ch[3] = x;
-			y_0 = y;
-			if (num_cols == 1) return;
-			else delete_col();
+			if (ch[2] < 0)
+				ch[2] = 0;
+			delete_col();
 			}
-		else if (key == 'j')
+		else if (key == '0')
+			{
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = 0;
+			ch[3] = x;
+			delete_col();
+			}
+		else if (key == 'b')
+			{
+			ch[0] = 0;
+			ch[1] = num_rows;
+			ch[2] = x - MOVE_X;
+			ch[3] = x;
+			if (ch[2] < 0)
+				ch[2] = 0;
+			delete_col();
+			}
+		else if (key == 'j' || key == KEY_DOWN)
 			{
 			ch[0] = y;
 			ch[1] = y + 1;
@@ -1628,12 +1667,48 @@ deleting()
 			ch[3] = num_cols;
 			delete_row();
 			}
-		else if (key == 'k')
+		else if (key == 'G')
+			{
+			ch[0] = y;
+			ch[1] = num_rows;
+			ch[2] = 0;
+			ch[3] = num_cols;
+			delete_row();
+			}
+		else if (key == '\x04')
+			{
+			ch[0] = y;
+			ch[1] = y + MOVE_Y;
+			ch[2] = 0;
+			ch[3] = num_cols;
+			if (ch[1] > num_rows)
+				ch[1] = num_rows;
+			delete_row();
+			}
+		else if (key == 'k' || key == KEY_UP)
 			{
 			ch[0] = y - 1;
 			ch[1] = y;
 			ch[2] = 0;
 			ch[3] = num_cols;
+			delete_row();
+			}
+		else if (key == 'g')
+			{
+			ch[0] = 0;
+			ch[1] = y;
+			ch[2] = 0;
+			ch[3] = num_cols;
+			delete_row();
+			}
+		else if (key == '\x15')
+			{
+			ch[0] = y - MOVE_Y;
+			ch[1] = y;
+			ch[2] = 0;
+			ch[3] = num_cols;
+			if (ch[0] < 0)
+				ch[0] = 0;
 			delete_row();
 			}
 		}
