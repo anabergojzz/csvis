@@ -1653,6 +1653,7 @@ str_change(const Arg *arg)
 			for (int j = 0; j < num_cols; j++)
 				matrix[y][j] = NULL;
 			rows = 1;
+			cols = 0;
 			}
 		else if (x == num_cols)
 			{
@@ -1663,6 +1664,7 @@ str_change(const Arg *arg)
 				matrix[i][x] = NULL;
 				}
 			cols = 1;
+			rows = 0;
 			}
 		if (arg->i == 0)
 			str = get_str("", 0, 0);
