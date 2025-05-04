@@ -529,39 +529,45 @@ void
 delete_row()
 	{
 	reg_init();
-	if (num_rows > reg_rows)
+	char ***undo_mat = xmalloc(reg_rows * sizeof(char **));
+	char *current_ptr = reg_buffer;
+	for (int i = ch[0]; i < ch[1]; i++)
 		{
-		char ***undo_mat = xmalloc(reg_rows * sizeof(char **));
-		char *current_ptr = reg_buffer;
-		for (int i = ch[0]; i < ch[1]; i++)
+		undo_mat[i - ch[0]] = matrix[i];
+		for (int j = ch[2]; j < ch[3]; j++)
 			{
-			undo_mat[i - ch[0]] = matrix[i];
-			for (int j = ch[2]; j < ch[3]; j++)
-				{
-				if (matrix[i][j] == NULL) matrix[i][j] = "";
-				strcpy(current_ptr, matrix[i][j]);
-				mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
-				current_ptr += strlen(matrix[i][j]) + 1;
-				}
+			if (matrix[i][j] == NULL) matrix[i][j] = "";
+			strcpy(current_ptr, matrix[i][j]);
+			mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+			current_ptr += strlen(matrix[i][j]) + 1;
 			}
-		for (int i = ch[0]; i < num_rows - reg_rows; i++)
-			matrix[i] = matrix[i + reg_rows];
-		num_rows -= reg_rows;
-		struct undo data[] = {
-			{Delete, undo_mat, NULL, reg_rows, reg_cols, ch[0], x, s_y, s_x, ch[0], ch[2]},
-			{Cut, NULL, NULL, reg_rows, 0, ch[0], x, s_y, s_x, ch[0], x}
-		};
+		}
+	for (int i = ch[0]; i < num_rows - reg_rows; i++)
+		matrix[i] = matrix[i + reg_rows];
+	num_rows -= reg_rows;
+	struct undo data[] = {
+		{Delete, undo_mat, NULL, reg_rows, reg_cols, y_0, x_0, s_y, s_x, ch[0], ch[2]},
+		{Cut, NULL, NULL, reg_rows, 0, ch[0], x, s_y, s_x, ch[0], x},
+		{}
+	};
+	 if (num_rows == 0)
+	 	{
+	 	data[1].rows--;
+	 	data[2] = (struct undo){Cut, NULL, NULL, 0, reg_cols-1, 0, 0, 0, 0, 0, 0};
+	 	num_rows = num_cols = 1;
+	 	x = 0;
+	 	matrix[0] = xmalloc(sizeof(char *));
+		matrix[0][0] = NULL;
+	 	push(&uhead, data, 3);
+	 	}
+	 else
 		push(&uhead, data, 2);
-		y = ch[0];
-		if (y >= num_rows)
-			y = ch[0] - 1;
-		ch[0] = ch[1] = ch[2] = ch[3] = 0;
-		mode = 'n';
-		}
-	else if (mode != 'v')
-		{
-		ch[0] = ch[1] = ch[2] = ch[3] = 0;
-		}
+	matrix = xrealloc(matrix, num_rows * sizeof(char **));
+	y = ch[0];
+	if (y >= num_rows)
+		y = ch[0] - 1;
+	ch[0] = ch[1] = ch[2] = ch[3] = 0;
+	mode = 'n';
 	paste_flag = 3;
 	}
 
@@ -569,42 +575,35 @@ void
 delete_col()
 	{
 	reg_init();
-	if (num_cols > reg_cols)
+	char ***undo_mat = xmalloc(reg_rows * sizeof(char**));
+	for (int i = 0; i < reg_rows; i++)
+		undo_mat[i] = xmalloc(reg_cols * sizeof(char*));
+	char *current_ptr = reg_buffer;
+	for (int i = ch[0]; i < ch[1]; i++)
 		{
-		char ***undo_mat = xmalloc(reg_rows * sizeof(char**));
-		for (int i = 0; i < reg_rows; i++)
-			undo_mat[i] = xmalloc(reg_cols * sizeof(char*));
-		char *current_ptr = reg_buffer;
-		for (int i = ch[0]; i < ch[1]; i++)
+		for (int j = ch[2]; j < ch[3]; j++)
 			{
-			for (int j = ch[2]; j < ch[3]; j++)
-				{
-				undo_mat[i - ch[0]][j - ch[2]] = matrix[i][j];
-				if (matrix[i][j] == NULL) matrix[i][j] = "";
-				strcpy(current_ptr, matrix[i][j]);
-				mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
-				current_ptr += strlen(matrix[i][j]) + 1;
-				matrix[i][j] = NULL;
-				}
-			for (int j = ch[2]; j < num_cols - reg_cols; j++)
-				matrix[i][j] = matrix[i][j + reg_cols];
+			undo_mat[i - ch[0]][j - ch[2]] = matrix[i][j];
+			if (matrix[i][j] == NULL) matrix[i][j] = "";
+			strcpy(current_ptr, matrix[i][j]);
+			mat_reg[i - ch[0]][j - ch[2]] = current_ptr;
+			current_ptr += strlen(matrix[i][j]) + 1;
+			matrix[i][j] = NULL;
 			}
-		num_cols -= reg_cols;
-		struct undo data[] = {
-			{Delete, undo_mat, NULL, reg_rows, reg_cols, y, ch[2], s_y, s_x, ch[0], ch[2]},
-			{Cut, NULL, NULL, 0, reg_cols, y, ch[2], s_y, s_x, y, ch[2]}
-		};
-		push(&uhead, data, 2);
-		x = ch[2];
-		if (x >= num_cols)
-			x = ch[2] - 1;
-		ch[0] = ch[1] = ch[2] = ch[3] = 0;
-		mode = 'n';
+		for (int j = ch[2]; j < num_cols - reg_cols; j++)
+			matrix[i][j] = matrix[i][j + reg_cols];
 		}
-	else if (mode != 'v')
-		{
-		ch[0] = ch[1] = ch[2] = ch[3] = 0;
-		}
+	num_cols -= reg_cols;
+	struct undo data[] = {
+		{Delete, undo_mat, NULL, reg_rows, reg_cols, y_0, x_0, s_y, s_x, ch[0], ch[2]},
+		{Cut, NULL, NULL, 0, reg_cols, y, ch[2], s_y, s_x, y, ch[2]}
+	};
+	push(&uhead, data, 2);
+	x = ch[2];
+	if (x >= num_cols)
+		x = ch[2] - 1;
+	ch[0] = ch[1] = ch[2] = ch[3] = 0;
+	mode = 'n';
 	paste_flag = 4;
 	}
 
@@ -1592,10 +1591,10 @@ deleting()
 	{
 	if (mode == 'v')
 		{
-		if (ch[0] == 0 && ch[1] == num_rows)
-			delete_col();
-		else if (ch[2] == 0 && ch[3] == num_cols)
+		if (ch[2] == 0 && ch[3] == num_cols)
 			delete_row();
+		else if (ch[0] == 0 && ch[1] == num_rows)
+			delete_col();
 		}
 	else
 		{
@@ -1607,7 +1606,9 @@ deleting()
 			ch[1] = num_rows;
 			ch[2] = x;
 			ch[3] = x + 1;
-			delete_col();
+			y_0 = y;
+			if (num_cols == 1) delete_row();
+			else delete_col();
 			}
 		else if (key == 'h')
 			{
@@ -1615,7 +1616,9 @@ deleting()
 			ch[1] = num_rows;
 			ch[2] = x - 1;
 			ch[3] = x;
-			delete_col();
+			y_0 = y;
+			if (num_cols == 1) return;
+			else delete_col();
 			}
 		else if (key == 'j')
 			{
