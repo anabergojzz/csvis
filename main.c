@@ -73,6 +73,7 @@ void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
 void search(const Arg *);
 void invert();
+void move_screen(const Arg *);
 int statusbar(char *);
 int readall(FILE *, char **, size_t *);
 size_t utf8_strlen(const char *);
@@ -186,6 +187,7 @@ static Key keys[] = {
 	{'n', search, {1}},
 	{'?', search, {2}},
 	{'N', search, {3}},
+	{'z', move_screen, {0}},
 	{'D', deleting, {0}}
 };
 
@@ -393,6 +395,25 @@ void
 invert()
 	{
 		reverse_flag = 1;
+	}
+
+void
+move_screen(const Arg *arg)
+	{
+	int key;
+	key = getch();
+	if (key == 't')
+		s_y = y;
+	else if (key == 'b')
+		{
+		if (y >= scr_y - 1)
+			s_y = y - scr_y;
+		}
+	else if (key == 'z')
+		{
+		if (y >= scr_y/2 - 1)
+			s_y = y - scr_y/2;
+		}
 	}
 
 int

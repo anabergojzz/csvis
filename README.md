@@ -39,6 +39,7 @@ make
 | `r`                               | Inverse operation (paste, save, pipe)      |
 | `/`, `?`                          | Search forward, backward                   |
 | `n`, `N`                          | Next, previous match                       |
+| `zt`, `zz`, `zb`                  | Move screen                                |
     
 ## Examples for piping selection
 ```
@@ -53,14 +54,10 @@ Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
 
 ## TODO
-- [ ] vi commands ., H, M, L, zz, zt, zb
-- [ ] add commands (:q, :w)
-- [ ] research options for calculations
+- [ ] research options for equations
 - [ ] mouse support
 - [ ] multi select?
 - [ ] enumerate
-- [ ] how to mark chosen area (yank 5.4,2.10)
-- [ ] generalise send to named pipe
 - [ ] support for quotations
 
 ## Contribute
