@@ -1174,13 +1174,23 @@ write_to_cells(char *buffer, int arg)
 		rows = cols;
 		cols = temp_rows;
 		}
+	char ***undo_mat0 = xmalloc((ch[1] - ch[0]) * sizeof(char **));
+	for (int i = 0; i < (ch[1] - ch[0]); i++)
+		{
+		undo_mat0[i] = xmalloc((ch[3] - ch[2]) * sizeof(char *));
+		for (int j = 0; j < (ch[3] - ch[2]); j++)
+			{
+			undo_mat0[i][j] = matrix[ch[0] + i][ch[2] + j];
+			matrix[ch[0] + i][ch[2] + j] = NULL;
+			}
+		}
 	char ***paste_mat = xmalloc(rows * sizeof(char **));
 	char ***undo_mat = xmalloc(rows * sizeof(char **));
 	int add_y, add_x = 0;
 	if ((add_y = ch[0] + rows - num_rows) < 0) add_y = 0;
 	if (add_y > 0) /* If not enough rows */
 		{
-		matrix = xrealloc(matrix, (num_rows + add_y)*sizeof(char **));
+		matrix = xrealloc(matrix, (num_rows + add_y) * sizeof(char **));
 		for (int i = num_rows; i < num_rows + add_y; i++)
 			{
 			matrix[i] = xmalloc(num_cols * sizeof(char *));
@@ -1194,7 +1204,7 @@ write_to_cells(char *buffer, int arg)
 		{
 		for (int i = 0; i < num_rows; i++)
 			{
-			matrix[i] = xrealloc(matrix[i], (num_cols + add_x)*sizeof(char *));
+			matrix[i] = xrealloc(matrix[i], (num_cols + add_x) * sizeof(char *));
 			for (int j = num_cols; j < num_cols + add_x; j++)
 				matrix[i][j] = NULL;
 			}
@@ -1222,11 +1232,12 @@ write_to_cells(char *buffer, int arg)
 			}
 		}
 	struct undo data[] = {
-		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x},
+		{Delete, undo_mat0, NULL, ch[1] - ch[0], ch[3] - ch[2], ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
 		{Delete, undo_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
+		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, num_rows-add_y, num_cols-add_x},
 		{Paste, paste_mat, buffer, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
-	push(&uhead, data, 3);
+	push(&uhead, data, 4);
 	if (reverse_flag == 1)
 		{
 		int temp_rows = rows;
