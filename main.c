@@ -291,9 +291,10 @@ search(const Arg *arg)
 			for (int j = ch[2]; j < ch[3]; j++)
 				{
 				if (i == st_y && j <= st_x) continue;
-				if (matrix[i][j] != NULL)
-					reti = regexec(&regex, matrix[i][j], 0, NULL, 0);
-				else reti = REG_NOMATCH;
+				temp = matrix[i][j];
+				if (temp == NULL)
+					temp = "";
+				reti = regexec(&regex, temp, 0, NULL, 0);
 				if (!reti)
 					{
 					y = i;
@@ -310,8 +311,8 @@ search(const Arg *arg)
 		{
 		if (mode == 'v')
 			{
-			st_y = ch[1];
-			st_x = ch[3];
+			st_y = ch[1] - 1;
+			st_x = ch[3] - 1;
 			}
 		else
 			{
@@ -323,9 +324,10 @@ search(const Arg *arg)
 			for (int j = ch[3]-1; j >= ch[2]; j--)
 				{
 				if (i == st_y && j >= st_x) continue;
-				if (matrix[i][j] != NULL)
-					reti = regexec(&regex, matrix[i][j], 0, NULL, 0);
-				else reti = REG_NOMATCH;
+				temp = matrix[i][j];
+				if (temp == NULL)
+					temp = "";
+				reti = regexec(&regex, temp, 0, NULL, 0);
 				if (!reti)
 					{
 					y = i;
