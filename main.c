@@ -237,6 +237,8 @@ search(const Arg *arg)
 	{
 	char *temp;
 	static int dir = 0;
+	static int sel = 0;
+	static int ch0, ch1, ch2, ch3;
 	if (arg->i == 0 || arg->i == 2)
 		{
 		temp = get_str("", 0, '/');
@@ -245,6 +247,22 @@ search(const Arg *arg)
 			{
 			if (srch) free(srch);
 			srch = temp;
+			if (mode == 'n')
+				{
+				sel = 0;
+				ch0 = 0;
+				ch1 = num_rows;
+				ch2 = 0;
+				ch3 = num_cols;
+				}
+			else
+				{
+				sel = 1;
+				ch0 = ch[0];
+				ch1 = ch[1];
+				ch2 = ch[2];
+				ch3 = ch[3];
+				}
 			}
 		if (arg->i == 0) dir = 0;
 		else if (arg->i == 2) dir = 1;
@@ -265,30 +283,23 @@ search(const Arg *arg)
 			return;
 	}
 
-	if (mode == 'n')
-		{
-		ch[0] = 0;
-		ch[1] = num_rows;
-		ch[2] = 0;
-		ch[3] = num_cols;
-		}
 	int st_y;
 	int st_x;
 	if (arg->i == 0 || (arg->i == 1 && dir == 0) || (arg->i == 3 && dir == 1))
 		{
 		if (mode == 'v')
 			{
-			st_y = ch[0];
-			st_x = ch[2];
+			st_y = ch0;
+			st_x = ch2;
 			}
 		else
 			{
 			st_y = y;
 			st_x = x;
 			}
-		for (int i = st_y; i < ch[1]; i++)
+		for (int i = st_y; i < ch1; i++)
 			{
-			for (int j = ch[2]; j < ch[3]; j++)
+			for (int j = ch2; j < ch3; j++)
 				{
 				if (i == st_y && j <= st_x) continue;
 				temp = matrix[i][j];
@@ -311,17 +322,17 @@ search(const Arg *arg)
 		{
 		if (mode == 'v')
 			{
-			st_y = ch[1] - 1;
-			st_x = ch[3] - 1;
+			st_y = ch1 - 1;
+			st_x = ch3 - 1;
 			}
 		else
 			{
 			st_y = y;
 			st_x = x;
 			}
-		for (int i = st_y; i >= ch[0]; i--)
+		for (int i = st_y; i >= ch0; i--)
 			{
-			for (int j = ch[3]-1; j >= ch[2]; j--)
+			for (int j = ch3-1; j >= ch2; j--)
 				{
 				if (i == st_y && j >= st_x) continue;
 				temp = matrix[i][j];
@@ -342,7 +353,10 @@ search(const Arg *arg)
 		}
 	if (reti == REG_NOMATCH)
 		{
-		statusbar("No match forward");
+		if (sel == 1)
+			statusbar("No further MATCH in last SELECTION.");
+		else
+			statusbar("No further MATCH.");
 		}
 	else
 		{
