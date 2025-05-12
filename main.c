@@ -518,7 +518,7 @@ format_wide_string(wchar_t *buffer, size_t max_width)
 void
 draw(void)
 	{
-	clear();
+	werase(stdscr);
 	for (int i = 0; i < scr_y; i++)
 		{
 		for (int j = 0; j < scr_x; j++)
@@ -1551,7 +1551,7 @@ write_to_pipe(const Arg *arg)
 		{
 		if (arg->i == PipeTo)
 			{
-			clear();
+			werase(stdscr);
 			mvprintw(0, 0, "%s", output_buffer);
 			getch();
 			}
