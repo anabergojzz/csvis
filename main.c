@@ -785,7 +785,6 @@ get_str(char *str, char loc, const char cmd)
 	int cx_add, cy_add;
 	size_t c_xtemp;
 
-	wint_t key;
 	int hidden_text = 0;
 	size_t line_widths_size = 8;
 	int *line_widths = xmalloc(line_widths_size * sizeof(int));
@@ -793,12 +792,6 @@ get_str(char *str, char loc, const char cmd)
 
 	while (1)
 		{
-		if (str_size + 1 >= bufsize)
-			{
-			bufsize *= 2;
-			buffer = xrealloc(buffer, bufsize * sizeof(wchar_t));
-			}
-
 		when_resize();
 		if (cmd != 0)
 			{ c_x = 1; c_y = rows - 1; }
@@ -842,8 +835,11 @@ get_str(char *str, char loc, const char cmd)
 		int s = c_y + cy_add - rows + 1;
 		if (s > 0) /* if bottom of screen reached */
 			{
-			s_y += s;
-			if (num_rows - s_y < rows) scr_y -= s; /* if last row on screen */
+			if (cmd == 0)
+				{
+				s_y += s;
+				if (num_rows - s_y < rows) scr_y -= s; /* if last row on screen */
+				}
 			c_y -= s;
 			if (c_y < 0) /* if insert start position above window */
 				{
@@ -858,17 +854,26 @@ get_str(char *str, char loc, const char cmd)
 			else hidden_text = 0;
 			}
 		else hidden_text = 0;
+
 		draw();
 		if (cmd != 0)
-			mvaddch(c_y, c_x-1, cmd);
+			mvaddch(c_y, 0, cmd);
 		mvprintw(c_y, c_x, "%*s", CELL_WIDTH, "");
 		mvaddwstr(c_y, c_x, buffer + hidden_text);
 		int c_yend, c_xend;
 		getyx(stdscr, c_yend, c_xend);
 		if (!(c_yend == rows-1 && c_xend == cols-1))
 			addch(' ');
+
 		wmove(stdscr, c_y + cy_add, c_xtemp + cx_add);
 
+		if (str_size + 1 >= bufsize)
+			{
+			bufsize *= 2;
+			buffer = xrealloc(buffer, bufsize * sizeof(wchar_t));
+			}
+
+		wint_t key;
 		int ret = get_wch(&key);
 		if (ret == OK)
 			{
