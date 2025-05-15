@@ -41,7 +41,7 @@ typedef union {
 } Arg;
 
 typedef struct {
-	int key;
+	int key[2];
 	void (*func)(const Arg *arg);
 	const Arg arg;
 } Key;
@@ -146,55 +146,57 @@ char fs = ',';
 char *srch = NULL;
 
 static Key keys[] = {
-	{'q', quit, {0}},
-	{'v', visual_start, {0}},
-	{'V', visual, {0}},
-	{'\x03', visual_end, {0}}, /* Ctrl-C */
-	{'j', move_y_step, {.i = 1}},
-	{KEY_DOWN, move_y_step, {.i = 1}},
-	{'k', move_y_step, {.i = -1}},
-	{KEY_UP, move_y_step, {.i = -1}},
-	{'l', move_x_step, {.i = 1}},
-	{KEY_RIGHT, move_x_step, {.i = 1}},
-	{'h', move_x_step, {.i = -1}},
-	{KEY_LEFT, move_x_step, {.i = -1}},
-	{'\x04', move_y_step, {.i = MOVE_Y}}, /* Ctrl-D */
-	{'\x15', move_y_step, {.i = -MOVE_Y}}, /* Ctrl-U */
-	{'w', move_x_step, {.i = MOVE_X}},
-	{'b', move_x_step, {.i = -MOVE_X}},
-	{'G', move_y_end, {0}},
-	{'g', move_y_start, {0}},
-	{'$', move_x_end, {0}},
-	{'0', move_x_start, {0}},
-	{'c', str_change, {0}},
-	{'a', str_change, {2}},
-	{'i', str_change, {1}},
-	{'O', insert_row, {0}},
-	{'o', insert_row, {1}},
-	{'I', insert_col, {0}},
-	{'A', insert_col, {1}},
-	{'s', write_csv, {WriteTo}},
-	{'e', write_csv, {WriteFifo}},
-	{'\x13', write_csv, {WriteExisting}}, /* Ctrl-S */
-	{'>', write_to_pipe, {PipeTo}},
-	{'|', write_to_pipe, {PipeThrough}},
-	{'\x0F', write_to_pipe, {PipeAwk}}, /* Ctrl-O awk */
-	{'<', write_to_pipe, {PipeRead}},
-	{'d', wipe_cells, {0}},
-	{'y', yank_cells, {0}},
-	{'\x19', write_to_pipe, {PipeToClip}}, /* Ctrl-Y */
-	{'p', paste_cells, {0}},
-	{'\x10', write_to_pipe, {PipeReadClip}}, /* Ctrl-P */
-	{'u', undo, {Undo}},
-	{'\x12', undo, {Redo}}, /* Ctrl-R */
-	{':', commands, {0}},
-	{'r', invert, {0}},
-	{'/', search, {0}},
-	{'n', search, {1}},
-	{'?', search, {2}},
-	{'N', search, {3}},
-	{'z', move_screen, {0}},
-	{'D', deleting, {0}}
+	{{'q', -1}, quit, {0}},
+	{{'v', -1}, visual_start, {0}},
+	{{'V', -1}, visual, {0}},
+	{{'\x03', -1}, visual_end, {0}}, /* Ctrl-C */
+	{{'j', -1}, move_y_step, {.i = 1}},
+	{{KEY_DOWN, -1}, move_y_step, {.i = 1}},
+	{{'k', -1}, move_y_step, {.i = -1}},
+	{{KEY_UP, -1}, move_y_step, {.i = -1}},
+	{{'l', -1}, move_x_step, {.i = 1}},
+	{{KEY_RIGHT, -1}, move_x_step, {.i = 1}},
+	{{'h', -1}, move_x_step, {.i = -1}},
+	{{KEY_LEFT, -1}, move_x_step, {.i = -1}},
+	{{'\x04', -1}, move_y_step, {.i = MOVE_Y}}, /* Ctrl-D */
+	{{'\x15', -1}, move_y_step, {.i = -MOVE_Y}}, /* Ctrl-U */
+	{{'w', -1}, move_x_step, {.i = MOVE_X}},
+	{{'b', -1}, move_x_step, {.i = -MOVE_X}},
+	{{'G', -1}, move_y_end, {0}},
+	{{'g', 'g'}, move_y_start, {0}},
+	{{'$', -1}, move_x_end, {0}},
+	{{'0', -1}, move_x_start, {0}},
+	{{'c', -1}, str_change, {0}},
+	{{'a', -1}, str_change, {2}},
+	{{'i', -1}, str_change, {1}},
+	{{'O', -1}, insert_row, {0}},
+	{{'o', -1}, insert_row, {1}},
+	{{'I', -1}, insert_col, {0}},
+	{{'A', -1}, insert_col, {1}},
+	{{'s', -1}, write_csv, {WriteTo}},
+	{{'e', -1}, write_csv, {WriteFifo}},
+	{{'\x13', -1}, write_csv, {WriteExisting}}, /* Ctrl-S */
+	{{'>', -1}, write_to_pipe, {PipeTo}},
+	{{'|', -1}, write_to_pipe, {PipeThrough}},
+	{{'\x0F', -1}, write_to_pipe, {PipeAwk}}, /* Ctrl-O awk */
+	{{'<', -1}, write_to_pipe, {PipeRead}},
+	{{'d', -1}, wipe_cells, {0}},
+	{{'y', -1}, yank_cells, {0}},
+	{{'\x19', -1}, write_to_pipe, {PipeToClip}}, /* Ctrl-Y */
+	{{'p', -1}, paste_cells, {0}},
+	{{'\x10', -1}, write_to_pipe, {PipeReadClip}}, /* Ctrl-P */
+	{{'u', -1}, undo, {Undo}},
+	{{'\x12', -1}, undo, {Redo}}, /* Ctrl-R */
+	{{':', -1}, commands, {0}},
+	{{'r', -1}, invert, {0}},
+	{{'/', -1}, search, {0}},
+	{{'n', -1}, search, {1}},
+	{{'?', -1}, search, {2}},
+	{{'N', -1}, search, {3}},
+	{{'z', 't'}, move_screen, {0}},
+	{{'z', 'b'}, move_screen, {1}},
+	{{'z', 'z'}, move_screen, {2}},
+	{{'D', -1}, deleting, {0}}
 };
 
 void *
@@ -384,16 +386,14 @@ invert()
 void
 move_screen(const Arg *arg)
 	{
-	int key;
-	key = getch();
-	if (key == 't')
+	if (arg->i == 0)
 		s_y = y;
-	else if (key == 'b')
+	else if (arg->i == 1)
 		{
 		if (y >= scr_y - 1)
 			s_y = y - scr_y;
 		}
-	else if (key == 'z')
+	else if (arg->i == 2)
 		{
 		if (y >= scr_y/2 - 1)
 			s_y = y - scr_y/2;
@@ -2221,11 +2221,34 @@ quit()
 void
 keypress(int key)
 	{
-	for (int i = 0; i < sizeof(keys)/sizeof(keys[0]); i++)
+	static int key0 = -1;
+	static int i0 = 0;
+	for (int i = i0; i < sizeof(keys)/sizeof(keys[0]); i++)
 		{
-		if (key == keys[i].key)
+		if (key == keys[i].key[0] && key0 == -1)
+			{
+			if (keys[i].key[1] == -1)
+				{
+				(*keys[i].func)(&keys[i].arg);
+				key0 = -1;
+				i0 = 0;
+				}
+			else
+				{
+				key0 = key;
+				i0 = i;
+				return;
+				}
+			}
+		else if (key0 == keys[i].key[0] && key == keys[i].key[1])
+			{
 			(*keys[i].func)(&keys[i].arg);
+			key0 = -1;
+			i0 = 0;
+			}
 		}
+	key0 = -1;
+	i0 = 0;
 	if (key != 'r')
 		reverse_flag = 0;
 	}
