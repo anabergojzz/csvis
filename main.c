@@ -80,8 +80,16 @@ size_t utf8_strlen(const char *);
 int wcswidth_total(const wchar_t *);
 void format_wide_string(wchar_t *, size_t);
 void draw(void);
-void move_y(const Arg *);
-void move_x(const Arg *);
+void move_y_visual(void);
+void move_x_visual(void);
+void move_y(int);
+void move_x(int);
+void move_x_start(const Arg *);
+void move_x_end(const Arg *);
+void move_x_step(const Arg *);
+void move_y_start(const Arg *);
+void move_y_end(const Arg *);
+void move_y_step(const Arg *);
 void commands();
 void when_resize(void);
 void insert_row(const Arg *);
@@ -130,8 +138,6 @@ int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
 char *fname = NULL;
-int to_num_y;
-int to_num_x;
 int reverse_flag = 0;
 int all_flag = 0;
 int paste_flag = 0;
@@ -144,22 +150,22 @@ static Key keys[] = {
 	{'v', visual_start, {0}},
 	{'V', visual, {0}},
 	{'\x03', visual_end, {0}}, /* Ctrl-C */
-	{'j', move_y, {.i = 1}},
-	{KEY_DOWN, move_y, {.i = 1}},
-	{'k', move_y, {.i = -1}},
-	{KEY_UP, move_y, {.i = -1}},
-	{'l', move_x, {.i = 1}},
-	{KEY_RIGHT, move_x, {.i = 1}},
-	{'h', move_x, {.i = -1}},
-	{KEY_LEFT, move_x, {.i = -1}},
-	{'\x04', move_y, {.i = MOVE_Y}}, /* Ctrl-D */
-	{'\x15', move_y, {.i = -MOVE_Y}}, /* Ctrl-U */
-	{'w', move_x, {.i = MOVE_X}},
-	{'b', move_x, {.i = -MOVE_X}},
-	{'G', move_y, {.i = 100}},
-	{'g', move_y, {.i = 0}},
-	{'$', move_x, {.i = 100}},
-	{'0', move_x, {.i = 0}},
+	{'j', move_y_step, {.i = 1}},
+	{KEY_DOWN, move_y_step, {.i = 1}},
+	{'k', move_y_step, {.i = -1}},
+	{KEY_UP, move_y_step, {.i = -1}},
+	{'l', move_x_step, {.i = 1}},
+	{KEY_RIGHT, move_x_step, {.i = 1}},
+	{'h', move_x_step, {.i = -1}},
+	{KEY_LEFT, move_x_step, {.i = -1}},
+	{'\x04', move_y_step, {.i = MOVE_Y}}, /* Ctrl-D */
+	{'\x15', move_y_step, {.i = -MOVE_Y}}, /* Ctrl-U */
+	{'w', move_x_step, {.i = MOVE_X}},
+	{'b', move_x_step, {.i = -MOVE_X}},
+	{'G', move_y_end, {0}},
+	{'g', move_y_start, {0}},
+	{'$', move_x_end, {0}},
+	{'0', move_x_start, {0}},
 	{'c', str_change, {0}},
 	{'a', str_change, {2}},
 	{'i', str_change, {1}},
@@ -540,18 +546,8 @@ draw(void)
 	}
 
 void
-move_y(const Arg *arg)
+move_y_visual(void)
 	{
-	int move;
-	if (arg->i == 99)
-		move = to_num_y;
-	else if (arg->i == 100 || y + arg->i >= num_rows)
-		move = num_rows - y - 1;
-	else if (arg->i == 0 || y + arg->i < 0)
-		move = -y;
-	else
-		move = arg->i;
-	y += move;
 	if (mode == 'v')
 		{
 		if (y >= v_y)
@@ -562,18 +558,8 @@ move_y(const Arg *arg)
 	}
 
 void
-move_x(const Arg *arg)
+move_x_visual(void)
 	{
-	int move;
-	if (arg->i == 99)
-		move = to_num_x;
-	else if (arg->i == 100 || x + arg->i >= num_cols)
-		move = num_cols - x - 1;
-	else if (arg->i == 0 || x + arg->i < 0)
-		move = -x;
-	else
-		move = arg->i;
-	x += move;
 	if (mode == 'v')
 		{
 		if (x >= v_x)
@@ -581,6 +567,68 @@ move_x(const Arg *arg)
 		else
 			{ ch[2] = x; ch[3] = v_x + 1; }
 		}
+	}
+
+void
+move_y(int move)
+	{
+	y += move;
+	if (y >= num_rows)
+		y = num_rows - 1;
+	else if (y < 0)
+		y = 0;
+	move_y_visual();
+	}
+
+void
+move_x(int move)
+	{
+	x += move;
+	if (x >= num_cols)
+		x = num_cols - 1;
+	else if (x < 0)
+		x = 0;
+	move_x_visual();
+	}
+
+void
+move_x_start(const Arg *arg)
+	{
+	x = 0;
+	move_x_visual();
+	}
+
+void
+move_x_end(const Arg *arg)
+	{
+	x = num_cols - 1;
+	move_x_visual();
+	}
+
+void
+move_x_step(const Arg *arg)
+	{
+	move_x(arg->i);
+	}
+
+void
+move_y_start(const Arg *arg)
+	{
+	y = 0;
+	move_y_visual();
+	}
+
+void
+move_y_end(const Arg *arg)
+	{
+	y = num_rows - 1;
+	move_y_visual();
+	}
+
+void
+move_y_step(const Arg *arg)
+	{
+	move_y(arg->i);
 	}
 
 void
@@ -596,8 +644,8 @@ commands()
 			return;
 		}
 	int length = strlen(temp);
-	to_num_y = 0;
-	to_num_x = x;
+	int to_num_y = 0;
+	int to_num_x = x;
 	int is_number = 0;
 	char next = 0;
 
@@ -628,11 +676,16 @@ commands()
 		to_num_y -= y;
 		to_num_x -= x;
 		Arg move;
-		move.i = 99;
 		if (to_num_y != 0 && y + to_num_y < num_rows && y + to_num_y >= 0)
-			move_y(&move);
+			{
+			move.i = to_num_y;
+			move_y_step(&move);
+			}
 		if (to_num_x != 0 && x + to_num_x < num_cols && x + to_num_x >= 0)
-			move_x(&move);
+			{
+			move.i = to_num_x;
+			move_x_step(&move);
+			}
 		}
 	}
 
@@ -997,6 +1050,8 @@ visual_end()
 void
 visual()
 	{
+	Arg move;
+	move.i = 0;
 	int key;
 	key = getch();
 	if (key == 'l' || key == 'h' || key == '$' || key == '0' ||
@@ -1011,13 +1066,13 @@ visual()
 		ch[2] = x;
 		ch[3] = x + 1;
 		if (key == '$')
-			{ Arg move; move.i = 100; move_x(&move); }
+			{ move_x_end(&move); }
 		if (key == '0')
-			{ Arg move; move.i = 0; move_x(&move); }
+			{ move_x_start(&move); }
 		if (key == 'w')
-			{ Arg move; move.i = MOVE_X; move_x(&move); }
+			{ move.i = MOVE_X; move_x_step(&move); }
 		if (key == 'b')
-			{ Arg move; move.i = -MOVE_X; move_x(&move); }
+			{ move.i = -MOVE_X; move_x_step(&move); }
 		}
 	else if (key == 'j' || key == 'k' || key == 'G' || key == 'g' ||
 			key == '\x04' || key == '\x15' || key == KEY_UP || key == KEY_DOWN)
@@ -1031,13 +1086,13 @@ visual()
 		ch[2] = 0;
 		ch[3] = num_cols;
 		if (key == 'G')
-			{ Arg move; move.i = 100; move_y(&move); }
+			{ move_y_end(&move); }
 		if (key == 'g')
-			{ Arg move; move.i = 0; move_y(&move); }
+			{ move_y_start(&move); }
 		if (key == '\x04')	
-			{ Arg move; move.i = MOVE_Y; move_y(&move); }
+			{ move.i = MOVE_Y; move_y_step(&move); }
 		if (key == '\x15')
-			{ Arg move; move.i = -MOVE_Y; move_y(&move); }
+			{ move.i = -MOVE_Y; move_y_step(&move); }
 		}
 	}
 
