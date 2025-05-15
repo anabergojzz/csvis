@@ -32,9 +32,29 @@ char *argv0;
 #define LAST "'"
 
 /* enums */
-enum {PipeTo, PipeThrough, PipeRead, PipeAwk, PipeToClip, PipeReadClip};
-enum {WriteTo, WriteFifo, WriteExisting};
-enum {Cut, Insert, Delete, Paste, DeleteCell, PasteCell, Undo, Redo};
+enum {
+	PipeTo,
+	PipeThrough,
+	PipeRead,
+	PipeAwk,
+	PipeToClip,
+	PipeReadClip,
+	PipeReadInverse,
+	WriteTo,
+	WriteToInverse,
+	WriteFifo,
+	WriteExisting,
+	PasteNormal,
+	PasteInverse,
+	Cut,
+	Insert,
+	Delete,
+	Paste,
+	DeleteCell,
+	PasteCell,
+	Undo,
+	Redo
+};
 
 typedef union {
 	int i;
@@ -72,7 +92,6 @@ void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
 void search(const Arg *);
-void invert();
 void move_screen(const Arg *);
 int statusbar(char *);
 int readall(FILE *, char **, size_t *);
@@ -138,7 +157,6 @@ int ch[4] = {0, 0, 0, 0};
 char mode = 'n';
 int scr_x, scr_y;
 char *fname = NULL;
-int reverse_flag = 0;
 int all_flag = 0;
 int paste_flag = 0;
 int delete_flag = 0;
@@ -174,21 +192,23 @@ static Key keys[] = {
 	{{'I', -1}, insert_col, {0}},
 	{{'A', -1}, insert_col, {1}},
 	{{'s', -1}, write_csv, {WriteTo}},
+	{{'r', 's'}, write_csv, {WriteToInverse}},
 	{{'e', -1}, write_csv, {WriteFifo}},
 	{{'\x13', -1}, write_csv, {WriteExisting}}, /* Ctrl-S */
 	{{'>', -1}, write_to_pipe, {PipeTo}},
 	{{'|', -1}, write_to_pipe, {PipeThrough}},
 	{{'\x0F', -1}, write_to_pipe, {PipeAwk}}, /* Ctrl-O awk */
 	{{'<', -1}, write_to_pipe, {PipeRead}},
+	{{'r', '<'}, write_to_pipe, {PipeReadInverse}},
 	{{'d', -1}, wipe_cells, {0}},
 	{{'y', -1}, yank_cells, {0}},
 	{{'\x19', -1}, write_to_pipe, {PipeToClip}}, /* Ctrl-Y */
-	{{'p', -1}, paste_cells, {0}},
+	{{'p', -1}, paste_cells, {PasteNormal}},
+	{{'r', 'p'}, paste_cells, {PasteInverse}},
 	{{'\x10', -1}, write_to_pipe, {PipeReadClip}}, /* Ctrl-P */
 	{{'u', -1}, undo, {Undo}},
 	{{'\x12', -1}, undo, {Redo}}, /* Ctrl-R */
 	{{':', -1}, commands, {0}},
-	{{'r', -1}, invert, {0}},
 	{{'/', -1}, search, {0}},
 	{{'n', -1}, search, {1}},
 	{{'?', -1}, search, {2}},
@@ -375,12 +395,6 @@ search(const Arg *arg)
 		ch[0] = ch[1] = ch[2] = ch[3] = 0;
 	regfree(&regex);
 	return;
-	}
-
-void
-invert()
-	{
-		reverse_flag = 1;
 	}
 
 void
@@ -1101,7 +1115,7 @@ write_csv(const Arg *arg)
 	{
 	char *filename = NULL;
 
-	if (arg->i == WriteTo)
+	if (arg->i == WriteTo || arg->i == WriteToInverse)
 		{
 		filename = get_str("", 0, ':');
 		if (filename == NULL) return;
@@ -1189,7 +1203,7 @@ write_csv(const Arg *arg)
 			ch[2] = 0;
 			ch[3] = num_cols;
 			}
-		if (reverse_flag == 1) 
+		if (arg->i == WriteToInverse) 
 			{
 			int temp1, temp2;
 			temp1 = ch[0];
@@ -1208,7 +1222,7 @@ write_csv(const Arg *arg)
 			for (int j = ch[2]; j < ch[3]; j++)
 				{
 				char *inverse = NULL;
-				if (reverse_flag == 1)
+				if (WriteToInverse == 1)
 					inverse = matrix[j][i];
 				else
 					inverse = matrix[i][j];
@@ -1230,9 +1244,8 @@ write_csv(const Arg *arg)
 
 	free(filename);
 	visual_end();
-	if (arg->i == WriteTo || arg->i == WriteExisting)
+	if (arg->i == WriteTo || arg->i == WriteExisting || arg->i == WriteToInverse)
 		statusbar("Saved!");
-	reverse_flag = 0;
 	}
 
 void
@@ -1242,7 +1255,7 @@ write_to_cells(char *buffer, int arg)
 	char *inverse = NULL;;
 	char ***temp = write_to_matrix(&buffer, &rows, &cols);
 	if (temp == NULL) return;
-	if (reverse_flag == 1)
+	if (arg == PipeReadInverse)
 		{
 		int temp_rows = rows;
 		rows = cols;
@@ -1290,7 +1303,7 @@ write_to_cells(char *buffer, int arg)
 		paste_mat[i] = xmalloc(cols * sizeof(char *));
 		for (int j = 0; j < cols; j++)
 			{
-			if (reverse_flag == 1) inverse = temp[j][i];
+			if (arg == PipeReadInverse) inverse = temp[j][i];
 			else inverse = temp[i][j];
 			if (inverse != NULL)
 				{
@@ -1312,7 +1325,7 @@ write_to_cells(char *buffer, int arg)
 		{Paste, paste_mat, buffer, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&uhead, data, 4);
-	if (reverse_flag == 1)
+	if (PipeReadInverse)
 		{
 		int temp_rows = rows;
 		rows = cols;
@@ -1320,7 +1333,6 @@ write_to_cells(char *buffer, int arg)
 		}
 	for (int i = 0; i < rows; i++) free(temp[i]);
 	free(temp);
-	reverse_flag = 0;
 	}
 
 int
@@ -1552,7 +1564,7 @@ write_to_pipe(const Arg *arg)
 		cmd = get_str("", 0, '>');
 		if (cmd == NULL) return;
 		}
-	else if (arg->i == PipeRead || reverse_flag == 1)
+	else if (arg->i == PipeRead || arg->i == PipeReadInverse)
 		{
 		cmd = get_str("", 0, '<');
 		if (cmd == NULL) return;
@@ -1584,14 +1596,14 @@ write_to_pipe(const Arg *arg)
 		return;
 		}
 
-	if (arg->i != PipeRead && reverse_flag != 1 && arg->i != PipeReadClip && mode == 'n')
+	if (arg->i != PipeRead && arg->i != PipeReadInverse && arg->i != PipeReadClip && mode == 'n')
 		{
 		ch[0] = 0;
 		ch[1] = num_rows;
 		ch[2] = 0;
 		ch[3] = num_cols;
 		}
-	else if (arg->i == PipeRead || reverse_flag == 1 || arg->i == PipeReadClip)
+	else if (arg->i == PipeRead || arg->i == PipeReadInverse || arg->i == PipeReadClip)
 		{
 		ch[0] = y;
 		ch[2] = x;
@@ -1743,7 +1755,7 @@ paste_cells(const Arg *arg)
 		}
 	int rows = reg_rows;
 	int cols = reg_cols;
-	if (reverse_flag == 1)
+	if (arg->i == PasteInverse)
 		{
 		rows = reg_cols;
 		cols = reg_rows;
@@ -1765,8 +1777,8 @@ paste_cells(const Arg *arg)
 		}
 
 	if ((add_y = y + rows - num_rows) < 0) add_y = 0;
-	if (paste_flag == 3 && reverse_flag == 0) add_y = rows;
-	if (paste_flag == 4 && reverse_flag == 1) add_y = rows;
+	if (paste_flag == 3 && arg->i == PasteNormal) add_y = rows;
+	if (paste_flag == 4 && arg->i == PasteInverse) add_y = rows;
 	if (add_y > 0) /* If not enough rows */
 		{
 		matrix = xrealloc(matrix, (num_rows + add_y) * sizeof(char **));
@@ -1781,8 +1793,8 @@ paste_cells(const Arg *arg)
 		num_rows += add_y;
 		}
 	if ((add_x = x + cols - num_cols) < 0) add_x = 0;
-	if (paste_flag == 4 && reverse_flag == 0) add_x = cols;
-	if (paste_flag == 3 && reverse_flag == 1) add_x = cols;
+	if (paste_flag == 4 && arg->i == PasteNormal) add_x = cols;
+	if (paste_flag == 3 && arg->i == PasteInverse) add_x = cols;
 	if (add_x > 0) /* If not enough cols */
 		{
 		for (int i = 0; i < num_rows; i++)
@@ -1808,7 +1820,7 @@ paste_cells(const Arg *arg)
 		for (int j = 0; j < cols; j++)
 			{
 			undo_mat[i][j] = matrix[y + i][x + j];
-			char *inverse = (reverse_flag == 1) ? mat_reg[j][i] : mat_reg[i][j];
+			char *inverse = (arg->i == PasteInverse) ? mat_reg[j][i] : mat_reg[i][j];
 			if (inverse != NULL)
 				{
 				strcpy(current_ptr, inverse);
@@ -1829,7 +1841,6 @@ paste_cells(const Arg *arg)
 		{Paste, paste_mat, buffer, rows, cols, y_0, x_0, s_y, s_x, y, x}
 	};
 	push(&uhead, data, 3);
-	reverse_flag = 0;
 	x = x_0;
 	y = y_0;
 	}
@@ -2249,8 +2260,6 @@ keypress(int key)
 		}
 	key0 = -1;
 	i0 = 0;
-	if (key != 'r')
-		reverse_flag = 0;
 	}
 
 char ***
