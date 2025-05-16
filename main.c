@@ -1261,16 +1261,22 @@ write_to_cells(char *buffer, int arg)
 		rows = cols;
 		cols = temp_rows;
 		}
-	char ***undo_mat0 = xmalloc((ch[1] - ch[0]) * sizeof(char **));
-	for (int i = 0; i < (ch[1] - ch[0]); i++)
+	char ***undo_mat0;
+	if (mode == 'v')
 		{
-		undo_mat0[i] = xmalloc((ch[3] - ch[2]) * sizeof(char *));
-		for (int j = 0; j < (ch[3] - ch[2]); j++)
+		undo_mat0 = xmalloc((ch[1] - ch[0]) * sizeof(char **));
+		for (int i = 0; i < (ch[1] - ch[0]); i++)
 			{
-			undo_mat0[i][j] = matrix[ch[0] + i][ch[2] + j];
-			matrix[ch[0] + i][ch[2] + j] = NULL;
+			undo_mat0[i] = xmalloc((ch[3] - ch[2]) * sizeof(char *));
+			for (int j = 0; j < (ch[3] - ch[2]); j++)
+				{
+				undo_mat0[i][j] = matrix[ch[0] + i][ch[2] + j];
+				matrix[ch[0] + i][ch[2] + j] = NULL;
+				}
 			}
 		}
+	else
+		undo_mat0 = NULL;
 	char ***paste_mat = xmalloc(rows * sizeof(char **));
 	char ***undo_mat = xmalloc(rows * sizeof(char **));
 	int add_y, add_x = 0;
