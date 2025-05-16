@@ -1331,7 +1331,7 @@ write_to_cells(char *buffer, int arg)
 		{Paste, paste_mat, buffer, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
 	};
 	push(&uhead, data, 4);
-	if (PipeReadInverse)
+	if (arg == PipeReadInverse)
 		{
 		int temp_rows = rows;
 		rows = cols;
