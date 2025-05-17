@@ -1646,20 +1646,22 @@ write_to_pipe(const Arg *arg)
 void
 reg_init(void)
 	{
+	if (reg == NULL)
+		{
+		reg = xmalloc(sizeof(struct Mat));
+		reg->m = NULL;
+		reg->buff = NULL;
+		}
 	if (reg->m)
 		{
 		free_matrix(&reg->m, reg->rows, reg->cols);
-		reg->m = NULL;
-		}
-
-	if (reg->buff)
-		{
 		free(reg->buff);
+		reg->m = NULL;
 		reg->buff = NULL;
-		reg->size = 0;
 		}
 	reg->rows = ch[1] - ch[0];
 	reg->cols = ch[3] - ch[2];
+	reg->size = 0;
 	for (int i = ch[0]; i < ch[1]; i++)
 		{
 		for (int j = ch[2]; j < ch[3]; j++)
@@ -1757,7 +1759,7 @@ paste_cells(const Arg *arg)
 	int loc_x = matrice->cols;
 	int add_y, add_x = 0;
 	char *buffer = NULL;
-	if (reg->m == NULL) return;
+	if (reg == NULL) return;
 	else
 		{
 		buffer = xmalloc(reg->size * sizeof(char));
@@ -2191,43 +2193,40 @@ void
 die(void)
 	{
 	endwin();
-	node_t *temp = NULL;
-	while (uhead->prev != NULL)
+	if (uhead)
 		{
-		temp = uhead->prev;
-		uhead = temp;
-		}
-	int brk = 0;
-	while (1)
-		{
-		if (uhead->next == NULL)
+		while (uhead->next != NULL)
+			uhead = uhead->next;
+		while (1)
 			{
-			temp = uhead;
-			brk = 1;
-			}
-		else temp = uhead->next;
-		for (int i = 0; i < temp->dc; i++)
-			{
-			if (temp->data[i].mat != NULL)
+			if (uhead->prev == NULL)
+				break;
+			for (int i = 0; i < uhead->dc; i++)
 				{
-				free_matrix(&(temp->data[i].mat), temp->data[i].rows, temp->data[i].cols);
+				if (uhead->data[i].mat != NULL)
+					{
+					free_matrix(&(uhead->data[i].mat), uhead->data[i].rows, uhead->data[i].cols);
+					}
+				if (uhead->data[i].cell != NULL)
+					{
+					if (uhead->data[i].operation == PasteCell || uhead->data[i].operation == Paste)
+						free(uhead->data[i].cell);
+					}
 				}
-			if (temp->data[i].cell != NULL)
-				{
-				if (temp->data[i].operation == PasteCell || temp->data[i].operation == Paste)
-					free(temp->data[i].cell);
-				}
+			free(uhead->data);
+			uhead = uhead->prev;
+			free(uhead->next);
 			}
-		free(temp->data);
-		uhead->next = temp->next;
-		free(temp);
-		if (brk == 1) break;
 		}
 	free_matrix(&matrice->m, matrice->rows, matrice->cols);
+	free(matrice->buff);
 	free(matrice);
-	free_matrix(&reg->m, reg->rows, reg->cols);
-	free(reg->buff);
-	free(reg);
+	if (reg)
+		{
+		free_matrix(&reg->m, reg->rows, reg->cols);
+		free(reg->buff);
+		free(reg);
+		}
 	free(fname);
 	unlink(FIFO);
 	printf("\e]0;\a");
@@ -2404,7 +2403,8 @@ main(int argc, char *argv[])
 	ARGEND;
 	if (argc > 0)
 		{
-		fname = xstrdup(argv[0]);
+		fname = strdup(argv[0]);
+		if (fname == NULL) exit(EXIT_FAILURE);
 		printf("\e]0;%s - csvis\a", fname);
 		fflush(stdout);
 		file = fopen(fname, "r");
@@ -2415,32 +2415,17 @@ main(int argc, char *argv[])
 		printf("\e]0;[No name] - csvis\a");
 		fflush(stdout);
 		}
-	reg = xmalloc(sizeof(struct Mat));
-	reg->m = NULL;
-	reg->buff = NULL;
-	reg->rows = reg->cols = 0;
-	reg->size = 0;
-	matrice = xmalloc(sizeof(struct Mat));
+	matrice = malloc(sizeof(struct Mat));
+	if (matrice == NULL)
+		{
+		free(fname);
+		exit(EXIT_FAILURE);
+		}
 	readall(file, &matrice->buff, &matrice->size);
 	matrice->m = write_to_matrix(&matrice->buff, &matrice->rows, &matrice->cols);
-	uhead = malloc(sizeof(node_t));
-	if (uhead == NULL)
-		{
-		free(matrice->buff);
-		exit(EXIT_FAILURE);
-		}
+	uhead = xmalloc(sizeof(node_t));
 	uhead->next = NULL;
 	uhead->prev = NULL;
-	struct undo data[] = {{Paste, NULL, matrice->buff, matrice->rows, matrice->cols, 0, 0, 0, 0, 0, 0}};
-	uhead->data = malloc(sizeof(struct undo));
-	if (uhead->data == NULL)
-		{
-		free(matrice->buff);
-		free(uhead);
-		exit(EXIT_FAILURE);
-		}
-	uhead->data[0] = data[0];
-	uhead->dc = 1;
 
 	if (file != NULL)
 		fclose(file);
