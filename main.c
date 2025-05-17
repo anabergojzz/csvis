@@ -217,6 +217,8 @@ static Key keys[] = {
 	{{'n', -1}, search, {1}},
 	{{'?', -1}, search, {2}},
 	{{'N', -1}, search, {3}},
+	{{'g', '/'}, search, {4}},
+	{{'g', '?'}, search, {5}},
 	{{'z', 't'}, move_screen, {0}},
 	{{'z', 'b'}, move_screen, {1}},
 	{{'z', 'z'}, move_screen, {2}},
@@ -271,7 +273,7 @@ search(const Arg *arg)
 	static int dir = 0;
 	static int sel = 0;
 	static int ch0, ch1, ch2, ch3;
-	if (arg->i == 0 || arg->i == 2)
+	if (arg->i == 0 || arg->i == 2 || arg->i == 4 || arg->i == 5)
 		{
 		str = get_str("", 0, '/');
 		if (str == NULL) return;
@@ -279,15 +281,12 @@ search(const Arg *arg)
 			{
 			if (srch) free(srch);
 			srch = str;
-			if (mode == 'n')
-				{
-				sel = 0;
-				ch0 = 0;
-				ch1 = matrice->rows;
-				ch2 = 0;
-				ch3 = matrice->cols;
-				}
-			else
+			sel = 0;
+			ch0 = 0;
+			ch1 = matrice->rows;
+			ch2 = 0;
+			ch3 = matrice->cols;
+			if (mode == 'v' && (arg->i == 4 || arg->i == 5))
 				{
 				sel = 1;
 				ch0 = ch[0];
@@ -296,8 +295,8 @@ search(const Arg *arg)
 				ch3 = ch[3];
 				}
 			}
-		if (arg->i == 0) dir = 0;
-		else if (arg->i == 2) dir = 1;
+		if (arg->i == 0 || arg->i == 4) dir = 0;
+		else if (arg->i == 2 || arg->i == 5) dir = 1;
 		}
 	else if (arg->i == 1 || arg->i == 3)
 		{
@@ -310,20 +309,23 @@ search(const Arg *arg)
 	int reti;
 	char msgbuf[100];
 	reti = regcomp(&regex, str, 0);
-	if (reti) {
-			statusbar("Could not compile regex");
-			return;
-	}
+	if (reti)
+		{
+		statusbar("Could not compile regex");
+		return;
+		}
 
 	int st_y;
 	int st_x;
 	char *temp;
-	if (arg->i == 0 || (arg->i == 1 && dir == 0) || (arg->i == 3 && dir == 1))
+	if (arg->i == 0 || arg->i == 4 || (arg->i == 1 && dir == 0) || (arg->i == 3 && dir == 1))
 		{
-		if (mode == 'v')
+		if (mode == 'v' && arg->i == 4)
 			{
 			st_y = ch0;
 			st_x = ch2;
+			if (ch1 - ch0 == 1 && ch3 - ch2 == 1)
+				reti = REG_NOMATCH;
 			}
 		else
 			{
@@ -351,20 +353,27 @@ search(const Arg *arg)
 					{
 					y = i;
 					x = j;
-					ch[0] = ch[1] = ch[2] = ch[3] = 0;
-					mode = 'n';
+					move_y_visual();
+					move_x_visual();
+					if (mode == 'v' && arg->i == 4)
+						{
+						ch[0] = ch[1] = ch[2] = ch[3] = 0;
+						mode = 'n';
+						}
 					regfree(&regex);
 					return;
 					}
 				}
 			}
 		}
-	if (arg->i == 2 || (arg->i == 3 && dir == 0) || (arg->i == 1 && dir == 1))
+	if (arg->i == 2 || arg->i == 5 || (arg->i == 3 && dir == 0) || (arg->i == 1 && dir == 1))
 		{
-		if (mode == 'v')
+		if (mode == 'v' && arg->i == 5)
 			{
 			st_y = ch1 - 1;
 			st_x = ch3 - 1;
+			if (ch1 - ch0 == 1 && ch3 - ch2 == 1)
+				reti = REG_NOMATCH;
 			}
 		else
 			{
@@ -384,7 +393,7 @@ search(const Arg *arg)
 					if (*temp == '\0')
 						reti = 0;
 					else
-						reti = 1;
+						reti = REG_NOMATCH;
 					}
 				else
 					reti = regexec(&regex, temp, 0, NULL, 0);
@@ -392,8 +401,13 @@ search(const Arg *arg)
 					{
 					y = i;
 					x = j;
-					ch[0] = ch[1] = ch[2] = ch[3] = 0;
-					mode = 'n';
+					move_y_visual();
+					move_x_visual();
+					if (mode == 'v' && arg->i == 5)
+						{
+						ch[0] = ch[1] = ch[2] = ch[3] = 0;
+						mode = 'n';
+						}
 					regfree(&regex);
 					return;
 					}
@@ -2400,10 +2414,10 @@ init_ui(void)
 
 void
 usage(void)
-{
+	{
 	fprintf(stderr, "Uporaba: %s [-f separator] [file]\n", argv0);
 	exit(EXIT_FAILURE);
-}
+	}
 
 int
 main(int argc, char *argv[])
