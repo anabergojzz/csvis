@@ -267,18 +267,18 @@ xstrdup(const char *s)
 void
 search(const Arg *arg)
 	{
-	char *temp;
+	char *str;
 	static int dir = 0;
 	static int sel = 0;
 	static int ch0, ch1, ch2, ch3;
 	if (arg->i == 0 || arg->i == 2)
 		{
-		temp = get_str("", 0, '/');
-		if (temp == NULL) return;
+		str = get_str("", 0, '/');
+		if (str == NULL) return;
 		else
 			{
 			if (srch) free(srch);
-			srch = temp;
+			srch = str;
 			if (mode == 'n')
 				{
 				sel = 0;
@@ -302,14 +302,14 @@ search(const Arg *arg)
 	else if (arg->i == 1 || arg->i == 3)
 		{
 		if (srch)
-			temp = srch;
+			str = srch;
 		else
 			return;
 		}
 	regex_t regex;
 	int reti;
 	char msgbuf[100];
-	reti = regcomp(&regex, temp, 0);
+	reti = regcomp(&regex, str, 0);
 	if (reti) {
 			statusbar("Could not compile regex");
 			return;
@@ -317,6 +317,7 @@ search(const Arg *arg)
 
 	int st_y;
 	int st_x;
+	char *temp;
 	if (arg->i == 0 || (arg->i == 1 && dir == 0) || (arg->i == 3 && dir == 1))
 		{
 		if (mode == 'v')
@@ -337,7 +338,15 @@ search(const Arg *arg)
 				temp = matrice->m[i][j];
 				if (temp == NULL)
 					temp = "";
-				reti = regexec(&regex, temp, 0, NULL, 0);
+				if (*str == '\0')
+					{
+					if (*temp == '\0')
+						reti = 0;
+					else
+						reti = 1;
+					}
+				else
+					reti = regexec(&regex, temp, 0, NULL, 0);
 				if (!reti)
 					{
 					y = i;
@@ -370,7 +379,15 @@ search(const Arg *arg)
 				temp = matrice->m[i][j];
 				if (temp == NULL)
 					temp = "";
-				reti = regexec(&regex, temp, 0, NULL, 0);
+				if (*str == '\0')
+					{
+					if (*temp == '\0')
+						reti = 0;
+					else
+						reti = 1;
+					}
+				else
+					reti = regexec(&regex, temp, 0, NULL, 0);
 				if (!reti)
 					{
 					y = i;
@@ -383,7 +400,7 @@ search(const Arg *arg)
 				}
 			}
 		}
-	if (reti == REG_NOMATCH)
+	if (reti == REG_NOMATCH || (st_y == matrice->rows - 1 && st_x == matrice->cols - 1))
 		{
 		if (sel == 1)
 			statusbar("No further MATCH in last SELECTION.");
