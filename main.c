@@ -896,7 +896,7 @@ get_str(char *str, char loc, const char cmd)
 		{
 		when_resize();
 		if (cmd != 0)
-			{ c_x = 1; c_y = rows - 1; }
+			{ c_x = 0; c_y = rows - 1; }
 		int l = 0; /* number of characters in each line */
 		c_xtemp = c_x;
 		cx_add = 0, cy_add = 0;
@@ -958,9 +958,9 @@ get_str(char *str, char loc, const char cmd)
 		else hidden_text = 0;
 
 		draw();
-		if (cmd != 0)
-			mvaddch(c_y, 0, cmd);
 		mvprintw(c_y, c_x, "%*s", CELL_WIDTH, "");
+		if (cmd != 0)
+			{ mvaddch(c_y, c_x, cmd); c_x++; c_xtemp++; }
 		mvaddwstr(c_y, c_x, buffer + hidden_text);
 		int c_yend, c_xend;
 		getyx(stdscr, c_yend, c_xend);
