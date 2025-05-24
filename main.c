@@ -817,17 +817,17 @@ delete_row()
 		{Cut, NULL, NULL, reg->rows, 0, ch[0], x, s_y, s_x, ch[0], x},
 		{}
 	};
-	 if (matrice->rows == 0)
-	 	{
-	 	data[1].rows--;
-	 	data[2] = (struct undo){Cut, NULL, NULL, 0, reg->cols-1, 0, 0, 0, 0, 0, 0};
-	 	matrice->rows = matrice->cols = 1;
-	 	x = 0;
-	 	matrice->m[0] = xmalloc(sizeof(char *));
+	if (matrice->rows == 0)
+		{
+		data[1].rows--;
+		data[2] = (struct undo){Cut, NULL, NULL, 0, reg->cols-1, 0, 0, 0, 0, 0, 0};
+		matrice->rows = matrice->cols = 1;
+		x = 0;
+		matrice->m[0] = xmalloc(sizeof(char *));
 		matrice->m[0][0] = NULL;
-	 	push(&uhead, data, 3);
-	 	}
-	 else
+		push(&uhead, data, 3);
+		}
+	else
 		push(&uhead, data, 2);
 	matrice->m = xrealloc(matrice->m, matrice->rows * sizeof(char **));
 	y = ch[0];
@@ -863,9 +863,21 @@ delete_col()
 	matrice->cols -= reg->cols;
 	struct undo data[] = {
 		{Delete, undo_mat, NULL, reg->rows, reg->cols, y_0, x_0, s_y, s_x, ch[0], ch[2]},
-		{Cut, NULL, NULL, 0, reg->cols, y, ch[2], s_y, s_x, y, ch[2]}
+		{Cut, NULL, NULL, 0, reg->cols, y, ch[2], s_y, s_x, y, ch[2]},
+		{}
 	};
-	push(&uhead, data, 2);
+	if (matrice->cols == 0)
+		{
+		data[1].cols--;
+		data[2] = (struct undo){Cut, NULL, NULL, reg->rows-1, 0, 0, 0, 0, 0, 0, 0};
+		matrice->rows = matrice->cols = 1;
+		x = 0;
+		matrice->m[0] = xmalloc(sizeof(char *));
+		matrice->m[0][0] = NULL;
+		push(&uhead, data, 3);
+		}
+	else
+		push(&uhead, data, 2);
 	x = ch[2];
 	if (x >= matrice->cols)
 		x = ch[2] - 1;
@@ -1910,8 +1922,7 @@ deleting()
 			ch[1] = matrice->rows;
 			ch[2] = x;
 			ch[3] = x + 1;
-			if (matrice->cols == 1) delete_row();
-			else delete_col();
+			delete_col();
 			}
 		else if (key == '$')
 			{
@@ -1919,8 +1930,7 @@ deleting()
 			ch[1] = matrice->rows;
 			ch[2] = x;
 			ch[3] = matrice->cols;
-			if (x == 0) delete_row();
-			else delete_col();
+			delete_col();
 			}
 		else if (key == 'w')
 			{
@@ -1930,8 +1940,7 @@ deleting()
 			ch[3] = x + MOVE_X;
 			if (ch[3] > matrice->cols)
 				ch[3] = matrice->cols;
-			if (ch[3] - ch[2] == matrice->cols) delete_row();
-			else delete_col();
+			delete_col();
 			}
 		else if (key == 'h' || key == KEY_LEFT)
 			{
