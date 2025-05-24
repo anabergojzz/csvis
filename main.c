@@ -1309,7 +1309,7 @@ write_to_cells(char *buffer, int arg)
 		cols = temp_rows;
 		}
 	char ***undo_mat0;
-	if (mode == 'v')
+	if (mode == 'v' || (arg != PipeRead && arg != PipeReadInverse && arg != PipeReadClip && mode == 'n') )
 		{
 		undo_mat0 = xmalloc((ch[1] - ch[0]) * sizeof(char **));
 		for (int i = 0; i < (ch[1] - ch[0]); i++)
