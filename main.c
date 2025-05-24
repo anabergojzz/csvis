@@ -871,7 +871,7 @@ delete_col()
 		data[1].cols--;
 		data[2] = (struct undo){Cut, NULL, NULL, reg->rows-1, 0, 0, 0, 0, 0, 0, 0};
 		matrice->rows = matrice->cols = 1;
-		x = 0;
+		y = 0;
 		matrice->m[0] = xmalloc(sizeof(char *));
 		matrice->m[0][0] = NULL;
 		push(&uhead, data, 3);
@@ -1905,7 +1905,14 @@ deleting()
 	{
 	if (mode == 'v')
 		{
-		if (ch[2] == 0 && ch[3] == matrice->cols)
+		if (ch[2] == 0 && ch[3] == matrice->cols && ch[0] == 0 && ch[1] == matrice->rows)
+			{
+			if (all_flag == 1)
+				delete_row();
+			else if (all_flag == 2)
+				delete_col();
+			}
+		else if (ch[2] == 0 && ch[3] == matrice->cols)
 			delete_row();
 		else if (ch[0] == 0 && ch[1] == matrice->rows)
 			delete_col();
