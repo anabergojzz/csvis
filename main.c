@@ -1782,15 +1782,10 @@ wipe_cells()
 		}
 	else if (mode == 'n')
 		{
-		int key;
-		key = getch();
-		if (key == 'l' || key == KEY_RIGHT)
-			{
-			char *undo_cell = matrice->m[y][x];
-			matrice->m[y][x] = NULL;
-			struct undo data[] = {{DeleteCell, NULL, undo_cell, 0, 0, y, x, s_y, s_x, y, x}};
-			push(&uhead, data, 1);
-			}
+		char *undo_cell = matrice->m[y][x];
+		matrice->m[y][x] = NULL;
+		struct undo data[] = {{DeleteCell, NULL, undo_cell, 0, 0, y, x, s_y, s_x, y, x}};
+		push(&uhead, data, 1);
 		}
 	}
 
