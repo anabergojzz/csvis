@@ -2259,6 +2259,7 @@ die(void)
 			uhead = uhead->prev;
 			free(uhead->next);
 			}
+			free(uhead);
 		}
 	free_matrix(&matrice->m, matrice->rows, matrice->cols);
 	free(matrice->buff);
