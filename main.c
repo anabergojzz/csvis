@@ -28,15 +28,12 @@ char *argv0;
 #define XCLIP_PASTE "xclip -selection clipboard -o"
 #define MOVE_X 3
 #define MOVE_Y 5
-#define FIRST "awk -F, -vOFS=, '"
-#define LAST "'"
 
 /* enums */
 enum {
 	PipeTo,
 	PipeThrough,
 	PipeRead,
-	PipeAwk,
 	PipeToClip,
 	PipeReadClip,
 	PipeReadInverse,
@@ -201,7 +198,6 @@ static Key keys[] = {
 	{{'\x13', -1}, write_csv, {WriteExisting}}, /* Ctrl-S */
 	{{'>', -1}, write_to_pipe, {PipeTo}},
 	{{'|', -1}, write_to_pipe, {PipeThrough}},
-	{{'\x0F', -1}, write_to_pipe, {PipeAwk}}, /* Ctrl-O awk */
 	{{'<', -1}, write_to_pipe, {PipeRead}},
 	{{'r', '<'}, write_to_pipe, {PipeReadInverse}},
 	{{'d', -1}, wipe_cells, {0}},
@@ -1621,17 +1617,6 @@ write_to_pipe(const Arg *arg)
 		{
 		cmd = get_str("", 0, '<');
 		if (cmd == NULL) return;
-		}
-	else if (arg->i == PipeAwk)
-		{
-		char *temp = get_str("", 0, '|');
-		if (temp == NULL) return;
-		char *preposition = FIRST;
-		cmd = xmalloc(strlen(temp) + strlen(preposition) + 2);
-		strcpy(cmd, preposition);
-		strcpy(cmd + strlen(preposition), temp);
-		strcpy(cmd + strlen(preposition) + strlen(temp), LAST);
-		free(temp);
 		}
 	else if (arg->i == PipeToClip)
 		{
