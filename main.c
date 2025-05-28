@@ -93,6 +93,12 @@ struct Mat {
 	size_t size;
 };
 
+struct Command {
+	char *name;
+	char *cmd;
+	int loc;
+};
+
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
@@ -219,6 +225,30 @@ static Key keys[] = {
 	{{'z', 'b'}, move_screen, {1}},
 	{{'z', 'z'}, move_screen, {2}},
 	{{'D', -1}, deleting, {0}}
+};
+
+struct Command list_through[] = {
+	{"awk: ", "awk -vOFS=, ''", 13},
+	{"calc: ", "bc", 0},
+	{"replace: ", "sed 's/\\./;/g'", 11},
+	{"replace: ", "tr . ,", 0},
+	{"to upper: ", "awk '{print toupper($0)}'", 0},
+	{"to upper filter: ", "awk '{print (// ? toupper($0) : $0)}'", 14},
+	{"to lower: ", "awk '{print tolower($0)}'", 0},
+	{"to upper cell: ", "awk -F, -vOFS=, '{for (i=1;i<=NF;i++) {if ($i~//) {$i=toupper($i)}} print}'", 47},
+	{"replace: ", "awk -F, -vOFS=, '{for (i=1;i<=NF;i++) {if ($i~//) {$i=\"\"}} print}'", 47},
+	{"sort: ", "sort", 0},
+	{"sort numerical: ", "sort -n", 0},
+	{"sort reverse: ", "sort -r", 0},
+	{"sort reverse numerical: ", "sort -nr", 0},
+	{"sort unique: ", "sort -u", 0},
+	{"", NULL, 0},
+};
+
+struct Command list_from[] = {
+	{"insert sequence: ", "seq 10", 0},
+	{"read file: ", "cat ", 0},
+	{"", NULL, 0}
 };
 
 void *
@@ -888,13 +918,21 @@ get_str(char *str, char loc, const char cmd)
 	if (str == NULL) str = "";
 	size_t str_size = mbstowcs(NULL, str, 0);
 	size_t bufsize = str_size + 32; /* Initial buffer size */
-	wchar_t* buffer = xmalloc(bufsize * sizeof(wchar_t));
+	wchar_t *buffer = xmalloc(bufsize * sizeof(wchar_t));
 	mbstowcs(buffer, str, str_size + 1);
 	size_t i = 0; /* Position in buffer */
 	if (loc == 1) i = str_size;
 	int cx_add, cy_add;
 	size_t c_xtemp;
 
+	int pos = 0;
+	int chosen;
+	struct Command *pcmds;
+	char *temp = NULL;
+	if (cmd == '|')
+		pcmds = list_through;
+	else if (cmd == '<')
+		pcmds = list_from;
 	int hidden_text = 0;
 	size_t line_widths_size = 8;
 	int *line_widths = xmalloc(line_widths_size * sizeof(int));
@@ -969,6 +1007,50 @@ get_str(char *str, char loc, const char cmd)
 		mvprintw(c_y, c_x, "%*s", CELL_WIDTH, "");
 		if (cmd != 0)
 			mvaddch(c_y, 0, cmd);
+		if (cmd == '|' || cmd == '<')
+			{
+			int j = 0;
+			int i0;
+			if (temp == NULL)
+				temp = xmalloc(32);
+			char str_full[cols];
+			for (int i = 0; pcmds[i].cmd != NULL; i++)
+				{
+				size_t mb_len = wcstombs(NULL, buffer, 0) + 1;
+				temp = xrealloc(temp, mb_len);
+				wcstombs(temp, buffer, mb_len);
+				if ( strstr(pcmds[i].name, temp) || strstr(pcmds[i].cmd, temp) )
+					{
+					if (j > 0)
+						{
+						if (pos == j - 1)
+							{
+							attron(A_STANDOUT);
+							chosen = i0;
+							}
+						snprintf(str_full, cols, "%s%s", pcmds[i0].name, pcmds[i0].cmd);
+						mvprintw(c_y - j, 0, "%s", str_full);
+						clrtoeol();
+						attroff(A_STANDOUT);
+						}
+					i0 = i;
+					j++;
+					}
+				}
+			if (j > 0)
+				{
+				if (pos >= j - 1)
+					{
+					pos = j - 1;
+					attron(A_STANDOUT);
+					chosen = i0;
+					}
+				snprintf(str_full, cols, "%s%s", pcmds[i0].name, pcmds[i0].cmd);
+				mvprintw(c_y - j, 0, "%s", str_full);
+				clrtoeol();
+				attroff(A_STANDOUT);
+				}
+			}
 		mvaddwstr(c_y, c_x, buffer + hidden_text);
 		int c_yend, c_xend;
 		getyx(stdscr, c_yend, c_xend);
@@ -996,8 +1078,24 @@ get_str(char *str, char loc, const char cmd)
 			else if (key == '\t')
 				{
 				if (cmd == 0)
+					{
 					mode = 'j';
-				break;
+					break;
+					}
+				else if (cmd == '|' || cmd == '<')
+					{
+					str_size = mbstowcs(NULL, pcmds[chosen].cmd, 0);
+					if (str_size + 1 >= bufsize)
+						{
+						bufsize = str_size*2;
+						buffer = xrealloc(buffer, bufsize * sizeof(wchar_t));
+						}
+					mbstowcs(buffer, pcmds[chosen].cmd, str_size + 1);
+					if (pcmds[chosen].loc == 0)
+						i = str_size;
+					else
+						i = pcmds[chosen].loc;
+					}
 				}
 			else if (key == 127)
 				{
@@ -1017,6 +1115,7 @@ get_str(char *str, char loc, const char cmd)
 				else
 					{
 					free(buffer);
+					free(temp);
 					free(line_widths);
 					return NULL;
 					}
@@ -1051,14 +1150,22 @@ get_str(char *str, char loc, const char cmd)
 				if (i < str_size)
 					wmemmove(buffer + i, buffer + i + 1, str_size-- - i);
 				}
+			else if (key == KEY_UP)
+				pos++;
+			else if (key == KEY_DOWN)
+				{
+				pos--;
+				pos = pos < 0 ? 0 : pos;
+				}
 			}
 		}
 
 	size_t mb_len = wcstombs(NULL, buffer, 0) + 1;
-	char* rbuffer = xmalloc(mb_len);
+	char *rbuffer = xmalloc(mb_len);
 	wcstombs(rbuffer, buffer, mb_len);
 	free(buffer);
 	free(line_widths);
+	free(temp);
 	s_y = s_y0; /* revert to screen position before insertion */
 
 	return rbuffer;

@@ -52,11 +52,10 @@ make
 | sed 's/\./;/g'              # Replace dots with semicolons
 > wc                          # Pipe to wc to count lines
 e > a=[1,2,3]                 # Write to named pipe (e.g. python repl - pyrepl script)
-Ctrl-O|{print $1*2}           # Pipe to awk program
 ```
+When using pipe commands, start typing and then use `<Up>` and `<Down>` to choose predetermined command and select it with `<Tab>`.
 
 ## TODO
-- [ ] help for selecting pipe commands
 - [ ] support for equations
 - [ ] mouse support
 - [ ] multi select?
