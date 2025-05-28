@@ -251,6 +251,12 @@ struct Command list_from[] = {
 	{"", NULL, 0}
 };
 
+struct Command list_to[] = {
+	{"average: ", "awk -F, -vOFS=, '{for (i=1;i<=NF;i++) {if ($i ~ /^[0-9]\\.?[0-9]*$/) {sum+=$i; nf++;}}} END {if (nf!=0) {print sum/nf}}'", 0},
+	{"word count: ", "wc", 0},
+	{"", NULL, 0}
+};
+
 void *
 xmalloc(size_t size)
 	{
@@ -933,6 +939,8 @@ get_str(char *str, char loc, const char cmd)
 		pcmds = list_through;
 	else if (cmd == '<')
 		pcmds = list_from;
+	else if (cmd == '>')
+		pcmds = list_to;
 	int hidden_text = 0;
 	size_t line_widths_size = 8;
 	int *line_widths = xmalloc(line_widths_size * sizeof(int));
@@ -1007,7 +1015,7 @@ get_str(char *str, char loc, const char cmd)
 		mvprintw(c_y, c_x, "%*s", CELL_WIDTH, "");
 		if (cmd != 0)
 			mvaddch(c_y, 0, cmd);
-		if (cmd == '|' || cmd == '<')
+		if (cmd == '|' || cmd == '<' || cmd == '>')
 			{
 			int j = 0;
 			int i0;
@@ -1082,7 +1090,7 @@ get_str(char *str, char loc, const char cmd)
 					mode = 'j';
 					break;
 					}
-				else if (cmd == '|' || cmd == '<')
+				else if (cmd == '|' || cmd == '<' || cmd == '>')
 					{
 					str_size = mbstowcs(NULL, pcmds[chosen].cmd, 0);
 					if (str_size + 1 >= bufsize)
