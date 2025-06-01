@@ -721,8 +721,18 @@ commands()
 	if (temp == NULL) return;
 	else if (temp[0] == 'f')
 		{
-			fs = temp[2];
-			statusbar("Field separator set!");
+			if (strlen(temp + 2) == 1)
+				{
+				fs = temp[2];
+				statusbar("Field separator set!");
+				}
+			else if (strcmp(temp + 2, "\\t") == 0)
+				{
+				fs = '\t';
+				statusbar("Field separator set!");
+				}
+			else
+				statusbar("Wrong field separator!");
 			free(temp);
 			return;
 		}
@@ -1375,8 +1385,9 @@ write_csv(const Arg *arg)
 			}
 		char *first = "";
 		char *end = "";
+		char fs1 = fs;
 		if (arg->i == WriteFifo || arg->i == WriteFifoInverse)
-			{ first = "=["; end = "]"; }
+			{ first = "=["; end = "]"; fs1 = ',';}
 		for (int i = ch[0]; i < ch[1]; i++)
 			{
 			for (int j = ch[2]; j < ch[3]; j++)
@@ -1396,7 +1407,7 @@ write_csv(const Arg *arg)
 				else if (j == ch[2] && *first != '\0')
 					fprintf(file, "%s", first);
 				else
-					fprintf(file, "%c", fs);
+					fprintf(file, "%c", fs1);
 				}
 			}
 		fclose(file);
@@ -2373,7 +2384,8 @@ die(void)
 		free(reg);
 		}
 	free(fname);
-	unlink(FIFO);
+	if (open(FIFO, O_WRONLY | O_NONBLOCK) == -1)
+		unlink(FIFO);
 	printf("\e]0;\a");
 	fflush(stdout);
 	}
@@ -2540,7 +2552,13 @@ main(int argc, char *argv[])
 	ARGBEGIN
 		{
 		case 'f':
-			fs = EARGF(usage())[0];
+			char *val = EARGF(usage());
+			if (strlen(val) == 1)
+				fs = val[0];
+			else if (strcmp(val, "\\t") == 0)
+				fs = '\t';
+			else
+				usage();
 			break;
 		default:
 			usage();
