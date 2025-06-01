@@ -40,6 +40,7 @@ enum {
 	WriteTo,
 	WriteToInverse,
 	WriteFifo,
+	WriteFifoInverse,
 	WriteExisting,
 	PasteNormal,
 	PasteInverse,
@@ -201,6 +202,7 @@ static Key keys[] = {
 	{{'s', -1}, write_csv, {WriteTo}},
 	{{'r', 's'}, write_csv, {WriteToInverse}},
 	{{'e', -1}, write_csv, {WriteFifo}},
+	{{'r', 'e'}, write_csv, {WriteFifoInverse}},
 	{{'\x13', -1}, write_csv, {WriteExisting}}, /* Ctrl-S */
 	{{'>', -1}, write_to_pipe, {PipeTo}},
 	{{'|', -1}, write_to_pipe, {PipeThrough}},
@@ -1361,7 +1363,7 @@ write_csv(const Arg *arg)
 			ch[2] = 0;
 			ch[3] = matrice->cols;
 			}
-		if (arg->i == WriteToInverse) 
+		if (arg->i == WriteToInverse || arg->i == WriteFifoInverse) 
 			{
 			int temp1, temp2;
 			temp1 = ch[0];
@@ -1373,14 +1375,14 @@ write_csv(const Arg *arg)
 			}
 		char *first = "";
 		char *end = "";
-		if (arg->i == WriteFifo)
+		if (arg->i == WriteFifo || arg->i == WriteFifoInverse)
 			{ first = "=["; end = "]"; }
 		for (int i = ch[0]; i < ch[1]; i++)
 			{
 			for (int j = ch[2]; j < ch[3]; j++)
 				{
 				char *inverse = NULL;
-				if (WriteToInverse == 1)
+				if (arg->i == WriteToInverse || arg->i == WriteFifoInverse)
 					inverse = matrice->m[j][i];
 				else
 					inverse = matrice->m[i][j];
