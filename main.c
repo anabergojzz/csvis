@@ -1815,6 +1815,13 @@ reg_init(void)
 		reg->m = NULL;
 		reg->buff = NULL;
 		}
+	if (mode == 'n')
+		{
+		ch[0] = y;
+		ch[1] = y + 1;
+		ch[2] = x;
+		ch[3] = x + 1;
+		}
 	reg->rows = ch[1] - ch[0];
 	reg->cols = ch[3] - ch[2];
 	reg->size = 0;
@@ -1862,44 +1869,34 @@ yank_cells()
 void
 wipe_cells()
 	{
-	if (mode == 'v')
-		{
-		reg_init();
+	reg_init();
 
-		char ***undo_mat = xmalloc(reg->rows * sizeof(char **));
-		for (int i=0; i<reg->rows; i++)
-			undo_mat[i] = xmalloc(reg->cols * sizeof(char *));
-		char *current_ptr = reg->buff;
-		for (int i = ch[0]; i < ch[1]; i++)
+	char ***undo_mat = xmalloc(reg->rows * sizeof(char **));
+	for (int i=0; i<reg->rows; i++)
+		undo_mat[i] = xmalloc(reg->cols * sizeof(char *));
+	char *current_ptr = reg->buff;
+	for (int i = ch[0]; i < ch[1]; i++)
+		{
+		for (int j = ch[2]; j < ch[3]; j++)
 			{
-			for (int j = ch[2]; j < ch[3]; j++)
+			undo_mat[i-ch[0]][j-ch[2]] = matrice->m[i][j];
+			if (matrice->m[i][j] != NULL)
 				{
-				undo_mat[i-ch[0]][j-ch[2]] = matrice->m[i][j];
-				if (matrice->m[i][j] != NULL)
-					{
-					strcpy(current_ptr, matrice->m[i][j]);
-					reg->m[i - ch[0]][j - ch[2]] = current_ptr;
-					current_ptr += strlen(matrice->m[i][j]) + 1;
-					}
-				else reg->m[i - ch[0]][j - ch[2]] = NULL;
-				matrice->m[i][j] = NULL;
+				strcpy(current_ptr, matrice->m[i][j]);
+				reg->m[i - ch[0]][j - ch[2]] = current_ptr;
+				current_ptr += strlen(matrice->m[i][j]) + 1;
 				}
+			else reg->m[i - ch[0]][j - ch[2]] = NULL;
+			matrice->m[i][j] = NULL;
 			}
-		struct undo data[] = {{Delete, undo_mat, NULL, reg->rows, reg->cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}};
-		push(&uhead, data, 1);
+		}
+	struct undo data[] = {{Delete, undo_mat, NULL, reg->rows, reg->cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}};
+	push(&uhead, data, 1);
 
-		if (all_flag == 1) paste_flag = 1;
-		else if (all_flag == 2) paste_flag = 2;
-		else paste_flag = 0;
-		visual_end();
-		}
-	else if (mode == 'n')
-		{
-		char *undo_cell = matrice->m[y][x];
-		matrice->m[y][x] = NULL;
-		struct undo data[] = {{DeleteCell, NULL, undo_cell, 0, 0, y, x, s_y, s_x, y, x}};
-		push(&uhead, data, 1);
-		}
+	if (all_flag == 1) paste_flag = 1;
+	else if (all_flag == 2) paste_flag = 2;
+	else paste_flag = 0;
+	visual_end();
 	}
 
 void
