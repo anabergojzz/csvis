@@ -136,11 +136,11 @@ void move_y_visual(void);
 void move_x_visual(void);
 void move_y(int);
 void move_x(int);
-void move_x_start(const Arg *);
-void move_x_end(const Arg *);
+void move_x_start();
+void move_x_end();
 void move_x_step(const Arg *);
-void move_y_start(const Arg *);
-void move_y_end(const Arg *);
+void move_y_start();
+void move_y_end();
 void move_y_step(const Arg *);
 void commands();
 void when_resize(void);
@@ -168,7 +168,7 @@ void die(void);
 void quit();
 void keypress(int);
 char ***write_to_matrix(char **, int *, int *);
-void free_matrix(char ****, int, int);
+void free_matrix(char ****, int);
 void init_ui(void);
 void usage(void);
 
@@ -436,6 +436,8 @@ help(char *val)
 		statusbar("selecting prog exited with error");
 		return NULL;
 		}
+	else
+		return NULL;
 	}
 
 char *
@@ -973,14 +975,14 @@ move_x(int move)
 	}
 
 void
-move_x_start(const Arg *arg)
+move_x_start()
 	{
 	x = 0;
 	move_x_visual();
 	}
 
 void
-move_x_end(const Arg *arg)
+move_x_end()
 	{
 	x = matrice->cols - 1;
 	move_x_visual();
@@ -993,14 +995,14 @@ move_x_step(const Arg *arg)
 	}
 
 void
-move_y_start(const Arg *arg)
+move_y_start()
 	{
 	y = 0;
 	move_y_visual();
 	}
 
 void
-move_y_end(const Arg *arg)
+move_y_end()
 	{
 	y = matrice->rows - 1;
 	move_y_visual();
@@ -1157,7 +1159,7 @@ delete_row()
 	struct undo data[] = {
 		{Delete, undo_mat, NULL, reg->rows, reg->cols, y_0, x_0, s_y, s_x, ch[0], ch[2]},
 		{Cut, NULL, NULL, reg->rows, 0, ch[0], x, s_y, s_x, ch[0], x},
-		{}
+		{0}
 	};
 	if (matrice->rows == 0)
 		{
@@ -1206,7 +1208,7 @@ delete_col()
 	struct undo data[] = {
 		{Delete, undo_mat, NULL, reg->rows, reg->cols, y_0, x_0, s_y, s_x, ch[0], ch[2]},
 		{Cut, NULL, NULL, 0, reg->cols, y, ch[2], s_y, s_x, y, ch[2]},
-		{}
+		{0}
 	};
 	if (matrice->cols == 0)
 		{
@@ -1239,7 +1241,7 @@ get_str(char *str, char loc, const char cmd)
 	size_t i = 0; /* Position in buffer */
 	if (loc == 1) i = str_size;
 	int cx_add, cy_add;
-	size_t c_xtemp;
+	int c_xtemp;
 
 	int pos = 0;
 	int chosen;
@@ -1252,7 +1254,7 @@ get_str(char *str, char loc, const char cmd)
 	else if (cmd == '>')
 		pcmds = list_to;
 	int hidden_text = 0;
-	size_t line_widths_size = 8;
+	int line_widths_size = 8;
 	int *line_widths = xmalloc(line_widths_size * sizeof(int));
 	s_y0 = s_y;
 
@@ -1548,9 +1550,9 @@ visual()
 		ch[2] = x;
 		ch[3] = x + 1;
 		if (key == '$')
-			{ move_x_end(&move); }
+			{ move_x_end(); }
 		if (key == '0')
-			{ move_x_start(&move); }
+			{ move_x_start(); }
 		if (key == 'w')
 			{ move.i = MOVE_X; move_x_step(&move); }
 		if (key == 'b')
@@ -1568,9 +1570,9 @@ visual()
 		ch[2] = 0;
 		ch[3] = matrice->cols;
 		if (key == 'G')
-			{ move_y_end(&move); }
+			{ move_y_end(); }
 		if (key == 'g')
-			{ move_y_start(&move); }
+			{ move_y_start(); }
 		if (key == '\x04')	
 			{ move.i = MOVE_Y; move_y_step(&move); }
 		if (key == '\x15')
@@ -1603,7 +1605,7 @@ write_csv(const Arg *arg)
 			if (fname == NULL)
 				{
 				fname = xstrdup(filename);
-				printf("\e]0;%s - csvis\a", fname);
+				printf("\033]0;%s - csvis\a", fname);
 				fflush(stdout);
 				}
 			}
@@ -1628,7 +1630,7 @@ write_csv(const Arg *arg)
 						}
 					}
 				fname = xstrdup(filename);
-				printf("\e]0;%s - csvis\a", fname);
+				printf("\033]0;%s - csvis\a", fname);
 				fflush(stdout);
 				}
 			}
@@ -2108,7 +2110,7 @@ reg_init(void)
 		}
 	if (reg->m)
 		{
-		free_matrix(&reg->m, reg->rows, reg->cols);
+		free_matrix(&reg->m, reg->rows);
 		free(reg->buff);
 		reg->m = NULL;
 		reg->buff = NULL;
@@ -2506,7 +2508,7 @@ push(node_t **uhead, struct undo *data, int dc)
 		for (int i = 0; i < temp->dc; i++)
 			{
 			if (temp->data[i].mat != NULL)
-				free_matrix(&(temp->data[i].mat), temp->data[i].rows, temp->data[i].cols);
+				free_matrix(&(temp->data[i].mat), temp->data[i].rows);
 			if (temp->data[i].cell != NULL)
 				{
 				if (temp->data[i].operation == PasteCell || temp->data[i].operation == Paste)
@@ -2655,7 +2657,7 @@ die(void)
 				{
 				if (uhead->data[i].mat != NULL)
 					{
-					free_matrix(&(uhead->data[i].mat), uhead->data[i].rows, uhead->data[i].cols);
+					free_matrix(&(uhead->data[i].mat), uhead->data[i].rows);
 					}
 				if (uhead->data[i].cell != NULL)
 					{
@@ -2669,19 +2671,19 @@ die(void)
 			}
 			free(uhead);
 		}
-	free_matrix(&matrice->m, matrice->rows, matrice->cols);
+	free_matrix(&matrice->m, matrice->rows);
 	free(matrice->buff);
 	free(matrice);
 	if (reg)
 		{
-		free_matrix(&reg->m, reg->rows, reg->cols);
+		free_matrix(&reg->m, reg->rows);
 		free(reg->buff);
 		free(reg);
 		}
 	free(fname);
 	if (open(FIFO, O_WRONLY | O_NONBLOCK) == -1)
 		unlink(FIFO);
-	printf("\e]0;\a");
+	printf("\033]0;\a");
 	fflush(stdout);
 
 	for (int i = 0; i < num_eq; i++)
@@ -2701,7 +2703,7 @@ keypress(int key)
 	{
 	static int key0 = -1;
 	static int i0 = 0;
-	for (int i = i0; i < sizeof(keys)/sizeof(keys[0]); i++)
+	for (int i = i0; i < (int)(sizeof(keys)/sizeof(keys[0])); i++)
 		{
 		if (key == keys[i].key[0] && key0 == -1)
 			{
@@ -2819,7 +2821,7 @@ write_to_matrix(char **buffer, int *n_rows, int *n_cols)
 	}
 
 void
-free_matrix(char ****matrix, int n_rows, int n_cols)
+free_matrix(char ****matrix, int n_rows)
 	{
 	for (int i = 0; i < n_rows; i++)
 		free((*matrix)[i]);
@@ -2848,10 +2850,11 @@ int
 main(int argc, char *argv[])
 	{
 	FILE *file = NULL;
+	char *val = NULL;
 	ARGBEGIN
 		{
 		case 'f':
-			char *val = EARGF(usage());
+			val = EARGF(usage());
 			if (strlen(val) == 1)
 				fs = val[0];
 			else if (strcmp(val, "\\t") == 0)
@@ -2867,14 +2870,14 @@ main(int argc, char *argv[])
 		{
 		fname = strdup(argv[0]);
 		if (fname == NULL) exit(EXIT_FAILURE);
-		printf("\e]0;%s - csvis\a", fname);
+		printf("\033]0;%s - csvis\a", fname);
 		fflush(stdout);
 		file = fopen(fname, "r");
 		}
 	else
 		{
 		fname = NULL;
-		printf("\e]0;[No name] - csvis\a");
+		printf("\033]0;[No name] - csvis\a");
 		fflush(stdout);
 		}
 	matrice = malloc(sizeof(struct Mat));
