@@ -2408,6 +2408,7 @@ keypress(int key)
 				(*keys[i].func)(&keys[i].arg);
 				key0 = -1;
 				i0 = 0;
+				return;
 				}
 			else
 				{
@@ -2421,10 +2422,9 @@ keypress(int key)
 			(*keys[i].func)(&keys[i].arg);
 			key0 = -1;
 			i0 = 0;
+			return;
 			}
 		}
-	key0 = -1;
-	i0 = 0;
 	}
 
 char ***
