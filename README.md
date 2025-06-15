@@ -41,6 +41,7 @@ make
 | `g/`, `g?`                        | Search in selection forward, backward      |
 | `n`, `N`                          | Next, previous match                       |
 | `zt`, `zz`, `zb`                  | Move screen                                |
+| `gc`                              | Evaluate equations (=$y.x)                 |
     
 ## Examples for piping selection
 ```
@@ -55,12 +56,12 @@ e > a=[1,2,3]                 # Write to named pipe (e.g. python repl - pyrepl s
 ```
 When using pipe commands, start typing and then use `<Up>` and `<Down>` to choose predetermined command and select it with `<Tab>`.
 
+Equations are fields that start with `=` and are evaluated in adjacent cell. Cells are referenced with string of shape `$y.x`.
+
 ## TODO
-- [ ] support for equations
 - [ ] mouse support
 - [ ] multi select?
 - [ ] enumerate
-- [ ] support for quotations
 
 ## Contribute
 Please contact me for suggestions, advice, report issues,...

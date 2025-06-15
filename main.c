@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <wchar.h>
 #include <regex.h>
+#include <ctype.h>
 
 char *argv0;
 #include "arg.h"
@@ -26,6 +27,7 @@ char *argv0;
 #define FIFO "/tmp/pyfifo"
 #define XCLIP_COPY "xclip -selection clipboard -i"
 #define XCLIP_PASTE "xclip -selection clipboard -o"
+#define CALC_PROG "bc", "bc", "-lq", NULL
 #define MOVE_X 3
 #define MOVE_Y 5
 
@@ -100,6 +102,25 @@ struct Command {
 	int loc;
 };
 
+typedef struct {
+	size_t y;
+	size_t x;
+} CellPos;
+
+struct DependencyList{
+	CellPos pos;
+	CellPos *deps;
+	int count;
+};
+
+void find_deps(CellPos **, int *,  int, int);
+void find_eqs(void);
+char *help(char *);
+char *replace(int, int);
+int find_index_by_pos(CellPos);
+void dfs(int, int *, int *, int *);
+int *topological_sort(void);
+void calculate();
 void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
@@ -170,6 +191,8 @@ int paste_flag = 0;
 int delete_flag = 0;
 char fs = ',';
 char *srch = NULL;
+struct DependencyList *pos_array = NULL;
+int num_eq = 0;
 
 static Key keys[] = {
 	{{'q', -1}, quit, {0}},
@@ -226,6 +249,7 @@ static Key keys[] = {
 	{{'z', 't'}, move_screen, {0}},
 	{{'z', 'b'}, move_screen, {1}},
 	{{'z', 'z'}, move_screen, {2}},
+	{{'g', 'c'}, calculate, {0}},
 	{{'D', -1}, deleting, {0}}
 };
 
@@ -258,6 +282,280 @@ struct Command list_to[] = {
 	{"word count: ", "wc", 0},
 	{"", NULL, 0}
 };
+
+void
+find_deps(CellPos **deps, int *num_dep,  int y, int x)
+	{
+	if (matrice->m[y][x] == NULL || *(matrice->m[y][x]) != '=')
+		{
+		statusbar("No dependencies.");
+		return;
+		}
+	const char pattern_start = '$';
+	const char pattern_middle = '.';
+	char *str = matrice->m[y][x];
+	*num_dep = 0;
+	int buf_size = 1;
+
+	char *pos_start = strchr(str, pattern_start);
+	while (pos_start != NULL)
+		{
+		char *pos_middle = strchr(pos_start, pattern_middle);
+		if (pos_middle != NULL)
+			{
+			char *pos_end = pos_middle + 1;
+			while (isdigit(*pos_end)) pos_end++;
+
+			if (pos_start + 1 < pos_middle && pos_middle + 1 < pos_end)
+				{
+				// get i in j from $i.j
+				int i = atoi(pos_start + 1);
+				int j = atoi(pos_middle + 1);
+
+				// if inside matrix
+				if (i >= 0 && i < matrice->rows && j >= 0 && j < matrice->cols)
+					{
+					if (matrice->m[i][j - 1] != NULL && *(matrice->m[i][j - 1]) == '=')
+						{
+						if (*deps == NULL)
+							*deps = xmalloc(sizeof(CellPos));
+						else if (*num_dep == buf_size)
+							{
+							buf_size *= 2;
+							*deps = xrealloc(*deps, buf_size * sizeof(CellPos));
+							}
+						(*deps)[*num_dep] = (CellPos){i, j};
+						(*num_dep)++;
+						}
+					pos_start = pos_end;
+					}
+				}
+			}
+			pos_start = strchr(pos_start, pattern_start);
+		}
+	}
+
+void
+find_eqs(void)
+	{
+	free(pos_array);
+	num_eq = 0;
+	for (int i = 0; i < matrice->rows; i++)
+		{
+		for (int j = 0; j < matrice->cols; j++)
+			{
+			if (matrice->m[i][j] != NULL && *matrice->m[i][j] == '=')
+				{
+				if (num_eq == 0)
+					{
+					pos_array = xmalloc(sizeof(struct DependencyList));
+					}
+				else
+					{
+					pos_array = realloc(pos_array, (num_eq + 1) * sizeof(struct DependencyList));
+					}
+
+				pos_array[num_eq].pos.y = i;
+				pos_array[num_eq].pos.x = j;
+
+				pos_array[num_eq].deps = NULL;
+				find_deps(&pos_array[num_eq].deps, &pos_array[num_eq].count, i, j);
+				num_eq++;
+				}
+			}
+		}
+	}
+
+char *
+help(char *val)
+	{
+	int pin[2], pout[2], perr[2];
+	if (pipe(pin) == -1 || pipe(pout) == -1 || pipe(perr) == -1)
+		{
+		statusbar("Failed to create pipes");
+		return NULL;
+		}
+
+	pid_t pid = fork();
+	if (pid == -1)
+		{
+		close(pin[0]);
+		close(pin[1]);
+		close(pout[0]);
+		close(pout[1]);
+		close(perr[0]);
+		close(perr[1]);
+		statusbar("Failed to fork");
+		return NULL;
+		}
+
+	if (pid == 0)
+		{
+		close(pin[1]);
+		close(pout[0]);
+		close(perr[0]);
+		dup2(pin[0], STDIN_FILENO);
+		dup2(pout[1], STDOUT_FILENO);
+		dup2(perr[1], STDERR_FILENO);
+		close(pin[0]);
+		close(pout[1]);
+		close(perr[1]);
+
+		execlp(CALC_PROG);
+		exit(EXIT_FAILURE);
+    }
+
+	close(pin[0]);
+	close(pout[1]);
+	close(perr[1]);
+
+	write(pin[1], val, strlen(val));
+	write(pin[1], "\n", 1);
+	close(pin[1]);
+
+	char *buffer = xmalloc(1024);
+	ssize_t nread = read(pout[0], buffer, 1023);
+	close(pout[0]);
+
+	int status;
+	waitpid(pid, &status, 0);
+
+	char buf[PIPE_BUF];
+	ssize_t enread = read(perr[0], buf, sizeof(buf));
+	if (enread > 0)
+			return NULL;
+
+	if (nread > 0)
+		{
+		buffer[nread] = '\0';
+		if (buffer[nread-1] == '\n') buffer[nread-1] = '\0';
+		return buffer;
+		}
+	else if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+		{
+		statusbar("selecting prog exited with error");
+		return NULL;
+		}
+	}
+
+char *
+replace(int y, int x)
+	{
+	if (matrice->m[y][x] == NULL || *(matrice->m[y][x]) != '=') return NULL;
+	const char pattern_start = '$';
+	const char pattern_middle = '.';
+	char *str = xstrdup(matrice->m[y][x] + 1); // without '='
+
+	char *pos_start = strchr(str, pattern_start);
+	while (pos_start != NULL)
+		{
+		char *pos_middle = strchr(pos_start, pattern_middle);
+		if (pos_middle != NULL)
+			{
+			char *pos_end = pos_middle + 1;
+			while (isdigit(*pos_end)) pos_end++;
+
+			if (pos_start + 1 < pos_middle && pos_middle + 1 < pos_end)
+				{
+				// get i in j from $i.j
+				int i = atoi(pos_start + 1);
+				int j = atoi(pos_middle + 1);
+
+				// if inside matrix
+				if (i >= 0 && i < matrice->rows && j >= 0 && j < matrice->cols)
+					{
+					const char *replacement = matrice->m[i][j];
+					if (replacement == NULL) replacement = "";
+
+					size_t len_before = pos_start - str;
+					size_t len_pattern = pos_end - pos_start;
+					size_t len_replacement = strlen(replacement);
+					size_t len_after = strlen(pos_end);
+					if (strlen(str) < len_before + len_replacement + len_after)
+						str = xrealloc(str, len_before + len_replacement + len_after + 1);
+
+					memmove(str + len_before + len_replacement, str + len_before + len_pattern, len_after + 1);
+					memcpy(str + len_before, replacement, len_replacement);
+					pos_start = str + len_before + 1;
+					}
+				}
+			}
+			pos_start = strchr(pos_start, pattern_start);
+		}
+	return str;
+	}
+
+int
+find_index_by_pos(CellPos pos)
+	{
+	for (int i = 0; i < num_eq; i++)
+		{
+		if (pos_array[i].pos.y == pos.y && pos_array[i].pos.x == pos.x - 1)
+			return i;
+		}
+	return -1;
+	}
+
+void
+dfs(int i, int *visited, int *result, int *index)
+	{
+	if (visited[i]) return;
+	visited[i] = 1;
+
+	for (int j = 0; j < pos_array[i].count; j++)
+		{
+		int dep_index = find_index_by_pos(pos_array[i].deps[j]);
+		if (dep_index != -1)
+			dfs(dep_index, visited, result, index);
+		}
+
+	result[(*index)++] = i;
+	}
+
+int *
+topological_sort(void)
+	{
+	int *visited = calloc(num_eq, sizeof(int));
+	int *result = malloc(sizeof(int) * num_eq);
+	int index = 0;
+
+	for (int i = 0; i < num_eq; i++)
+		dfs(i, visited, result, &index);
+
+	free(visited);
+
+	return result;
+	}
+
+void
+calculate()
+	{
+	find_eqs();
+
+	if (num_eq == 0)
+		{
+		statusbar("No equations to calculate.");
+		return;
+		}
+
+	int *sorted_i= topological_sort();
+	struct undo data[num_eq*2];
+
+	for (int i = 0; i < num_eq; i++)
+		{
+		int y_pos = pos_array[sorted_i[i]].pos.y;
+		int x_pos = pos_array[sorted_i[i]].pos.x;
+		char *undo_cell = matrice->m[y_pos][x_pos + 1];
+		char *temp = replace(y_pos, x_pos);
+		char *paste_cell = help(temp);
+		free(temp);
+		matrice->m[y_pos][x_pos + 1] = paste_cell;
+		data[i*2] = (struct undo){DeleteCell, NULL, undo_cell, rows, cols, y, x, s_y, s_x, y_pos, x_pos + 1};
+		data[i*2 + 1] = (struct undo){PasteCell, NULL, paste_cell, rows, cols, y, x, s_y, s_x, y_pos, x_pos + 1};
+		}
+	push(&uhead, data, 2*num_eq);
+	free(sorted_i);
+	}
 
 void *
 xmalloc(size_t size)
@@ -2385,6 +2683,10 @@ die(void)
 		unlink(FIFO);
 	printf("\e]0;\a");
 	fflush(stdout);
+
+	for (int i = 0; i < num_eq; i++)
+		free(pos_array[i].deps);
+	free(pos_array);
 	}
 
 void
