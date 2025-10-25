@@ -800,7 +800,7 @@ readall(FILE *in, char **dataptr, size_t *sizeptr)
 	size_t used = 0;
 	size_t n;
 
-	/* If empty or no file */
+	/* If no file */
 	if (in == NULL)
 		{
 		*dataptr = xstrdup("\n");
@@ -844,8 +844,15 @@ readall(FILE *in, char **dataptr, size_t *sizeptr)
 	data = temp;
 	data[used] = '\0';
 
-	*dataptr = data;
-	*sizeptr = used;
+	/* If empty file */
+	if (used == 0) {
+			free(data);
+			*dataptr = xstrdup("\n");
+			*sizeptr = 1;
+	} else {
+			*dataptr = data;
+			*sizeptr = used;
+	}
 	return 0;
 	}
 
@@ -2737,7 +2744,7 @@ write_to_matrix(char **buffer, int *n_rows, int *n_cols)
 	int row = 0, col = 0;
 	int col_s = 32, row_s = 32;
 	size_t n = 0;
-	int f = 0;
+	int cols_max = 0;
 
 	char ***matrix = xmalloc(row_s * sizeof(char **));
 	matrix[row] = xmalloc(col_s * sizeof(char *));
@@ -2765,20 +2772,20 @@ write_to_matrix(char **buffer, int *n_rows, int *n_cols)
 			matrix[row][col] = start;
 			n = 0;
 			col++;
-			if (col > f) /* If row more columns than previous add cols to rows before */
+			if (col > cols_max) /* If row more columns than previous add cols to rows before */
 				{
 				for (int i = 0; i < row; i++)
 					{
 					matrix[i] = xrealloc(matrix[i], col * sizeof(char *));
-					for (int j = f; j < col; j++)
+					for (int j = cols_max; j < col; j++)
 						matrix[i][j] = NULL;
 					}
-				f = col;
+				cols_max = col;
 				}
-			while (col < f) /* If row less columns than previous add cols to n_cols */
+			while (col < cols_max) /* If row less columns than previous add cols to n_cols */
 				matrix[row][col++] = NULL;
 			col = 0;
-			matrix[row] = xrealloc(matrix[row], f * sizeof(char *));
+			matrix[row] = xrealloc(matrix[row], cols_max * sizeof(char *));
 			row++;
 			if (row >= row_s)
 				{
@@ -2795,24 +2802,24 @@ write_to_matrix(char **buffer, int *n_rows, int *n_cols)
 	else
 		{
 		if (n)
-			{ matrix[row][col] = xstrdup(start); col++; }
-		if (col > f)
+			{ matrix[row][col] = start; col++; }
+		if (col > cols_max)
 			{
 			for (int i = 0; i < row; i++)
 				{
 				matrix[i] = xrealloc(matrix[i], col * sizeof(char *));
-				for (int j = f; j < col; j++)
+				for (int j = cols_max; j < col; j++)
 					matrix[i][j] = NULL;
 				}
-			f = col;
+			cols_max = col;
 			}
-		while (col < f)
+		while (col < cols_max)
 			matrix[row][col++] = NULL;
 		row++;
 		}
 
 	*n_rows = row;
-	*n_cols = f;
+	*n_cols = cols_max;
 
 	if (*n_rows == 0 || *n_cols == 0) return NULL;
 	matrix = xrealloc(matrix, *n_rows * sizeof(char **));
