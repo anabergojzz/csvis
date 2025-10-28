@@ -298,6 +298,8 @@ mouse()
 				if (mx >= 0) move_x(mx/CELL_WIDTH);
 				else move_x((mx - CELL_WIDTH)/CELL_WIDTH);
 			}
+		else if (event.bstate & BUTTON5_PRESSED) move_y(1);
+		else if (event.bstate & BUTTON4_PRESSED) move_y(-1);
 		}
 	}
 
@@ -2864,7 +2866,7 @@ init_ui(void)
 	raw();
 	noecho();
 	keypad(stdscr, TRUE);
-	mousemask(BUTTON1_PRESSED, NULL);
+	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
 	mouseinterval(0);
 	}
 
