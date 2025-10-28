@@ -171,6 +171,7 @@ char ***write_to_matrix(char **, int *, int *);
 void free_matrix(char ****, int);
 void init_ui(void);
 void usage(void);
+void mouse();
 
 /* globals */
 struct Mat *matrice;
@@ -193,6 +194,7 @@ char fs = ',';
 char *srch = NULL;
 struct DependencyList *pos_array = NULL;
 int num_eq = 0;
+MEVENT event;
 
 static Key keys[] = {
 	{{'q', -1}, quit, {0}},
@@ -250,7 +252,8 @@ static Key keys[] = {
 	{{'z', 'b'}, move_screen, {1}},
 	{{'z', 'z'}, move_screen, {2}},
 	{{'g', 'c'}, calculate, {0}},
-	{{'D', -1}, deleting, {0}}
+	{{'D', -1}, deleting, {0}},
+	{{KEY_MOUSE, -1}, mouse, {0}}
 };
 
 struct Command list_through[] = {
@@ -282,6 +285,21 @@ struct Command list_to[] = {
 	{"word count: ", "wc", 0},
 	{"", NULL, 0}
 };
+
+void
+mouse()
+	{
+	if (getmouse(&event) == OK)
+		{
+		if (event.bstate & BUTTON1_PRESSED)
+			{
+				move_y(event.y - c_y);
+				int mx = event.x - c_x;
+				if (mx >= 0) move_x(mx/CELL_WIDTH);
+				else move_x((mx - CELL_WIDTH)/CELL_WIDTH);
+			}
+		}
+	}
 
 void
 find_deps(CellPos **deps, int *num_dep,  int y, int x)
@@ -2846,6 +2864,8 @@ init_ui(void)
 	raw();
 	noecho();
 	keypad(stdscr, TRUE);
+	mousemask(BUTTON1_PRESSED, NULL);
+	mouseinterval(0);
 	}
 
 void
