@@ -2776,8 +2776,7 @@ write_to_matrix(char **buffer, int *n_rows, int *n_cols)
 	while (*k)
 		{
 		n++;
-		if (*k == '"') { in_quotes = !in_quotes; }
-		else if (*k == fs && !in_quotes)
+		if (*k == fs && !in_quotes)
 			{
 			if (col >= col_s)
 				{
@@ -2819,6 +2818,8 @@ write_to_matrix(char **buffer, int *n_rows, int *n_cols)
 			start = k + 1;
 			matrix[row] = xmalloc(col_s * sizeof(char *));
 			}
+		else if (*k == '"') { in_quotes = !in_quotes; }
+		else if (*k == '\r') *k = '\0';
 		k++;
 		}
 
