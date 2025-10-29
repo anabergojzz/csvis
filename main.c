@@ -2,7 +2,6 @@
 
 #define _XOPEN_SOURCE 700
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <curses.h>
 #include <string.h>
@@ -2756,6 +2755,9 @@ keypress(int key)
 			return;
 			}
 		}
+		key0 = -1;
+		i0 = 0;
+		return;
 	}
 
 char ***
@@ -2866,7 +2868,7 @@ init_ui(void)
 	raw();
 	noecho();
 	keypad(stdscr, TRUE);
-	mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+	mousemask(BUTTON1_PRESSED | BUTTON4_PRESSED | BUTTON5_PRESSED, NULL);
 	mouseinterval(0);
 	}
 
