@@ -934,6 +934,9 @@ void
 draw(void)
 	{
 	werase(stdscr);
+	int formatted_width = CELL_WIDTH - 1;
+	if (cols < CELL_WIDTH)
+		formatted_width = cols % CELL_WIDTH;
 	for (int i = 0; i < scr_y; i++)
 		{
 		for (int j = 0; j < scr_x; j++)
@@ -946,7 +949,7 @@ draw(void)
 			wchar_t buffer[CELL_WIDTH];
 			mbstowcs(buffer, cell_value, CELL_WIDTH - 1);
 			buffer[CELL_WIDTH - 1] = L'\0';
-			format_wide_string(buffer, CELL_WIDTH - 1);
+			format_wide_string(buffer, formatted_width);
 			mvaddwstr(i, j * CELL_WIDTH, buffer);
 			}
 		}
@@ -1113,6 +1116,7 @@ when_resize(void)
 	{
 	getmaxyx(stdscr, rows, cols);
 	scr_x = cols/CELL_WIDTH;
+	if (scr_x == 0) scr_x = 1;
 	if (scr_x > matrice->cols) scr_x = matrice->cols;
 	scr_y = rows;
 	if (scr_y > matrice->rows) scr_y = matrice->rows;
