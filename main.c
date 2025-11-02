@@ -1116,13 +1116,13 @@ when_resize(void)
 	if (scr_x > matrice->cols) scr_x = matrice->cols;
 	scr_y = rows;
 	if (scr_y > matrice->rows) scr_y = matrice->rows;
-	if (y <= s_y) /* if y above screen */
+	if (y < s_y) /* if y above screen */
 		s_y = y;
 	else if (y >= s_y + scr_y) /* if y below screen */
 		s_y = y - (scr_y - 1);
 	if (scr_y - (matrice->rows - s_y) > 0) /* correct s_y when increasing window size to expand to whole window size */
 		s_y -= scr_y - (matrice->rows - s_y);
-	if (x <= s_x) /* if x left of screen */
+	if (x < s_x) /* if x left of screen */
 		s_x = x;
 	else if (x >= s_x + scr_x) /* if x right of screen */
 		s_x = x - (scr_x - 1);
