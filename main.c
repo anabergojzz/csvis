@@ -124,6 +124,10 @@ void *xmalloc(size_t);
 void *xrealloc(void *, size_t);
 char *xstrdup(const char *);
 void search(const Arg *);
+void move_screen_y(int);
+void move_screen_x(int);
+void move_screen_y_step(const Arg *);
+void move_screen_x_step(const Arg *);
 void move_screen(const Arg *);
 int statusbar(char *);
 int readall(FILE *, char **, size_t *);
@@ -165,6 +169,7 @@ void push(node_t **, struct undo *, int);
 void undo(const Arg *);
 void die(void);
 void quit();
+void nothing();
 void keypress(int);
 char ***write_to_matrix(char **, int *, int *);
 void free_matrix(char ****, int);
@@ -194,9 +199,11 @@ char *srch = NULL;
 struct DependencyList *pos_array = NULL;
 int num_eq = 0;
 MEVENT event;
+int win_scroll = 0;
 
 static Key keys[] = {
 	{{'q', -1}, quit, {0}},
+	{{KEY_RESIZE, -1}, nothing, {0}},
 	{{'v', -1}, visual_start, {0}},
 	{{'V', -1}, visual, {0}},
 	{{'\x03', -1}, visual_end, {0}}, /* Ctrl-C */
@@ -252,7 +259,11 @@ static Key keys[] = {
 	{{'z', 'z'}, move_screen, {2}},
 	{{'g', 'c'}, calculate, {0}},
 	{{'D', -1}, deleting, {0}},
-	{{KEY_MOUSE, -1}, mouse, {0}}
+	{{KEY_MOUSE, -1}, mouse, {0}},
+	{{'\x0A', -1}, move_screen_y_step, {1}}, /* Ctrl-J */
+	{{'\x0B', -1}, move_screen_y_step, {-1}}, /* Ctrl-K */
+	{{'\x0C', -1}, move_screen_x_step, {1}}, /* Ctrl-L */
+	{{'\x08', -1}, move_screen_x_step, {-1}} /* Ctrl-H */
 };
 
 struct Command list_through[] = {
@@ -297,8 +308,8 @@ mouse()
 				if (mx >= 0) move_x(mx/CELL_WIDTH);
 				else move_x((mx - CELL_WIDTH)/CELL_WIDTH);
 			}
-		else if (event.bstate & BUTTON5_PRESSED) move_y(1);
-		else if (event.bstate & BUTTON4_PRESSED) move_y(-1);
+		else if (event.bstate & BUTTON5_PRESSED) move_screen_y(1);
+		else if (event.bstate & BUTTON4_PRESSED) move_screen_y(-1);
 		}
 	}
 
@@ -786,14 +797,41 @@ search(const Arg *arg)
 	}
 
 void
+move_screen_y(int n)
+	{
+	win_scroll = 1;
+	if (s_y + n >= 0) s_y += n;
+	}
+
+void
+move_screen_x(int n)
+	{
+	win_scroll = 1;
+	if (s_x + n >= 0) s_x += n;
+	}
+
+void
+move_screen_y_step(const Arg *arg)
+	{
+	move_screen_y(arg->i);
+	}
+
+void
+move_screen_x_step(const Arg *arg)
+	{
+	move_screen_x(arg->i);
+	}
+
+void
 move_screen(const Arg *arg)
 	{
+	win_scroll = 1;
 	if (arg->i == 0)
 		s_y = y;
 	else if (arg->i == 1)
 		{
 		if (y >= scr_y - 1)
-			s_y = y - scr_y;
+			s_y = y - scr_y + 1;
 		}
 	else if (arg->i == 2)
 		{
@@ -1114,26 +1152,41 @@ commands()
 void
 when_resize(void)
 	{
+	curs_set(1);
 	getmaxyx(stdscr, rows, cols);
+	scr_y = rows;
 	scr_x = cols/CELL_WIDTH;
 	if (scr_x == 0) scr_x = 1;
-	if (scr_x > matrice->cols) scr_x = matrice->cols;
-	scr_y = rows;
 	if (scr_y > matrice->rows) scr_y = matrice->rows;
-	if (y < s_y) /* if y above screen */
-		s_y = y;
-	else if (y >= s_y + scr_y) /* if y below screen */
-		s_y = y - (scr_y - 1);
-	if (scr_y - (matrice->rows - s_y) > 0) /* correct s_y when increasing window size to expand to whole window size */
+	if (scr_x > matrice->cols) scr_x = matrice->cols;
+	/* correct s_y/s_x when increasing window size to expand to whole window size */
+	if (scr_y - (matrice->rows - s_y) > 0)
 		s_y -= scr_y - (matrice->rows - s_y);
-	if (x < s_x) /* if x left of screen */
-		s_x = x;
-	else if (x >= s_x + scr_x) /* if x right of screen */
-		s_x = x - (scr_x - 1);
-	if (scr_x - (matrice->cols - s_x) > 0) /* correct s_x when resizing */
+	if (scr_x - (matrice->cols - s_x) > 0)
 		s_x -= scr_x - (matrice->cols - s_x);
-	c_x = (x - s_x)*CELL_WIDTH;
+	if (y < s_y) /* if y above screen */
+		{
+		if (!win_scroll) s_y = y;
+		else curs_set(0);
+		}
+	else if (y >= s_y + scr_y) /* if y below screen */
+		{
+		if (!win_scroll) s_y = y - (scr_y - 1);
+		else curs_set(0);
+		}
+	if (x < s_x) /* if x left of screen */
+		{
+		if (!win_scroll) s_x = x;
+		else curs_set(0);
+		}
+	else if (x >= s_x + scr_x) /* if x right of screen */
+		{
+		if (!win_scroll) s_x = x - (scr_x - 1);
+		else curs_set(0);
+		}
 	c_y = y - s_y;
+	c_x = (x - s_x)*CELL_WIDTH;
+	win_scroll = 0;
 	}
 
 void insert_row(const Arg *arg)
@@ -2726,6 +2779,12 @@ quit()
 	{
 	die();
 	exit(0);
+	}
+
+void
+nothing()
+	{
+	win_scroll = 1;
 	}
 
 void
