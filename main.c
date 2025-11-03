@@ -19,7 +19,6 @@
 char *argv0;
 #include "arg.h"
 
-#define CELL_WIDTH 10
 #define PIPE_BUF 4096
 #define READALL_CHUNK 262144
 #define SHELL "/bin/sh"
@@ -112,6 +111,8 @@ struct DependencyList{
 	int count;
 };
 
+void resize_cells(const Arg *);
+void mouse();
 void find_deps(CellPos **, int *,  int, int);
 void find_eqs(void);
 char *help(char *);
@@ -175,7 +176,6 @@ char ***write_to_matrix(char **, int *, int *);
 void free_matrix(char ****, int);
 void init_ui(void);
 void usage(void);
-void mouse();
 
 /* globals */
 struct Mat *matrice;
@@ -200,6 +200,7 @@ struct DependencyList *pos_array = NULL;
 int num_eq = 0;
 MEVENT event;
 int win_scroll = 0;
+int cell_width = 10;
 
 static Key keys[] = {
 	{{'q', -1}, quit, {0}},
@@ -263,7 +264,9 @@ static Key keys[] = {
 	{{'\x0A', -1}, move_screen_y_step, {1}}, /* Ctrl-J */
 	{{'\x0B', -1}, move_screen_y_step, {-1}}, /* Ctrl-K */
 	{{'\x0C', -1}, move_screen_x_step, {1}}, /* Ctrl-L */
-	{{'\x08', -1}, move_screen_x_step, {-1}} /* Ctrl-H */
+	{{'\x08', -1}, move_screen_x_step, {-1}}, /* Ctrl-H */
+	{{'+', -1}, resize_cells, {1}},
+	{{'-', -1}, resize_cells, {-1}},
 };
 
 struct Command list_through[] = {
@@ -297,6 +300,13 @@ struct Command list_to[] = {
 };
 
 void
+resize_cells(const Arg *arg)
+	{
+	if (cell_width + arg->i < cols && cell_width + arg->i > 3)
+		cell_width += arg->i;
+	}
+
+void
 mouse()
 	{
 	if (getmouse(&event) == OK)
@@ -305,8 +315,8 @@ mouse()
 			{
 				move_y(event.y - c_y);
 				int mx = event.x - c_x;
-				if (mx >= 0) move_x(mx/CELL_WIDTH);
-				else move_x((mx - CELL_WIDTH)/CELL_WIDTH);
+				if (mx >= 0) move_x(mx/cell_width);
+				else move_x((mx - cell_width)/cell_width);
 			}
 		else if (event.bstate & BUTTON5_PRESSED) move_screen_y(1);
 		else if (event.bstate & BUTTON4_PRESSED) move_screen_y(-1);
@@ -972,9 +982,9 @@ void
 draw(void)
 	{
 	werase(stdscr);
-	int formatted_width = CELL_WIDTH - 1;
-	if (cols < CELL_WIDTH)
-		formatted_width = cols % CELL_WIDTH;
+	int formatted_width = cell_width - 1;
+	if (cols < cell_width)
+		formatted_width = cols % cell_width;
 	for (int i = 0; i < scr_y; i++)
 		{
 		for (int j = 0; j < scr_x; j++)
@@ -984,11 +994,11 @@ draw(void)
 			else attroff(A_STANDOUT);
 			char *cell_value = matrice->m[i + s_y][j + s_x];
 			if (cell_value == NULL) cell_value = "";
-			wchar_t buffer[CELL_WIDTH];
-			mbstowcs(buffer, cell_value, CELL_WIDTH - 1);
-			buffer[CELL_WIDTH - 1] = L'\0';
+			wchar_t buffer[cell_width];
+			mbstowcs(buffer, cell_value, cell_width - 1);
+			buffer[cell_width - 1] = L'\0';
 			format_wide_string(buffer, formatted_width);
-			mvaddwstr(i, j * CELL_WIDTH, buffer);
+			mvaddwstr(i, j * cell_width, buffer);
 			}
 		}
 	wmove(stdscr, c_y, c_x);
@@ -1155,7 +1165,7 @@ when_resize(void)
 	curs_set(1);
 	getmaxyx(stdscr, rows, cols);
 	scr_y = rows;
-	scr_x = cols/CELL_WIDTH;
+	scr_x = cols/cell_width;
 	if (scr_x == 0) scr_x = 1;
 	if (scr_y > matrice->rows) scr_y = matrice->rows;
 	if (scr_x > matrice->cols) scr_x = matrice->cols;
@@ -1185,7 +1195,7 @@ when_resize(void)
 		else curs_set(0);
 		}
 	c_y = y - s_y;
-	c_x = (x - s_x)*CELL_WIDTH;
+	c_x = (x - s_x)*cell_width;
 	win_scroll = 0;
 	}
 
@@ -1407,7 +1417,7 @@ get_str(char *str, char loc, const char cmd)
 		else hidden_text = 0;
 
 		draw();
-		mvprintw(c_y, c_x, "%*s", CELL_WIDTH, "");
+		mvprintw(c_y, c_x, "%*s", cell_width, "");
 		if (cmd != 0)
 			mvaddch(c_y, 0, cmd);
 		if (cmd == '|' || cmd == '<' || cmd == '>')
