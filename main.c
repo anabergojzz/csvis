@@ -173,7 +173,7 @@ void undo(const Arg *);
 void die(void);
 void quit();
 void nothing();
-void keypress(int);
+int keypress(int);
 char ***write_to_matrix(char **, int *, int *);
 void free_matrix(char ****, int);
 void init_ui(void);
@@ -2825,7 +2825,7 @@ nothing()
 	win_scroll = 1;
 	}
 
-void
+int
 keypress(int key)
 	{
 	static int key0 = -1;
@@ -2839,13 +2839,13 @@ keypress(int key)
 				(*keys[i].func)(&keys[i].arg);
 				key0 = -1;
 				i0 = 0;
-				return;
+				return 1;
 				}
 			else
 				{
 				key0 = key;
 				i0 = i;
-				return;
+				return 0;
 				}
 			}
 		else if (key0 == keys[i].key[0] && key == keys[i].key[1])
@@ -2853,12 +2853,12 @@ keypress(int key)
 			(*keys[i].func)(&keys[i].arg);
 			key0 = -1;
 			i0 = 0;
-			return;
+			return 1;
 			}
 		}
 		key0 = -1;
 		i0 = 0;
-		return;
+		return 0;
 	}
 
 char ***
@@ -3032,6 +3032,7 @@ main(int argc, char *argv[])
 
 	init_ui();
 	int key;
+	int redraw = 1;
 
 	if (mkfifo(FIFO, 0666) == -1)
 		{
@@ -3040,9 +3041,12 @@ main(int argc, char *argv[])
 		}
 	while (1)
 		{
-		when_resize();
-		draw();
+		if (redraw == 1)
+			{
+			when_resize();
+			draw();
+			}
 		key = getch();
-		keypress(key);
+		redraw = keypress(key);
 		}
 	}
