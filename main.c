@@ -311,6 +311,7 @@ struct Command list_to[] = {
 void
 save_view(const Arg *arg)
 	{
+	win_scroll = 1;
 	marks[arg->i][0] = y;
 	marks[arg->i][1] = x;
 	marks[arg->i][2] = s_y;
