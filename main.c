@@ -111,6 +111,8 @@ struct DependencyList{
 	int count;
 };
 
+void save_view(const Arg *);
+void load_view(const Arg *);
 void resize_cells(const Arg *);
 void mouse();
 void find_deps(CellPos **, int *,  int, int);
@@ -201,6 +203,7 @@ int num_eq = 0;
 MEVENT event;
 int win_scroll = 0;
 int cell_width = 10;
+int marks[3][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
 
 static Key keys[] = {
 	{{'q', -1}, quit, {0}},
@@ -267,6 +270,12 @@ static Key keys[] = {
 	{{'\x08', -1}, move_screen_x_step, {-1}}, /* Ctrl-H */
 	{{'+', -1}, resize_cells, {1}},
 	{{'-', -1}, resize_cells, {-1}},
+	{{'m', 'a'}, save_view, {0}},
+	{{'m', 'b'}, save_view, {1}},
+	{{'m', 'c'}, save_view, {2}},
+	{{'\'', 'a'}, load_view, {0}},
+	{{'\'', 'b'}, load_view, {1}},
+	{{'\'', 'c'}, load_view, {2}},
 };
 
 struct Command list_through[] = {
@@ -298,6 +307,25 @@ struct Command list_to[] = {
 	{"word count: ", "wc", 0},
 	{"", NULL, 0}
 };
+
+void
+save_view(const Arg *arg)
+	{
+	marks[arg->i][0] = y;
+	marks[arg->i][1] = x;
+	marks[arg->i][2] = s_y;
+	marks[arg->i][3] = s_x;
+	}
+
+void
+load_view(const Arg *arg)
+	{
+	win_scroll = 1;
+	y = marks[arg->i][0];
+	x = marks[arg->i][1];
+	s_y = marks[arg->i][2];
+	s_x = marks[arg->i][3];
+	}
 
 void
 resize_cells(const Arg *arg)

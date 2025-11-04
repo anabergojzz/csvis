@@ -43,6 +43,8 @@ make
 | `n`, `N`                          | Next, previous match                       |
 | `zt`, `zz`, `zb`                  | Move screen (top, middle, bottom)          |
 | `<C-h>`, `<C-j>`, `<C-k>`, `<C-l>`| Move screen down, up, right, left          |
+| `ma`, `mb`, `mb`                  | Set marks (only a, b, c)                   |
+| `'a`, `'b`, `'b`                  | Load marks (only a, b, c)                  |
 | `gc`                              | Evaluate equations (=$y.x)                 |
     
 ## Examples for piping selection
