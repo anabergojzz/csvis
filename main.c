@@ -201,7 +201,7 @@ char *srch = NULL;
 struct DependencyList *pos_array = NULL;
 int num_eq = 0;
 MEVENT event;
-int win_scroll = 0;
+int win_scroll = 1;
 int cell_width = 10;
 int marks[3][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
 
@@ -311,7 +311,6 @@ struct Command list_to[] = {
 void
 save_view(const Arg *arg)
 	{
-	win_scroll = 1;
 	marks[arg->i][0] = y;
 	marks[arg->i][1] = x;
 	marks[arg->i][2] = s_y;
@@ -321,7 +320,6 @@ save_view(const Arg *arg)
 void
 load_view(const Arg *arg)
 	{
-	win_scroll = 1;
 	y = marks[arg->i][0];
 	x = marks[arg->i][1];
 	s_y = marks[arg->i][2];
@@ -838,14 +836,12 @@ search(const Arg *arg)
 void
 move_screen_y(int n)
 	{
-	win_scroll = 1;
 	if (s_y + n >= 0) s_y += n;
 	}
 
 void
 move_screen_x(int n)
 	{
-	win_scroll = 1;
 	if (s_x + n >= 0) s_x += n;
 	}
 
@@ -864,7 +860,6 @@ move_screen_x_step(const Arg *arg)
 void
 move_screen(const Arg *arg)
 	{
-	win_scroll = 1;
 	if (arg->i == 0)
 		s_y = y;
 	else if (arg->i == 1)
@@ -1083,6 +1078,7 @@ move_x(int move)
 void
 move_x_start()
 	{
+	win_scroll = 0;
 	x = 0;
 	move_x_visual();
 	}
@@ -1090,6 +1086,7 @@ move_x_start()
 void
 move_x_end()
 	{
+	win_scroll = 0;
 	x = matrice->cols - 1;
 	move_x_visual();
 	}
@@ -1097,12 +1094,14 @@ move_x_end()
 void
 move_x_step(const Arg *arg)
 	{
+	win_scroll = 0;
 	move_x(arg->i);
 	}
 
 void
 move_y_start()
 	{
+	win_scroll = 0;
 	y = 0;
 	move_y_visual();
 	}
@@ -1110,6 +1109,7 @@ move_y_start()
 void
 move_y_end()
 	{
+	win_scroll = 0;
 	y = matrice->rows - 1;
 	move_y_visual();
 	}
@@ -1117,6 +1117,7 @@ move_y_end()
 void
 move_y_step(const Arg *arg)
 	{
+	win_scroll = 0;
 	move_y(arg->i);
 	}
 
@@ -1225,7 +1226,7 @@ when_resize(void)
 		}
 	c_y = y - s_y;
 	c_x = (x - s_x)*cell_width;
-	win_scroll = 0;
+	win_scroll = 1;
 	}
 
 void insert_row(const Arg *arg)
