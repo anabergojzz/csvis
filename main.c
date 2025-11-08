@@ -2238,13 +2238,6 @@ reg_init(void)
 		reg->m = NULL;
 		reg->buff = NULL;
 		}
-	if (mode == 'n')
-		{
-		ch[0] = y;
-		ch[1] = y + 1;
-		ch[2] = x;
-		ch[3] = x + 1;
-		}
 	reg->rows = ch[1] - ch[0];
 	reg->cols = ch[3] - ch[2];
 	reg->size = 0;
@@ -2292,6 +2285,14 @@ yank_cells()
 void
 wipe_cells()
 	{
+	if (mode == 'n')
+		{
+		ch[0] = y;
+		ch[1] = y + 1;
+		ch[2] = x;
+		ch[3] = x + 1;
+		}
+
 	reg_init();
 
 	char ***undo_mat = xmalloc(reg->rows * sizeof(char **));
