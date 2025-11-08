@@ -25,10 +25,10 @@ make
 | `v`                               | Toogle visual mode                         |
 | `Vl`, `Vj`, `V$`,...              | Select entire column/row                   |
 | `I`, `A`, `O`, `o`                | Insert/append column/row                   |
-| `d`                               | Delete(wipe) selection                     |
+| `d`                               | Delete(wipe) selection or current cell     |
+| `y`                               | Yank(copy) selection or current cell       |
+| `p`                               | Paste copied or deleted buffer             |
 | `D`, `Dl`, `D$`,...               | Extract selected rows/columns              |
-| `y`, `p`                          | Yank, paste                                |
-| `yy`, `pp`                        | Yank, paste current cell                   |
 | `<C-y>`, `<C-p>`                  | Yank, paste clipboard (using xclip)        |
 | `>`, `\|`, `<`                    | Pipe operations                            |
 | `e`                               | Write to named pipe                        |
