@@ -167,6 +167,8 @@ void yank_cells();
 void wipe_cells();
 void paste_cells(const Arg *);
 void deleting();
+void wiping();
+void yanking();
 void str_change(const Arg *);
 void push(node_t **, struct undo *, int);
 void undo(const Arg *);
@@ -243,8 +245,8 @@ static Key keys[] = {
 	{{'|', -1}, write_to_pipe, {PipeThrough}},
 	{{'<', -1}, write_to_pipe, {PipeRead}},
 	{{'r', '<'}, write_to_pipe, {PipeReadInverse}},
-	{{'d', -1}, wipe_cells, {0}},
-	{{'y', -1}, yank_cells, {0}},
+	{{'d', -1}, wiping, {0}},
+	{{'y', -1}, yanking, {0}},
 	{{'\x19', -1}, write_to_pipe, {PipeToClip}}, /* Ctrl-Y */
 	{{'p', -1}, paste_cells, {PasteNormal}},
 	{{'r', 'p'}, paste_cells, {PasteInverse}},
@@ -2285,14 +2287,6 @@ yank_cells()
 void
 wipe_cells()
 	{
-	if (mode == 'n')
-		{
-		ch[0] = y;
-		ch[1] = y + 1;
-		ch[2] = x;
-		ch[3] = x + 1;
-		}
-
 	reg_init();
 
 	char ***undo_mat = xmalloc(reg->rows * sizeof(char **));
@@ -2558,6 +2552,110 @@ deleting()
 				ch[0] = 0;
 			delete_row();
 			}
+		}
+	}
+
+void
+wiping()
+	{
+	if (mode == 'v')
+		{
+		wipe_cells();
+		}
+	else if (mode == 'n')
+		{
+		int key;
+		key = getch();
+		if (key == 'd')
+			{
+			ch[0] = y;
+			ch[1] = y + 1;
+			ch[2] = x;
+			ch[3] = x + 1;
+			}
+		else if (key == '$')
+			{
+			ch[0] = y;
+			ch[1] = y + 1;
+			ch[2] = x;
+			ch[3] = matrice->cols;
+			}
+		else if (key == '0')
+			{
+			ch[0] = y;
+			ch[1] = y + 1;
+			ch[2] = 0;
+			ch[3] = x + 1;
+			}
+		else if (key == 'G')
+			{
+			ch[0] = y;
+			ch[1] = matrice->rows;
+			ch[2] = x;
+			ch[3] = x + 1;
+			}
+		else if (key == 'g')
+			{
+			ch[0] = 0;
+			ch[1] = y + 1;
+			ch[2] = x;
+			ch[3] = x + 1;
+			}
+		else
+			return;
+		wipe_cells();
+		}
+	}
+
+void
+yanking()
+	{
+	if (mode == 'v')
+		{
+		yank_cells();
+		}
+	else if (mode == 'n')
+		{
+		int key;
+		key = getch();
+		if (key == 'y')
+			{
+			ch[0] = y;
+			ch[1] = y + 1;
+			ch[2] = x;
+			ch[3] = x + 1;
+			}
+		else if (key == '$')
+			{
+			ch[0] = y;
+			ch[1] = y + 1;
+			ch[2] = x;
+			ch[3] = matrice->cols;
+			}
+		else if (key == '0')
+			{
+			ch[0] = y;
+			ch[1] = y + 1;
+			ch[2] = 0;
+			ch[3] = x + 1;
+			}
+		else if (key == 'G')
+			{
+			ch[0] = y;
+			ch[1] = matrice->rows;
+			ch[2] = x;
+			ch[3] = x + 1;
+			}
+		else if (key == 'g')
+			{
+			ch[0] = 0;
+			ch[1] = y + 1;
+			ch[2] = x;
+			ch[3] = x + 1;
+			}
+		else
+			return;
+		yank_cells();
 		}
 	}
 
