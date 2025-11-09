@@ -1381,7 +1381,7 @@ get_str(char *str, char loc, const char cmd)
 	int hidden_text = 0;
 	int line_widths_size = 8;
 	int *line_widths = xmalloc(line_widths_size * sizeof(int));
-	s_y0 = s_y;
+	int s_y0x = s_y;
 
 	while (1)
 		{
@@ -1611,7 +1611,7 @@ get_str(char *str, char loc, const char cmd)
 	free(buffer);
 	free(line_widths);
 	free(temp);
-	s_y = s_y0; /* revert to screen position before insertion */
+	s_y = s_y0x; /* revert to screen position before insertion */
 
 	return rbuffer;
 	}
@@ -1872,7 +1872,13 @@ write_to_cells(char *buffer, int arg)
 			}
 		}
 	else
+		{
+		y_0 = y;
+		x_0 = x;
+		s_y0 = s_y;
+		s_x0 = s_x;
 		undo_mat0 = NULL;
+		}
 	char ***paste_mat = xmalloc(rows * sizeof(char **));
 	char ***undo_mat = xmalloc(rows * sizeof(char **));
 	int add_y, add_x = 0;
@@ -1921,10 +1927,10 @@ write_to_cells(char *buffer, int arg)
 			}
 		}
 	struct undo data[] = {
-		{Delete, undo_mat0, NULL, ch[1] - ch[0], ch[3] - ch[2], ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
-		{Delete, undo_mat, NULL, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]},
-		{Insert, NULL, NULL, add_y, add_x, ch[0], ch[2], s_y, s_x, matrice->rows-add_y, matrice->cols-add_x},
-		{Paste, paste_mat, buffer, rows, cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}
+		{Delete, undo_mat0, NULL, ch[1] - ch[0], ch[3] - ch[2], y_0, x_0, s_y0, s_x0, ch[0], ch[2]},
+		{Delete, undo_mat, NULL, rows, cols, y_0, x_0, s_y0, s_x0, ch[0], ch[2]},
+		{Insert, NULL, NULL, add_y, add_x, y_0, x_0, s_y0, s_x0, matrice->rows-add_y, matrice->cols-add_x},
+		{Paste, paste_mat, buffer, rows, cols, y_0, x_0, s_y0, s_x0, ch[0], ch[2]}
 	};
 	push(&uhead, data, 4);
 	if (arg == PipeReadInverse)
@@ -2308,7 +2314,7 @@ wipe_cells()
 			matrice->m[i][j] = NULL;
 			}
 		}
-	struct undo data[] = {{Delete, undo_mat, NULL, reg->rows, reg->cols, ch[0], ch[2], s_y, s_x, ch[0], ch[2]}};
+	struct undo data[] = {{Delete, undo_mat, NULL, reg->rows, reg->cols, y_0, x_0, s_y0, s_x0, ch[0], ch[2]}};
 	push(&uhead, data, 1);
 
 	if (all_flag == 1) paste_flag = 1;
