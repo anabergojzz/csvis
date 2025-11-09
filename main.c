@@ -721,6 +721,7 @@ search(const Arg *arg)
 	int st_y;
 	int st_x;
 	char *temp;
+	win_scroll = 0;
 	if (arg->i == 0 || arg->i == 4 || (arg->i == 1 && dir == 0) || (arg->i == 3 && dir == 1))
 		{
 		if (mode == 'v' && arg->i == 4)
