@@ -291,9 +291,9 @@ struct Command list_through[] = {
 	{"to upper cell: ", "awk -F, -vOFS=, '{for (i=1;i<=NF;i++) {if ($i~//) {$i=toupper($i)}} print}'", 47},
 	{"replace: ", "awk -F, -vOFS=, '{for (i=1;i<=NF;i++) {if ($i~//) {$i=\"\"}} print}'", 47},
 	{"sort: ", "sort", 0},
-	{"sort numerical: ", "sort -n", 0},
+	{"sort numerical: ", "sort -n -t, -k1,1", 0},
 	{"sort reverse: ", "sort -r", 0},
-	{"sort reverse numerical: ", "sort -nr", 0},
+	{"sort reverse numerical: ", "sort -nr -t, -k1,1", 0},
 	{"sort unique: ", "sort -u", 0},
 	{"", NULL, 0},
 };
