@@ -25,8 +25,8 @@ make
 | `v`                               | Toogle visual mode                         |
 | `Vl`, `Vj`, `V$`,...              | Select entire column/row                   |
 | `I`, `A`, `O`, `o`                | Insert/append column/row                   |
-| `d`                               | Delete(wipe) selection or current cell     |
-| `y`                               | Yank(copy) selection or current cell       |
+| `d`, `dd`, `d$`,...               | Delete(wipe) selection, current cell,...   |
+| `y`, `yy`, `y$`,...               | Yank(copy) selection, current cell,...     |
 | `p`                               | Paste copied or deleted buffer             |
 | `D`, `Dl`, `D$`,...               | Extract selected rows/columns              |
 | `<C-y>`, `<C-p>`                  | Yank, paste clipboard (using xclip)        |
@@ -63,7 +63,6 @@ When using pipe commands, start typing and then use `<Up>` and `<Down>` to choos
 Equations are fields that start with `=` and are evaluated in adjacent cell. Cells are referenced with string of shape `$y.x`.
 
 ## TODO
-- [ ] multi select?
 - [ ] enumerate
 
 ## Contribute
