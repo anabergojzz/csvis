@@ -206,6 +206,7 @@ MEVENT event;
 int win_scroll = 1;
 int cell_width = 10;
 int marks[3][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+int pipe_created = 0;
 
 static Key keys[] = {
 	{{'q', -1}, quit, {0}},
@@ -1769,6 +1770,21 @@ write_csv(const Arg *arg)
 		}
 	else
 		{
+		if (!pipe_created)
+			{
+			if (mkfifo(FIFO, 0666) == -1)
+				{
+				if (errno != EEXIST)
+					{
+					if (errno == EACCES)
+						statusbar("Permission denied. Unable to create pipe.");
+					else
+						statusbar("Error with mkfifo, pipe to named pipe is not possible.");
+					return;
+					}
+				}
+			pipe_created = 1;
+			}
 		filename = xmalloc(strlen(FIFO) + 1);
 		strcpy(filename, FIFO);
 		int fd = open(filename, O_WRONLY | O_NONBLOCK);
@@ -3142,11 +3158,6 @@ main(int argc, char *argv[])
 	int key;
 	int redraw = 1;
 
-	if (mkfifo(FIFO, 0666) == -1)
-		{
-		if (errno != EEXIST)
-			statusbar("Error with mkfifo, pipe to named pipe will not be possible.");
-		}
 	while (1)
 		{
 		if (redraw == 1)
