@@ -1241,8 +1241,10 @@ when_resize(void)
 	win_scroll = 1;
 	}
 
-void insert_row(const Arg *arg)
+void
+insert_row(const Arg *arg)
 	{
+	if (mode == 'v') visual_end();
 	y += arg->i;
 	matrice->m = xrealloc(matrice->m, (matrice->rows + 1) * sizeof(char *));
 	for (int i = matrice->rows; i > y; i--)
@@ -1258,6 +1260,7 @@ void insert_row(const Arg *arg)
 void
 insert_col(const Arg *arg)
 	{
+	if (mode == 'v') visual_end();
 	x += arg->i;
 	for (int i = 0; i < matrice->rows; i++)
 		{
