@@ -210,7 +210,6 @@ int marks[3][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
 int pipe_created = 0;
 
 static Key keys[] = {
-	{{'q', -1}, quit, {0}},
 	{{KEY_RESIZE, -1}, nothing, {0}},
 	{{'v', -1}, visual_start, {0}},
 	{{'V', -1}, visual, {0}},
@@ -1154,6 +1153,13 @@ commands()
 				statusbar("Wrong field separator!");
 			free(temp);
 			return;
+		}
+	else if (temp[0] == 'q')
+		{
+		if (strlen(temp) == 1)
+			{
+			quit();
+			}
 		}
 	int length = strlen(temp);
 	int to_num_y = 0;
