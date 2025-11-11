@@ -111,6 +111,7 @@ struct DependencyList{
 	int count;
 };
 
+void suspend();
 void save_view(const Arg *);
 void load_view(const Arg *);
 void resize_cells(const Arg *);
@@ -279,6 +280,7 @@ static Key keys[] = {
 	{{'\'', 'a'}, load_view, {0}},
 	{{'\'', 'b'}, load_view, {1}},
 	{{'\'', 'c'}, load_view, {2}},
+	{{'\x1A', -1}, suspend, {}},
 };
 
 struct Command list_through[] = {
@@ -310,6 +312,12 @@ struct Command list_to[] = {
 	{"word count: ", "wc", 0},
 	{"", NULL, 0}
 };
+
+void
+suspend()
+	{
+	raise(SIGTSTP);
+	}
 
 void
 save_view(const Arg *arg)
