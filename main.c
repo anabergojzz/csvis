@@ -1202,16 +1202,10 @@ commands()
 		to_num_y -= y;
 		to_num_x -= x;
 		Arg move;
-		if (to_num_y != 0 && y + to_num_y < matrice->rows && y + to_num_y >= 0)
-			{
-			move.i = to_num_y;
-			move_y_step(&move);
-			}
-		if (to_num_x != 0 && x + to_num_x < matrice->cols && x + to_num_x >= 0)
-			{
-			move.i = to_num_x;
-			move_x_step(&move);
-			}
+		move.i = to_num_y;
+		move_y_step(&move);
+		move.i = to_num_x;
+		move_x_step(&move);
 		}
 	}
 
