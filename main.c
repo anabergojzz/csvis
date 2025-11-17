@@ -159,7 +159,9 @@ char *get_str(char *, char, const char);
 void visual_start();
 void visual_end();
 void visual();
-void write_csv(const Arg *);
+char *create_fifo(void);
+void write_to(const Arg *);
+int write_csv(char **, int, int);
 void write_to_cells(char *, int);
 int pipe_through(char **, ssize_t *, char *);
 void write_to_pipe(const Arg *);
@@ -238,11 +240,11 @@ static Key keys[] = {
 	{{'o', -1}, insert_row, {1}},
 	{{'I', -1}, insert_col, {0}},
 	{{'A', -1}, insert_col, {1}},
-	{{'s', -1}, write_csv, {WriteTo}},
-	{{'r', 's'}, write_csv, {WriteToInverse}},
-	{{'e', -1}, write_csv, {WriteFifo}},
-	{{'r', 'e'}, write_csv, {WriteFifoInverse}},
-	{{'\x13', -1}, write_csv, {WriteExisting}}, /* Ctrl-S */
+	{{'s', -1}, write_to, {WriteTo}},
+	{{'r', 's'}, write_to, {WriteToInverse}},
+	{{'e', -1}, write_to, {WriteFifo}},
+	{{'r', 'e'}, write_to, {WriteFifoInverse}},
+	{{'\x13', -1}, write_to, {WriteExisting}}, /* Ctrl-S */
 	{{'>', -1}, write_to_pipe, {PipeTo}},
 	{{'|', -1}, write_to_pipe, {PipeThrough}},
 	{{'<', -1}, write_to_pipe, {PipeRead}},
@@ -1733,158 +1735,161 @@ visual()
 		}
 	}
 
+char *
+create_fifo(void)
+	{
+	if (!pipe_created)
+		{
+		if (mkfifo(FIFO, 0666) == -1)
+			{
+			if (errno != EEXIST)
+				{
+				if (errno == EACCES)
+					statusbar("Permission denied. Unable to create pipe.");
+				else
+					statusbar("Error with mkfifo, pipe to named pipe is not possible.");
+				return NULL;
+				}
+			}
+		pipe_created = 1;
+		}
+	char *filename = xmalloc(strlen(FIFO) + 1);
+	strcpy(filename, FIFO);
+	int fd = open(filename, O_WRONLY | O_NONBLOCK);
+	if (fd == -1)
+		{
+		if (errno == ENXIO)
+			statusbar("Nobody listens.");
+		else
+			statusbar("Error opening named pipe.");
+		close(fd);
+		free(filename);
+		return NULL;
+		}
+	close(fd);
+	return filename;
+	}
+
 void
-write_csv(const Arg *arg)
+write_to(const Arg *arg)
 	{
 	char *filename = NULL;
+	int reverse = 0;
+	int fifo = 0;
 
 	if (arg->i == WriteTo || arg->i == WriteToInverse)
 		{
 		filename = get_str("", 0, ':');
 		if (filename == NULL) return;
-		if (filename != fname)
-			{
-			FILE *test_existing = fopen(filename, "r");
-			if (test_existing != NULL)
-				{
-				fclose(test_existing);
-				int status = statusbar("File already exists! Overwrite? [y][n]");
-				if (status != 'y')
-					{
-					free(filename);
-					return;
-					}
-				}
-			if (fname == NULL)
-				{
-				fname = xstrdup(filename);
-				printf("\033]0;%s - csvis\a", fname);
-				fflush(stdout);
-				}
-			}
+		if (arg->i == WriteToInverse)
+			reverse = 1;
 		}
 	else if (arg->i == WriteExisting)
 		{
 		if (fname == NULL)
 			{
-			filename = get_str("", 0, ':');
-			if (filename == NULL) return;
-			else
-				{
-				FILE *test_existing = fopen(filename, "r");
-				if (test_existing != NULL)
-					{
-					fclose(test_existing);
-					int status = statusbar("File already exists! Overwrite? [y][n]");
-					if (status != 'y')
-						{
-						free(filename);
-						return;
-						}
-					}
-				fname = xstrdup(filename);
-				printf("\033]0;%s - csvis\a", fname);
-				fflush(stdout);
-				}
-			}
-		else
-			{
-			filename = xmalloc(strlen(fname) + 1);
-			strcpy(filename, fname);
-			}
-		visual_end();
-		}
-	else
-		{
-		if (!pipe_created)
-			{
-			if (mkfifo(FIFO, 0666) == -1)
-				{
-				if (errno != EEXIST)
-					{
-					if (errno == EACCES)
-						statusbar("Permission denied. Unable to create pipe.");
-					else
-						statusbar("Error with mkfifo, pipe to named pipe is not possible.");
-					return;
-					}
-				}
-			pipe_created = 1;
-			}
-		filename = xmalloc(strlen(FIFO) + 1);
-		strcpy(filename, FIFO);
-		int fd = open(filename, O_WRONLY | O_NONBLOCK);
-		if (fd == -1)
-			{
-			if (errno == ENXIO)
-				statusbar("Nobody listens.");
-			else
-				statusbar("Error opening named pipe.");
-			close(fd);
-			free(filename);
+			statusbar("Empty filename.");
 			return;
 			}
-		close(fd);
+		filename = xmalloc(strlen(fname) + 1);
+		strcpy(filename, fname);
 		}
-	if (strlen(filename) == 0)
-		statusbar("Empty filename.");
-	else
+	else if (arg->i == WriteFifo || arg->i == WriteFifoInverse)
 		{
-		FILE *file = fopen(filename, "w");
-		if (!file)
-			statusbar("Error opening file for writing");
-
-		if (mode == 'n')
-			{
-			ch[0] = 0;
-			ch[1] = matrice->rows;
-			ch[2] = 0;
-			ch[3] = matrice->cols;
-			}
-		if (arg->i == WriteToInverse || arg->i == WriteFifoInverse) 
-			{
-			int temp1, temp2;
-			temp1 = ch[0];
-			temp2 = ch[1];
-			ch[0] = ch[2];
-			ch[1] = ch[3];
-			ch[2] = temp1;
-			ch[3] = temp2;
-			}
-		char *first = "";
-		char *end = "";
-		char fs1 = fs;
-		if (arg->i == WriteFifo || arg->i == WriteFifoInverse)
-			{ first = "=["; end = "]"; fs1 = ',';}
-		for (int i = ch[0]; i < ch[1]; i++)
-			{
-			for (int j = ch[2]; j < ch[3]; j++)
-				{
-				char *inverse = NULL;
-				if (arg->i == WriteToInverse || arg->i == WriteFifoInverse)
-					inverse = matrice->m[j][i];
-				else
-					inverse = matrice->m[i][j];
-				if (inverse != NULL) fprintf(file, "%s", inverse);
-				if (j == ch[3]-1)
-					{
-					if (*end != '\0' && j != ch[2])
-						fprintf(file, "%s", end);
-					fprintf(file, "\n");
-					}
-				else if (j == ch[2] && *first != '\0')
-					fprintf(file, "%s", first);
-				else
-					fprintf(file, "%c", fs1);
-				}
-			}
-		fclose(file);
+		filename = create_fifo();
+		if (filename == NULL) return;
+		fifo = 1;
+		if (arg->i == WriteFifoInverse)
+			reverse = 1;
 		}
+
+	int ret = write_csv(&filename, reverse, fifo);
 
 	free(filename);
 	visual_end();
 	if (arg->i == WriteTo || arg->i == WriteExisting || arg->i == WriteToInverse)
-		statusbar("Saved!");
+		{
+		if (ret == 0)
+			statusbar("Saved!");
+		}
+	}
+
+int
+write_csv(char **name, int reverse, int fifo)
+	{
+	char *filename = *name;
+	if (filename == NULL) return -1;
+	if (fname != filename && fifo == 0)
+		{
+		FILE *test_existing = fopen(filename, "r");
+		if (test_existing != NULL)
+			{
+			fclose(test_existing);
+			int status = statusbar("File already exists! Overwrite? [y][n]");
+			if (status != 'y')
+				return -1;
+			}
+		if (fname == NULL)
+			{
+			fname = xstrdup(filename);
+			printf("\033]0;%s - csvis\a", fname);
+			fflush(stdout);
+			}
+		}
+
+	FILE *file = fopen(filename, "w");
+	if (!file)
+		{
+		statusbar("Error opening file for writing");
+		return -1;
+		}
+
+	if (mode == 'n')
+		{
+		ch[0] = 0;
+		ch[1] = matrice->rows;
+		ch[2] = 0;
+		ch[3] = matrice->cols;
+		}
+	if (reverse == 1) 
+		{
+		int temp1, temp2;
+		temp1 = ch[0];
+		temp2 = ch[1];
+		ch[0] = ch[2];
+		ch[1] = ch[3];
+		ch[2] = temp1;
+		ch[3] = temp2;
+		}
+	char *first = "";
+	char *end = "";
+	char fs1 = fs;
+	if (fifo == 1)
+		{ first = "=["; end = "]"; fs1 = ',';}
+	for (int i = ch[0]; i < ch[1]; i++)
+		{
+		for (int j = ch[2]; j < ch[3]; j++)
+			{
+			char *inverse = NULL;
+			if (reverse == 1)
+				inverse = matrice->m[j][i];
+			else
+				inverse = matrice->m[i][j];
+			if (inverse != NULL) fprintf(file, "%s", inverse);
+			if (j == ch[3]-1)
+				{
+				if (*end != '\0' && j != ch[2])
+					fprintf(file, "%s", end);
+				fprintf(file, "\n");
+				}
+			else if (j == ch[2] && *first != '\0')
+				fprintf(file, "%s", first);
+			else
+				fprintf(file, "%c", fs1);
+			}
+		}
+	fclose(file);
+	return 0;
 	}
 
 void
