@@ -1138,17 +1138,31 @@ commands()
 	{
 	char *temp = get_str("", 0, ':');
 	if (temp == NULL) return;
-	else if (temp[0] == 'f')
+	char *t = temp;
+	while (*t && *t == ' ') t++;
+	char *cmd = t;
+	while (*t && *t != ' ') t++;
+	if (*t != '\0')
 		{
-			if (strlen(temp + 2) == 1)
+		*t = '\0';
+		t++;
+		}
+	while (*t && *t == ' ') t++;
+	char *val = t;
+	while (*t && *t != ' ') t++;
+	*t = '\0';
+
+	if (strcmp(cmd, "f") == 0)
+		{
+			if (strlen(val) == 1)
 				{
-				fs = temp[2];
+				fs = *val;
 				statusbar("Field separator set!");
 				}
-			else if (strcmp(temp + 2, "\\t") == 0)
+			else if (strcmp(val, "\\t") == 0)
 				{
 				fs = '\t';
-				statusbar("Field separator set!");
+				statusbar("Field separator set to tab!");
 				}
 			else
 				statusbar("Wrong field separator!");
