@@ -1169,7 +1169,7 @@ commands()
 			free(temp);
 			return;
 		}
-	int length = strlen(temp);
+	int length = strlen(cmd);
 	int to_num_y = 0;
 	int to_num_x = x;
 	int is_number = 0;
@@ -1177,15 +1177,15 @@ commands()
 
 	for (int i = 0; i < length; i++)
 		{
-		if (*(temp + i) >= '0' && *(temp + i) <= '9')
+		if (*(cmd + i) >= '0' && *(cmd + i) <= '9')
 			{
 			if (next == 0)
-				to_num_y = to_num_y * 10 + (*(temp + i) - '0');
+				to_num_y = to_num_y * 10 + (*(cmd + i) - '0');
 			else if (next == 1)
-				to_num_x = to_num_x * 10 + (*(temp + i) - '0');
+				to_num_x = to_num_x * 10 + (*(cmd + i) - '0');
 			is_number = 1;
 			}
-		else if (*(temp + i) == '.')
+		else if (*(cmd + i) == '.')
 			{
 			if (is_number == 0)
 				to_num_y = y;
