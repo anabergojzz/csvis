@@ -1169,44 +1169,51 @@ commands()
 			free(temp);
 			return;
 		}
-	int length = strlen(cmd);
-	int to_num_y = 0;
-	int to_num_x = x;
-	int is_number = 0;
-	char next = 0;
-
-	for (int i = 0; i < length; i++)
+	else if ((*cmd >= '0' && *cmd <= '9') || *cmd == '.')
 		{
-		if (*(cmd + i) >= '0' && *(cmd + i) <= '9')
+		int to_num_y = 0;
+		int to_num_x = x;
+		int is_number = 0;
+		char next = 0;
+
+		while(*cmd)
 			{
-			if (next == 0)
-				to_num_y = to_num_y * 10 + (*(cmd + i) - '0');
-			else if (next == 1)
-				to_num_x = to_num_x * 10 + (*(cmd + i) - '0');
-			is_number = 1;
+			if (*cmd >= '0' && *cmd <= '9')
+				{
+				if (next == 0)
+					to_num_y = to_num_y * 10 + (*cmd - '0');
+				else if (next == 1)
+					to_num_x = to_num_x * 10 + (*cmd - '0');
+				is_number = 1;
+				}
+			else if (*cmd == '.')
+				{
+				if (is_number == 0)
+					to_num_y = y;
+				next = 1;
+				to_num_x = 0;
+				is_number = 0;
+				}
+			else
+				break;
+			cmd++;
 			}
-		else if (*(cmd + i) == '.')
+		if (is_number)
 			{
-			if (is_number == 0)
-				to_num_y = y;
-			next = 1;
-			to_num_x = 0;
-			is_number = 0;
+			to_num_y -= y;
+			to_num_x -= x;
+			Arg move;
+			move.i = to_num_y;
+			move_y_step(&move);
+			move.i = to_num_x;
+			move_x_step(&move);
 			}
 		else
-			break;
+			statusbar("Unknown command");
 		}
+	else
+		statusbar("Unknown command");
 	free(temp);
-	if (is_number)
-		{
-		to_num_y -= y;
-		to_num_x -= x;
-		Arg move;
-		move.i = to_num_y;
-		move_y_step(&move);
-		move.i = to_num_x;
-		move_x_step(&move);
-		}
 	}
 
 void
