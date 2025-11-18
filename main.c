@@ -37,11 +37,6 @@ enum {
 	PipeToClip,
 	PipeReadClip,
 	PipeReadInverse,
-	WriteTo,
-	WriteToInverse,
-	WriteFifo,
-	WriteFifoInverse,
-	WriteExisting,
 	PasteNormal,
 	PasteInverse,
 	Cut,
@@ -159,8 +154,7 @@ char *get_str(char *, char, const char);
 void visual_start();
 void visual_end();
 void visual();
-char *create_fifo(void);
-void write_to(const Arg *);
+void write_to_fifo(const Arg *);
 int write_csv(char **, int, int);
 void write_to_cells(char *, int);
 int pipe_through(char **, ssize_t *, char *);
@@ -240,11 +234,8 @@ static Key keys[] = {
 	{{'o', -1}, insert_row, {1}},
 	{{'I', -1}, insert_col, {0}},
 	{{'A', -1}, insert_col, {1}},
-	{{'s', -1}, write_to, {WriteTo}},
-	{{'r', 's'}, write_to, {WriteToInverse}},
-	{{'e', -1}, write_to, {WriteFifo}},
-	{{'r', 'e'}, write_to, {WriteFifoInverse}},
-	{{'\x13', -1}, write_to, {WriteExisting}}, /* Ctrl-S */
+	{{'e', -1}, write_to_fifo, {1}},
+	{{'r', 'e'}, write_to_fifo, {-1}},
 	{{'>', -1}, write_to_pipe, {PipeTo}},
 	{{'|', -1}, write_to_pipe, {PipeThrough}},
 	{{'<', -1}, write_to_pipe, {PipeRead}},
@@ -1213,6 +1204,31 @@ commands()
 		else
 			statusbar("Unknown command");
 		}
+	else if (strcmp(cmd, "w") == 0 || strcmp(cmd, "wq") == 0 || strcmp(cmd, "wr") == 0 || strcmp(cmd, "wrq") == 0)
+		{
+		int reverse = 0;
+		if (strcmp(cmd, "wr") == 0 || strcmp(cmd, "wrq") == 0)
+			reverse = 1;
+		if (*val == '\0')
+			{
+			if (fname != NULL) /* write existing */
+				{
+				int ret = write_csv(&fname, reverse, 0);
+				if (ret == 0 && strcmp(cmd, "wq") != 0 && strcmp(cmd, "wrq") != 0)
+					statusbar("Saved!");
+				visual_end();
+				}
+			else statusbar("No file name");
+			}
+		else
+			{
+			int ret = write_csv(&val, reverse, 0);
+			if (ret == 0 && strcmp(cmd, "wq") != 0 && strcmp(cmd, "wrq") != 0)
+				statusbar("Saved!");
+			visual_end();
+			}
+		if (strcmp(cmd, "wq") == 0 || strcmp(cmd, "wrq") == 0) quit();
+		}
 	else
 		statusbar("Unknown command");
 	free(temp);
@@ -1735,9 +1751,11 @@ visual()
 		}
 	}
 
-char *
-create_fifo(void)
+void
+write_to_fifo(const Arg *arg)
 	{
+	int reverse = 0;
+
 	if (!pipe_created)
 		{
 		if (mkfifo(FIFO, 0666) == -1)
@@ -1748,12 +1766,13 @@ create_fifo(void)
 					statusbar("Permission denied. Unable to create pipe.");
 				else
 					statusbar("Error with mkfifo, pipe to named pipe is not possible.");
-				return NULL;
+				return;
 				}
 			}
 		pipe_created = 1;
 		}
 	char *filename = xmalloc(strlen(FIFO) + 1);
+	if (filename == NULL) return;
 	strcpy(filename, FIFO);
 	int fd = open(filename, O_WRONLY | O_NONBLOCK);
 	if (fd == -1)
@@ -1764,54 +1783,16 @@ create_fifo(void)
 			statusbar("Error opening named pipe.");
 		close(fd);
 		free(filename);
-		return NULL;
+		return;
 		}
 	close(fd);
-	return filename;
-	}
+	if (arg->i == -1)
+		reverse = 1;
 
-void
-write_to(const Arg *arg)
-	{
-	char *filename = NULL;
-	int reverse = 0;
-	int fifo = 0;
-
-	if (arg->i == WriteTo || arg->i == WriteToInverse)
-		{
-		filename = get_str("", 0, ':');
-		if (filename == NULL) return;
-		if (arg->i == WriteToInverse)
-			reverse = 1;
-		}
-	else if (arg->i == WriteExisting)
-		{
-		if (fname == NULL)
-			{
-			statusbar("Empty filename.");
-			return;
-			}
-		filename = xmalloc(strlen(fname) + 1);
-		strcpy(filename, fname);
-		}
-	else if (arg->i == WriteFifo || arg->i == WriteFifoInverse)
-		{
-		filename = create_fifo();
-		if (filename == NULL) return;
-		fifo = 1;
-		if (arg->i == WriteFifoInverse)
-			reverse = 1;
-		}
-
-	int ret = write_csv(&filename, reverse, fifo);
+	int ret = write_csv(&filename, reverse, 1);
 
 	free(filename);
 	visual_end();
-	if (arg->i == WriteTo || arg->i == WriteExisting || arg->i == WriteToInverse)
-		{
-		if (ret == 0)
-			statusbar("Saved!");
-		}
 	}
 
 int
