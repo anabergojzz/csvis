@@ -15,6 +15,7 @@
 #include <wchar.h>
 #include <regex.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 char *argv0;
 #include "arg.h"
@@ -105,6 +106,7 @@ struct DependencyList{
 	CellPos *deps;
 	int count;
 };
+
 
 void suspend();
 void save_view(const Arg *);
@@ -204,6 +206,7 @@ int win_scroll = 1;
 int cell_width = 10;
 int marks[3][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
 int pipe_created = 0;
+time_t m_time;
 
 static Key keys[] = {
 	{{KEY_RESIZE, -1}, nothing, {0}},
@@ -1821,6 +1824,19 @@ write_csv(char **name, int reverse, int fifo)
 			fflush(stdout);
 			}
 		}
+	else
+		{
+		struct stat st;
+    if (stat(filename, &st) != 0)
+			return -1;
+		if (m_time != st.st_mtime)
+			{
+			int status = statusbar("The file has been changed outside csvis!!! Really want to overwrite? [y][n]");
+			if (status != 'y')
+				return -1;
+			}
+		m_time = st.st_mtime;
+		}
 
 	FILE *file = fopen(filename, "w");
 	if (!file)
@@ -3169,6 +3185,11 @@ main(int argc, char *argv[])
 
 	if (file != NULL)
 		fclose(file);
+
+	struct stat st;
+	if (stat(fname, &st) != 0)
+		return -1;
+	m_time = st.st_mtime;
 
 	init_ui();
 	int key;
