@@ -206,7 +206,6 @@ int marks[3][4] = {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
 int pipe_created = 0;
 
 static Key keys[] = {
-	{{'q', -1}, quit, {0}},
 	{{KEY_RESIZE, -1}, nothing, {0}},
 	{{'v', -1}, visual_start, {0}},
 	{{'V', -1}, visual, {0}},
@@ -1204,6 +1203,10 @@ commands()
 		else
 			statusbar("Unknown command");
 		}
+	else if (strcmp(cmd, "q") == 0)
+		{
+		quit();
+		}
 	else if (strcmp(cmd, "w") == 0 || strcmp(cmd, "wq") == 0 || strcmp(cmd, "wr") == 0 || strcmp(cmd, "wrq") == 0)
 		{
 		int reverse = 0;
@@ -1227,7 +1230,8 @@ commands()
 				statusbar("Saved!");
 			visual_end();
 			}
-		if (strcmp(cmd, "wq") == 0 || strcmp(cmd, "wrq") == 0) quit();
+		if (strcmp(cmd, "wq") == 0 || strcmp(cmd, "wrq") == 0)
+			quit();
 		}
 	else
 		statusbar("Unknown command");
