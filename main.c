@@ -152,6 +152,7 @@ void insert_row(const Arg *);
 void insert_col(const Arg *);
 void delete_row();
 void delete_col();
+void wtomb(char **, wchar_t **);
 char *get_str(char *, char, const char);
 void visual_start();
 void visual_end();
@@ -1408,6 +1409,16 @@ delete_col()
 	paste_flag = 4;
 	}
 
+void
+wtomb(char **out, wchar_t **in)
+	{
+	if (*out == NULL)
+		*out = xmalloc(32);
+	size_t mb_len = wcstombs(NULL, *in, 0) + 1;
+	*out = xrealloc(*out, mb_len);
+	wcstombs(*out, *in, mb_len);
+	}
+
 char *
 get_str(char *str, char loc, const char cmd)
 	{
@@ -1508,46 +1519,38 @@ get_str(char *str, char loc, const char cmd)
 		if (cmd == '|' || cmd == '<' || cmd == '>')
 			{
 			int j = 0;
-			int i0;
-			if (temp == NULL)
-				temp = xmalloc(32);
+			int i = 0;
+			int i_last_match = 0;
 			char str_full[cols];
-			for (int i = 0; pcmds[i].cmd != NULL; i++)
+			wtomb(&temp, &buffer);
+			while (pcmds[i].cmd != NULL)
 				{
-				size_t mb_len = wcstombs(NULL, buffer, 0) + 1;
-				temp = xrealloc(temp, mb_len);
-				wcstombs(temp, buffer, mb_len);
 				if ( strstr(pcmds[i].name, temp) || strstr(pcmds[i].cmd, temp) )
 					{
-					if (j > 0)
-						{
-						if (pos == j - 1)
-							{
-							attron(A_STANDOUT);
-							chosen = i0;
-							}
-						snprintf(str_full, cols, "%s%s", pcmds[i0].name, pcmds[i0].cmd);
-						mvprintw(c_y - j, 0, "%s", str_full);
-						clrtoeol();
-						attroff(A_STANDOUT);
-						}
-					i0 = i;
 					j++;
+					i_last_match = i;
+					if (pos == j - 1)
+						{
+						attron(A_STANDOUT);
+						chosen = i;
+						}
+					snprintf(str_full, cols, "%s%s", pcmds[i].name, pcmds[i].cmd);
+					mvprintw(c_y - j, 0, "%s", str_full);
+					clrtoeol();
+					attroff(A_STANDOUT);
 					}
+				i++;
 				}
-			if (j > 0)
+			if (j > 0 && pos > j - 1)
 				{
-				if (pos >= j - 1)
-					{
-					pos = j - 1;
-					attron(A_STANDOUT);
-					chosen = i0;
-					}
-				snprintf(str_full, cols, "%s%s", pcmds[i0].name, pcmds[i0].cmd);
+				pos = j - 1;
+				attron(A_STANDOUT);
+				chosen = i_last_match;
+				snprintf(str_full, cols, "%s%s", pcmds[i_last_match].name, pcmds[i_last_match].cmd);
 				mvprintw(c_y - j, 0, "%s", str_full);
 				clrtoeol();
-				attroff(A_STANDOUT);
 				}
+			attroff(A_STANDOUT);
 			}
 		mvaddwstr(c_y, c_x, buffer + hidden_text);
 		int c_yend, c_xend;
