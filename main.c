@@ -16,6 +16,7 @@
 #include <regex.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 char *argv0;
 #include "arg.h"
@@ -108,6 +109,7 @@ struct DependencyList{
 };
 
 
+void autocomplete(char **, int *, char **);
 void suspend();
 void save_view(const Arg *);
 void load_view(const Arg *);
@@ -308,6 +310,68 @@ struct Command list_to[] = {
 	{"word count: ", "wc", 0},
 	{"", NULL, 0}
 };
+
+void
+autocomplete(char **prefix, int *pos, char **chosen)
+	{
+	if (**prefix == '\0') return;
+	DIR *dir = opendir(".");
+	if (!dir)
+		{
+		perror("opendir");
+		return;
+		}
+
+	struct dirent *entry;
+	size_t len = strlen(*prefix);
+	int j = 0;
+	size_t bufsize = 32;
+	size_t bufsize2 = 32;
+	if (*chosen == NULL)
+		*chosen = xmalloc(bufsize);
+	char *temp = xmalloc(bufsize2);
+	
+	while ((entry = readdir(dir)) != NULL)
+		{
+		if (strncmp(entry->d_name, *prefix, len) == 0)
+			{
+			j++;
+			size_t entry_len = strlen(entry->d_name);
+			if (*pos == j - 1)
+				{
+				attron(A_STANDOUT);
+				if (entry_len > bufsize)
+					{
+					bufsize *= 2;
+					*chosen = xrealloc(*chosen, bufsize);
+					}
+				strcpy(*chosen, entry->d_name);
+				}
+			mvprintw(c_y - j, 0, "%s", entry->d_name);
+			clrtoeol();
+			attroff(A_STANDOUT);
+			if (entry_len > bufsize2)
+				{
+				bufsize2 *= 2;
+				temp = xrealloc(temp, bufsize2);
+				}
+			strcpy(temp, entry->d_name);
+			}
+		}
+	if (j > 0 && *pos > j - 1)
+		{
+		*pos = j - 1;
+		attron(A_STANDOUT);
+		mvprintw(c_y - j, 0, "%s", temp);
+		attroff(A_STANDOUT);
+		char *temp2 = temp;
+		temp = *chosen;
+		*chosen = temp2;
+		clrtoeol();
+		}
+	free(temp);
+	closedir(dir);
+	}
 
 void
 suspend()
@@ -1442,6 +1506,8 @@ get_str(char *str, char loc, const char cmd)
 		pcmds = list_from;
 	else if (cmd == '>')
 		pcmds = list_to;
+	char *complete = NULL;
+	int length = 0;
 	int hidden_text = 0;
 	int line_widths_size = 8;
 	int *line_widths = xmalloc(line_widths_size * sizeof(int));
@@ -1552,6 +1618,16 @@ get_str(char *str, char loc, const char cmd)
 				}
 			attroff(A_STANDOUT);
 			}
+		else if (cmd == ':')
+			{
+			wtomb(&temp, &buffer);
+			char *t = temp;
+			while (*t && *t == ' ') t++;
+			while (*t && *t != ' ') t++;
+			while (*t && *t == ' ') t++;
+			length = str_size - (t - temp);
+			autocomplete(&t, &pos, &complete);
+			}
 		mvaddwstr(c_y, c_x, buffer + hidden_text);
 		int c_yend, c_xend;
 		getyx(stdscr, c_yend, c_xend);
@@ -1596,6 +1672,19 @@ get_str(char *str, char loc, const char cmd)
 						i = str_size;
 					else
 						i = pcmds[chosen].loc;
+					}
+				else if (cmd == ':')
+					{
+					if (complete == NULL) continue;
+					int str_size0 = str_size;
+					str_size += mbstowcs(NULL, complete + length, 0);
+					if (str_size + 1 >= bufsize)
+						{
+						bufsize = str_size*2;
+						buffer = xrealloc(buffer, bufsize * sizeof(wchar_t));
+						}
+					mbstowcs(buffer + str_size0, complete + length, str_size - str_size0 + 1);
+					i = str_size;
 					}
 				}
 			else if (key == 127)
@@ -1667,6 +1756,7 @@ get_str(char *str, char loc, const char cmd)
 	free(buffer);
 	free(line_widths);
 	free(temp);
+	free(complete);
 	s_y = s_y0x; /* revert to screen position before insertion */
 
 	return rbuffer;
